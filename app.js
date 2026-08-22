@@ -1,4 +1,4 @@
-import { STATUS, calculateBookAccountRatio, deriveDashboard, formatMoney } from "./model.js";
+import { STATUS, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney } from "./model.js?v=20260822-3";
 import { refreshPublicDashboard } from "./public-refresh.js?v=20260822-1";
 
 const SECTION_META = {
@@ -9,6 +9,9 @@ const SECTION_META = {
 };
 
 let dashboard;
+let publishedPositioningCard;
+let publishedDataMode;
+const POSITIONING_STORAGE_KEY = "crypto-signal-tracker:positioning-v1";
 const $ = (selector) => document.querySelector(selector);
 
 function escapeHtml(value = "") {
@@ -35,11 +38,15 @@ function renderCard(card) {
         ? `<i class="live-dot"></i> 访客刚刚刷新`
         : `<i class="live-dot"></i> 发布时已刷新`
     : "手动口径";
+  const maintenanceButton = card.id === 9
+    ? `<button class="maintenance-button" type="button" data-maintain-positioning>手动维护</button>`
+    : "";
   return `
     <article class="signal-card status-${card.status}">
       <div class="signal-topline">
         <span class="signal-number">${String(card.id).padStart(2, "0")}</span>
         <span class="status-chip"><i>${status.icon}</i>${status.label}</span>
+        ${maintenanceButton}
       </div>
       <h3>${escapeHtml(card.title)}</h3>
       <strong class="signal-headline">${escapeHtml(card.headline)}</strong>
@@ -153,6 +160,9 @@ async function refreshData() {
   button.classList.add("loading");
   try {
     const result = await refreshPublicDashboard(dashboard);
+    if (localStorage.getItem(POSITIONING_STORAGE_KEY)) {
+      result.data.dataMode = result.warnings.length ? "本地维护 + 混合数据" : "本地维护 + 实时数据";
+    }
     dashboard = result.data;
     render();
     if (result.warnings.length) {
@@ -169,81 +179,65 @@ async function refreshData() {
   }
 }
 
-function openEditor(id) {
-  const card = dashboard.cards.find((item) => item.id === id);
-  if (!card) return;
-  $("#editId").value = card.id;
-  $("#editIndex").textContent = `SIGNAL ${String(card.id).padStart(2, "0")}`;
-  $("#editTitle").textContent = card.title;
-  $("#editStatus").value = card.status;
-  $("#editChange").value = card.change || "";
-  $("#editHeadline").value = card.headline;
-  $("#editFacts").value = card.facts.join("\n");
-  const isPositioning = card.id === 9;
-  $("#editFactsGroup").hidden = isPositioning;
-  $("#positionRatioFields").hidden = !isPositioning;
-  if (isPositioning) {
-    const accountRatio = card.positioning?.accountRatio ?? ratioFromFacts(card.facts, "账户比");
-    const positionRatio = card.positioning?.positionRatio ?? ratioFromFacts(card.facts, "仓位比");
-    $("#editAccountRatio").value = Number.isFinite(accountRatio) ? accountRatio : "";
-    $("#editPositionRatio").value = Number.isFinite(positionRatio) ? positionRatio : "";
-    updateCalculatedRatio();
-  }
-  $("#editDetail").value = card.detail;
-  $("#editSourceLabel").value = card.source?.label || "";
-  $("#editSourceUrl").value = card.source?.url || "";
-  $("#editDialog").showModal();
-}
-
-async function saveEdit(event) {
-  event.preventDefault();
-  const id = Number($("#editId").value);
-  const target = dashboard.cards.find((item) => item.id === id);
-  const isPositioning = id === 9;
-  let facts = $("#editFacts").value.split("\n").map((value) => value.trim()).filter(Boolean);
-  let change = $("#editChange").value.trim() || "—";
-  if (isPositioning) {
-    const accountRatio = Number($("#editAccountRatio").value);
-    const positionRatio = Number($("#editPositionRatio").value);
-    const bookAccountRatio = calculateBookAccountRatio($("#editAccountRatio").value, $("#editPositionRatio").value);
-    if (bookAccountRatio === null) {
-      showToast("账户比必须大于 0，且仓位比必须为有效数字", "error");
-      return;
-    }
-    target.positioning = { accountRatio, positionRatio, bookAccountRatio };
-    facts = [`账户比 ${accountRatio.toFixed(2)}`, `仓位比 ${positionRatio.toFixed(2)}`, `仓帐比 ${bookAccountRatio.toFixed(2)}`];
-    change = change.match(/仓[账帐]比\s*\d+(?:\.\d+)?/)
-      ? change.replace(/仓[账帐]比\s*\d+(?:\.\d+)?/, `仓帐比${bookAccountRatio.toFixed(2)}`)
-      : `${change} · 仓帐比${bookAccountRatio.toFixed(2)}`;
-  }
-  Object.assign(target, {
-    status: $("#editStatus").value,
-    change,
-    headline: $("#editHeadline").value.trim(),
-    facts,
-    detail: $("#editDetail").value.trim(),
-    source: { label: $("#editSourceLabel").value.trim(), url: $("#editSourceUrl").value.trim() }
-  });
-  try {
-    dashboard = await api("/api/dashboard", { method: "PUT", body: JSON.stringify(dashboard) });
-    $("#editDialog").close();
-    render();
-    showToast(`${target.title} 已更新`, "success");
-  } catch (error) {
-    showToast(`保存失败：${error.message}`, "error");
-  }
-}
-
 function ratioFromFacts(facts, label) {
   const fact = facts.find((item) => item.startsWith(label));
   const value = Number(fact?.match(/-?\d+(?:\.\d+)?/)?.[0]);
   return Number.isFinite(value) ? value : null;
 }
 
-function updateCalculatedRatio() {
-  const ratio = calculateBookAccountRatio($("#editAccountRatio").value, $("#editPositionRatio").value);
-  $("#editBookAccountRatio").textContent = ratio === null ? "—" : ratio.toFixed(2);
-  $("#editBookAccountRatio").classList.toggle("is-invalid", ratio === null);
+function applyPositioning(accountRatio, positionRatio, savedAt = new Date().toISOString()) {
+  const signal = derivePositioningSignal(accountRatio, positionRatio);
+  if (!signal) return false;
+  const target = dashboard.cards.find((item) => item.id === 9);
+  Object.assign(target, signal, {
+    source: { label: "访客手工维护", url: "https://www.binance.com/en/futures/BTCUSDT" },
+    marketFetchedAt: savedAt
+  });
+  dashboard.dataMode = dashboard.dataMode.includes("实时") ? "本地维护 + 实时数据" : "本地维护 + 公开快照";
+  return true;
+}
+
+function updateMaintenanceRatio() {
+  const ratio = calculateBookAccountRatio($("#maintenanceAccountRatio").value, $("#maintenancePositionRatio").value);
+  $("#maintenanceBookAccountRatio").textContent = ratio === null ? "—" : ratio.toFixed(2);
+  $("#maintenanceBookAccountRatio").classList.toggle("is-invalid", ratio === null);
+}
+
+function openPositioningMaintenance() {
+  const target = dashboard.cards.find((item) => item.id === 9);
+  const accountRatio = target.positioning?.accountRatio ?? ratioFromFacts(target.facts, "账户比");
+  const positionRatio = target.positioning?.positionRatio ?? ratioFromFacts(target.facts, "仓位比");
+  $("#maintenanceAccountRatio").value = Number.isFinite(accountRatio) ? accountRatio : "";
+  $("#maintenancePositionRatio").value = Number.isFinite(positionRatio) ? positionRatio : "";
+  updateMaintenanceRatio();
+  $("#positioningDialog").showModal();
+}
+
+function savePositioningMaintenance(event) {
+  event.preventDefault();
+  const accountRatio = Number($("#maintenanceAccountRatio").value);
+  const positionRatio = Number($("#maintenancePositionRatio").value);
+  const savedAt = new Date().toISOString();
+  if (!applyPositioning(accountRatio, positionRatio, savedAt)) {
+    showToast("账户比必须大于 0，且仓位比必须为有效数字", "error");
+    return;
+  }
+  localStorage.setItem(POSITIONING_STORAGE_KEY, JSON.stringify({ accountRatio, positionRatio, savedAt }));
+  $("#positioningDialog").close();
+  render();
+  showToast("多空比已保存到当前浏览器", "success");
+}
+
+function resetPositioningMaintenance() {
+  const index = dashboard.cards.findIndex((item) => item.id === 9);
+  dashboard.cards[index] = typeof structuredClone === "function"
+    ? structuredClone(publishedPositioningCard)
+    : JSON.parse(JSON.stringify(publishedPositioningCard));
+  dashboard.dataMode = publishedDataMode;
+  localStorage.removeItem(POSITIONING_STORAGE_KEY);
+  $("#positioningDialog").close();
+  render();
+  showToast("已恢复发布时的多空比", "success");
 }
 
 function buildReport() {
@@ -274,6 +268,16 @@ async function saveSnapshot() {
 async function init() {
   try {
     dashboard = await api(`./dashboard.json?v=${Date.now()}`);
+    publishedPositioningCard = typeof structuredClone === "function"
+      ? structuredClone(dashboard.cards.find((item) => item.id === 9))
+      : JSON.parse(JSON.stringify(dashboard.cards.find((item) => item.id === 9)));
+    publishedDataMode = dashboard.dataMode;
+    try {
+      const saved = JSON.parse(localStorage.getItem(POSITIONING_STORAGE_KEY));
+      if (saved) applyPositioning(saved.accountRatio, saved.positionRatio, saved.savedAt);
+    } catch {
+      localStorage.removeItem(POSITIONING_STORAGE_KEY);
+    }
     render();
     $("#refreshButton").disabled = false;
   } catch (error) {
@@ -285,15 +289,15 @@ $("#refreshButton").addEventListener("click", refreshData);
 $("#snapshotButton").addEventListener("click", saveSnapshot);
 $("#copyButton").addEventListener("click", copyReport);
 $("#sections").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-edit]");
-  if (button) openEditor(Number(button.dataset.edit));
+  if (event.target.closest("[data-maintain-positioning]")) openPositioningMaintenance();
 });
-$("#editForm").addEventListener("submit", saveEdit);
-$("#editAccountRatio").addEventListener("input", updateCalculatedRatio);
-$("#editPositionRatio").addEventListener("input", updateCalculatedRatio);
-$("#cancelEdit").addEventListener("click", () => $("#editDialog").close());
-$("#editDialog").addEventListener("click", (event) => {
-  if (event.target === $("#editDialog")) $("#editDialog").close();
+$("#positioningForm").addEventListener("submit", savePositioningMaintenance);
+$("#maintenanceAccountRatio").addEventListener("input", updateMaintenanceRatio);
+$("#maintenancePositionRatio").addEventListener("input", updateMaintenanceRatio);
+$("#resetPositioning").addEventListener("click", resetPositioningMaintenance);
+$("#cancelPositioning").addEventListener("click", () => $("#positioningDialog").close());
+$("#positioningDialog").addEventListener("click", (event) => {
+  if (event.target === $("#positioningDialog")) $("#positioningDialog").close();
 });
 
 init();

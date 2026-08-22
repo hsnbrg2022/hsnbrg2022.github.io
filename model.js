@@ -20,6 +20,25 @@ export function calculateBookAccountRatio(accountRatio, positionRatio) {
   return position / account;
 }
 
+export function derivePositioningSignal(accountRatio, positionRatio) {
+  const account = Number(accountRatio);
+  const position = Number(positionRatio);
+  const bookAccountRatio = calculateBookAccountRatio(accountRatio, positionRatio);
+  if (bookAccountRatio === null) return null;
+  const institutionalLock = account <= 1.15 && position >= 1.5 && bookAccountRatio >= 1.4;
+  const crowded = account >= 1.5 && position >= 1.5;
+  return {
+    positioning: { accountRatio: account, positionRatio: position, bookAccountRatio },
+    facts: [`账户比 ${account.toFixed(2)}`, `仓位比 ${position.toFixed(2)}`, `仓帐比 ${bookAccountRatio.toFixed(2)}`],
+    headline: institutionalLock ? "机构锁仓做多（S+级）" : crowded ? "多头拥挤" : "结构中性",
+    detail: institutionalLock
+      ? "账户比偏低而大户仓位比偏高，落入机构锁仓象限。"
+      : crowded ? "账户与仓位同步偏多，需警惕杠杆拥挤。" : "账户与仓位差异不显著，暂无强结构信号。",
+    status: institutionalLock ? "green" : "yellow",
+    change: institutionalLock ? `🟦S+ 仓帐比${bookAccountRatio.toFixed(2)}` : `仓帐比${bookAccountRatio.toFixed(2)}`
+  };
+}
+
 export function calculateDxyFromRates(rates = {}) {
   const required = ["EUR", "JPY", "GBP", "CAD", "SEK", "CHF"];
   if (!required.every((key) => Number.isFinite(Number(rates[key])) && Number(rates[key]) > 0)) return null;

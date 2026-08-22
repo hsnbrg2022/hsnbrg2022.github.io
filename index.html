@@ -121,49 +121,32 @@
     <p>公开访客可刷新实时公开数据；手工指标保持发布口径。仅供研究与信息整理，不构成投资建议。</p>
   </footer>
 
-  <dialog id="editDialog">
-    <form id="editForm" method="dialog">
+  <dialog id="positioningDialog">
+    <form id="positioningForm" method="dialog">
       <div class="dialog-head">
-        <div><span id="editIndex" class="panel-index">SIGNAL</span><h2 id="editTitle">编辑指标</h2></div>
+        <div><span class="panel-index">SIGNAL 09</span><h2>手动维护多空比</h2></div>
         <button class="icon-button" value="cancel" aria-label="关闭">×</button>
       </div>
-      <input id="editId" type="hidden">
-      <div class="form-grid">
-        <label>状态
-          <select id="editStatus">
-            <option value="green">✅ 触发</option>
-            <option value="yellow">🟡 观察</option>
-            <option value="red">🔴 风险</option>
-            <option value="off">❌ 未触发</option>
-          </select>
-        </label>
-        <label>状态变化<input id="editChange" placeholder="例如：连续 4 日"></label>
-      </div>
-      <label>主指标<input id="editHeadline" required></label>
-      <label id="editFactsGroup">辅助数据（每行一项）<textarea id="editFacts" rows="3"></textarea></label>
-      <div id="positionRatioFields" class="ratio-fields" hidden>
+      <p class="maintenance-note">只需填写账户比与仓位比；仓帐比、信号等级和解读将自动计算。数据仅保存在当前浏览器，不会影响其他访客。</p>
+      <div class="ratio-fields">
         <div class="form-grid ratio-inputs">
-          <label>账户比<input id="editAccountRatio" type="number" min="0.01" step="0.01" inputmode="decimal"></label>
-          <label>仓位比<input id="editPositionRatio" type="number" min="0" step="0.01" inputmode="decimal"></label>
+          <label>账户比<input id="maintenanceAccountRatio" type="number" min="0.01" step="0.01" inputmode="decimal" required></label>
+          <label>仓位比<input id="maintenancePositionRatio" type="number" min="0" step="0.01" inputmode="decimal" required></label>
         </div>
         <label>仓帐比（自动计算）
-          <output id="editBookAccountRatio" class="calculated-output">—</output>
+          <output id="maintenanceBookAccountRatio" class="calculated-output">—</output>
           <small>仓位比 ÷ 账户比，仅展示、不可编辑</small>
         </label>
       </div>
-      <label>解读<textarea id="editDetail" rows="3" required></textarea></label>
-      <div class="form-grid">
-        <label>来源名称<input id="editSourceLabel"></label>
-        <label>来源链接<input id="editSourceUrl" type="url"></label>
-      </div>
       <div class="dialog-actions">
-        <button class="button button-ghost" value="cancel" type="button" id="cancelEdit">取消</button>
-        <button class="button button-primary" type="submit">保存修改</button>
+        <button class="button button-ghost reset-button" type="button" id="resetPositioning">恢复发布值</button>
+        <button class="button button-ghost" value="cancel" type="button" id="cancelPositioning">取消</button>
+        <button class="button button-primary" type="submit">保存到本浏览器</button>
       </div>
     </form>
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="./app.js?v=20260822-2"></script>
+  <script type="module" src="./app.js?v=20260822-3"></script>
 </body>
 </html>

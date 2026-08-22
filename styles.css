@@ -143,6 +143,8 @@ a { color: inherit; }
 .edit-button { margin-left: auto; opacity: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; transition: .2s ease; }
 .signal-card:hover .edit-button, .edit-button:focus { opacity: 1; }
 .edit-button:hover { color: var(--text); }
+.maintenance-button { margin-left: auto; padding: 6px 10px; border: 1px solid rgba(151,126,234,.32); border-radius: 999px; color: #c7b9ff; background: rgba(151,126,234,.1); cursor: pointer; font: 500 11px var(--sans); transition: .2s ease; }
+.maintenance-button:hover { border-color: rgba(151,126,234,.58); background: rgba(151,126,234,.18); }
 .signal-card h3 { color: var(--text); font-size: 15px; margin: 18px 0 10px; }
 .signal-headline { display: block; color: var(--text); font: 500 18px/1.45 var(--mono); letter-spacing: -.025em; }
 .facts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
@@ -205,6 +207,7 @@ dialog::backdrop { background: rgba(0,0,0,.72); backdrop-filter: blur(6px); }
 dialog form { padding: 26px; }
 .dialog-head { display: flex; justify-content: space-between; align-items: start; margin-bottom: 24px; }
 .dialog-head h2 { margin: 8px 0 0; font-size: 23px; }
+.maintenance-note { margin: -8px 0 20px; padding: 12px 14px; border: 1px solid rgba(151,126,234,.2); border-radius: 10px; color: var(--muted); background: rgba(151,126,234,.07); font-size: 12px; line-height: 1.7; }
 .icon-button { border: 1px solid var(--line); border-radius: 50%; background: transparent; color: var(--muted); width: 34px; height: 34px; cursor: pointer; font-size: 21px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 label { display: block; color: var(--muted); font-size: 11px; margin-bottom: 14px; }
@@ -217,6 +220,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--mint); box-shado
 .calculated-output.is-invalid { color: var(--red); border-color: rgba(236,125,112,.4); background: rgba(236,125,112,.08); }
 .ratio-fields label > small { display: block; margin-top: 6px; color: #66706d; font-size: 10px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 8px; }
+.dialog-actions .reset-button { margin-right: auto; }
 
 .toast { position: fixed; z-index: 50; left: 50%; bottom: 28px; max-width: min(560px, calc(100% - 32px)); transform: translate(-50%, 20px); opacity: 0; pointer-events: none; padding: 12px 16px; border: 1px solid var(--line-bright); border-radius: 10px; background: #171c1d; box-shadow: 0 15px 45px rgba(0,0,0,.45); font-size: 12px; transition: .25s ease; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
