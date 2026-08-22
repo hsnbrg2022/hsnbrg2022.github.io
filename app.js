@@ -145,6 +145,10 @@ function showToast(message, tone = "default", duration = 3800) {
 
 async function refreshData() {
   const button = $("#refreshButton");
+  if (!dashboard) {
+    showToast("看板数据仍在加载，请稍后重试", "warning");
+    return;
+  }
   button.disabled = true;
   button.classList.add("loading");
   try {
@@ -271,6 +275,7 @@ async function init() {
   try {
     dashboard = await api(`./dashboard.json?v=${Date.now()}`);
     render();
+    $("#refreshButton").disabled = false;
   } catch (error) {
     showToast(`无法载入看板：${error.message}`, "error", 8000);
   }
