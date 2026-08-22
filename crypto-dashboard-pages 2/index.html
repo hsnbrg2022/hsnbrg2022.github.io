@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b0e0f">
+  <title>加密看板追踪器</title>
+  <meta name="description" content="资金面、宏观、链上估值与仓位情绪的每日加密市场看板。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://hsnbrg2022.github.io/">
+  <meta property="og:title" content="加密看板追踪器">
+  <meta property="og:description" content="资金面、宏观、链上估值与仓位情绪的每日加密市场看板。">
+  <meta property="og:image" content="https://hsnbrg2022.github.io/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="加密看板追踪器">
+  <meta name="twitter:description" content="资金面、宏观、链上估值与仓位情绪的每日加密市场看板。">
+  <meta name="twitter:image" content="https://hsnbrg2022.github.io/og.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="回到顶部">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span><strong>CRYPTO SIGNAL</strong><small>加密看板追踪器</small></span>
+    </a>
+    <div class="toolbar">
+      <span id="modePill" class="mode-pill">公开只读版</span>
+      <button id="snapshotButton" class="button button-ghost" type="button" hidden>保存快照</button>
+      <button id="refreshButton" class="button button-primary" type="button" hidden>
+        <span class="refresh-icon">↻</span> 刷新数据
+      </button>
+    </div>
+  </header>
+
+  <main id="top" class="shell">
+    <section class="hero" aria-labelledby="pageTitle">
+      <div>
+        <p class="eyebrow">DAILY MARKET PULSE</p>
+        <h1 id="pageTitle">先看信号，<br><em>再做决定。</em></h1>
+        <p class="hero-copy">将资金、宏观、链上估值与仓位结构压缩成一张每日决策面板。</p>
+      </div>
+      <div class="hero-meta">
+        <span id="dashboardDate">—</span>
+        <small id="updatedAt">最后更新 —</small>
+      </div>
+    </section>
+
+    <section class="market-strip" aria-label="今日市场概览">
+      <article class="market-primary">
+        <div class="asset-orb">₿</div>
+        <div>
+          <span class="metric-label">BITCOIN / USD <b id="btcSource">最近缓存</b></span>
+          <strong id="btcPrice">—</strong>
+        </div>
+        <span id="btcChange" class="change-pill">—</span>
+      </article>
+      <article class="market-metric">
+        <span class="metric-label">FEAR & GREED <b id="fngSource">最近缓存</b></span>
+        <div><strong id="fngValue">—</strong><span id="fngLabel">—</span></div>
+        <div class="heat-track"><i id="heatFill"></i><b id="heatMarker"></b></div>
+      </article>
+      <article class="market-metric">
+        <span class="metric-label">200 WEEK MA <b id="wmaSource">最近缓存</b></span>
+        <div><strong id="wmaRatio">—</strong><span id="wmaValue">—</span></div>
+        <p id="wmaInsight">—</p>
+      </article>
+    </section>
+
+    <div class="content-grid">
+      <div id="sections" class="sections" aria-live="polite"></div>
+
+      <aside class="sidebar">
+        <section class="score-card sticky-card">
+          <div class="score-heading"><span>今日状态</span><small>9 SIGNALS</small></div>
+          <div class="score-ring" id="scoreRing">
+            <div><strong id="scoreValue">—</strong><span>/ 9</span></div>
+          </div>
+          <p id="scoreVerdict" class="score-verdict">正在计算信号…</p>
+          <div id="statusLegend" class="status-legend"></div>
+          <div id="trackerList" class="tracker-list"></div>
+        </section>
+      </aside>
+    </div>
+
+    <section class="briefing">
+      <div class="briefing-head">
+        <div><span class="eyebrow">DAILY BRIEFING</span><h2>今日研判</h2></div>
+        <button id="copyButton" class="button button-ghost" type="button">复制全文</button>
+      </div>
+      <div class="briefing-grid">
+        <article class="summary-panel">
+          <span class="panel-index">01 / SUMMARY</span>
+          <p id="summaryText">—</p>
+        </article>
+        <article class="change-panel">
+          <span class="panel-index">02 / DELTA</span>
+          <h3 id="changeTitle">核心变化</h3>
+          <ul id="changeList"></ul>
+        </article>
+        <article class="risk-panel">
+          <span class="panel-index">03 / RISK</span>
+          <h3>风险提示</h3>
+          <ul id="riskList"></ul>
+        </article>
+        <article class="macro-panel">
+          <span class="panel-index">04 / WATCH</span>
+          <h3>宏观观察</h3>
+          <ul id="macroList"></ul>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>CRYPTO SIGNAL TRACKER · PUBLIC VIEW</span>
+    <p>公开只读快照，仅供研究与信息整理，不构成投资建议。</p>
+  </footer>
+
+  <dialog id="editDialog">
+    <form id="editForm" method="dialog">
+      <div class="dialog-head">
+        <div><span id="editIndex" class="panel-index">SIGNAL</span><h2 id="editTitle">编辑指标</h2></div>
+        <button class="icon-button" value="cancel" aria-label="关闭">×</button>
+      </div>
+      <input id="editId" type="hidden">
+      <div class="form-grid">
+        <label>状态
+          <select id="editStatus">
+            <option value="green">✅ 触发</option>
+            <option value="yellow">🟡 观察</option>
+            <option value="red">🔴 风险</option>
+            <option value="off">❌ 未触发</option>
+          </select>
+        </label>
+        <label>状态变化<input id="editChange" placeholder="例如：连续 4 日"></label>
+      </div>
+      <label>主指标<input id="editHeadline" required></label>
+      <label id="editFactsGroup">辅助数据（每行一项）<textarea id="editFacts" rows="3"></textarea></label>
+      <div id="positionRatioFields" class="ratio-fields" hidden>
+        <div class="form-grid ratio-inputs">
+          <label>账户比<input id="editAccountRatio" type="number" min="0.01" step="0.01" inputmode="decimal"></label>
+          <label>仓位比<input id="editPositionRatio" type="number" min="0" step="0.01" inputmode="decimal"></label>
+        </div>
+        <label>仓帐比（自动计算）
+          <output id="editBookAccountRatio" class="calculated-output">—</output>
+          <small>仓位比 ÷ 账户比，仅展示、不可编辑</small>
+        </label>
+      </div>
+      <label>解读<textarea id="editDetail" rows="3" required></textarea></label>
+      <div class="form-grid">
+        <label>来源名称<input id="editSourceLabel"></label>
+        <label>来源链接<input id="editSourceUrl" type="url"></label>
+      </div>
+      <div class="dialog-actions">
+        <button class="button button-ghost" value="cancel" type="button" id="cancelEdit">取消</button>
+        <button class="button button-primary" type="submit">保存修改</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
