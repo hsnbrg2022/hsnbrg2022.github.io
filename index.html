@@ -29,6 +29,7 @@
       <span><strong>CRYPTO SIGNAL</strong><small>加密看板追踪器</small></span>
     </a>
     <div class="toolbar">
+      <button id="languageButton" class="button button-ghost language-button" type="button" title="Switch to English">EN</button>
       <span id="modePill" class="mode-pill">公开只读版</span>
       <button id="snapshotButton" class="button button-ghost" type="button" hidden>保存快照</button>
       <button id="refreshButton" class="button button-primary" type="button" title="更新 BTC、F&G、稳定币、DXY、黄金与 200WMA" disabled>
@@ -125,28 +126,28 @@
     <form id="positioningForm" method="dialog">
       <div class="dialog-head">
         <div><span class="panel-index">SIGNAL 09</span><h2>手动维护多空比</h2></div>
-        <button class="icon-button" value="cancel" aria-label="关闭">×</button>
+        <button id="closePositioning" class="icon-button" value="cancel" aria-label="关闭">×</button>
       </div>
       <p class="maintenance-note">只需填写账户比与仓位比；仓帐比、信号等级和解读将自动计算。数据仅保存在当前浏览器，不会影响其他访客。</p>
       <div class="ratio-fields">
         <div class="form-grid ratio-inputs">
-          <label>账户比<input id="maintenanceAccountRatio" type="number" min="0.01" step="0.01" inputmode="decimal" required></label>
-          <label>仓位比<input id="maintenancePositionRatio" type="number" min="0" step="0.01" inputmode="decimal" required></label>
+          <label><span id="maintenanceAccountLabel">账户比</span><input id="maintenanceAccountRatio" type="number" min="0.01" step="0.01" inputmode="decimal" required></label>
+          <label><span id="maintenancePositionLabel">仓位比</span><input id="maintenancePositionRatio" type="number" min="0" step="0.01" inputmode="decimal" required></label>
         </div>
-        <label>仓帐比（自动计算）
+        <label><span id="maintenanceBookLabel">仓帐比（自动计算）</span>
           <output id="maintenanceBookAccountRatio" class="calculated-output">—</output>
-          <small>仓位比 ÷ 账户比，仅展示、不可编辑</small>
+          <small id="maintenanceRatioHelp">仓位比 ÷ 账户比，仅展示、不可编辑</small>
         </label>
       </div>
       <div class="dialog-actions">
         <button class="button button-ghost reset-button" type="button" id="resetPositioning">恢复发布值</button>
         <button class="button button-ghost" value="cancel" type="button" id="cancelPositioning">取消</button>
-        <button class="button button-primary" type="submit">保存到本浏览器</button>
+        <button id="savePositioning" class="button button-primary" type="submit">保存到本浏览器</button>
       </div>
     </form>
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="./app.js?v=20260822-3"></script>
+  <script type="module" src="./app.js?v=20260822-5"></script>
 </body>
 </html>

@@ -1,0 +1,173 @@
+export const LANGUAGE_STORAGE_KEY = "crypto-signal-tracker:language-v1";
+
+const MESSAGES = {
+  zh: {
+    brand: "加密看板追踪器", backTop: "回到顶部", switchLanguage: "Switch to English", languageButton: "EN",
+    heroTitle: "先看信号，<br><em>再做决定。</em>", heroCopy: "将资金、宏观、链上估值与仓位结构压缩成一张每日决策面板。",
+    refresh: "刷新最新数据", refreshTitle: "更新 BTC、F&G、稳定币、DXY、黄金与 200WMA", copy: "复制全文",
+    todayStatus: "今日状态", calculating: "正在计算信号…", briefing: "今日研判", summary: "摘要", changes: "核心变化", risks: "风险提示", watch: "宏观观察",
+    footer: "公开访客可刷新实时公开数据；手工指标保持发布口径。仅供研究与信息整理，不构成投资建议。",
+    lastUpdated: "最后更新 {time}（UTC+8）", syncing: "正在同步最新数据…", cached: "最近缓存",
+    aboveWma: "价格位于长期成本线上方", belowWma: "价格位于长期成本线下方",
+    bullishNoRed: "偏多主导 · 无红灯", redSignals: "出现 {count} 项风险信号", mixedSignals: "信号分化 · 保持观察",
+    maintain: "手动维护", manual: "手动口径", publishedRefresh: "发布时已刷新", visitorRefresh: "访客刚刚刷新", refreshFailed: "刷新失败 · 保留最近值",
+    positioningTitle: "手动维护多空比", positioningNote: "只需填写账户比与仓位比；仓帐比、信号等级和解读将自动计算。数据仅保存在当前浏览器，不会影响其他访客。",
+    accountRatio: "账户比", positionRatio: "仓位比", bookAccountRatio: "仓帐比（自动计算）", ratioHelp: "仓位比 ÷ 账户比，仅展示、不可编辑",
+    reset: "恢复发布值", cancel: "取消", saveBrowser: "保存到本浏览器", close: "关闭",
+    savedPositioning: "多空比已保存到当前浏览器", resetPositioning: "已恢复发布时的多空比", invalidRatio: "账户比必须大于 0，且仓位比必须为有效数字",
+    loadingDashboard: "看板数据仍在加载，请稍后重试", languageChanged: "已切换为中文",
+    capital: "资金面", capitalSub: "资本是否在入场", macro: "宏观", macroSub: "流动性环境是否友好", onchain: "链上估值", onchainSub: "周期位置", positioning: "仓位情绪", positioningSub: "衍生品结构",
+    statusGreen: "触发", statusYellow: "观察", statusRed: "风险", statusOff: "未触发"
+  },
+  en: {
+    brand: "Crypto Signal Tracker", backTop: "Back to top", switchLanguage: "切换到中文", languageButton: "中文",
+    heroTitle: "Read the signals.<br><em>Then decide.</em>", heroCopy: "A daily decision dashboard spanning capital flows, macro liquidity, on-chain valuation and positioning.",
+    refresh: "Refresh latest data", refreshTitle: "Update BTC, F&G, stablecoins, DXY, gold and 200WMA", copy: "Copy report",
+    todayStatus: "Today's status", calculating: "Calculating signals…", briefing: "Daily view", summary: "Summary", changes: "Key changes", risks: "Risk alerts", watch: "Macro watch",
+    footer: "Visitors can refresh public real-time data. Manual indicators retain their published methodology. For research only; not financial advice.",
+    lastUpdated: "Last updated {time} (UTC+8)", syncing: "Syncing latest data…", cached: "cached",
+    aboveWma: "Price is above the long-term cost basis", belowWma: "Price is below the long-term cost basis",
+    bullishNoRed: "Bullish bias · No red flags", redSignals: "{count} risk signal(s)", mixedSignals: "Mixed signals · Stay selective",
+    maintain: "Maintain", manual: "Manual", publishedRefresh: "Refreshed at publish", visitorRefresh: "Just refreshed", refreshFailed: "Refresh failed · Using last value",
+    positioningTitle: "Maintain long/short ratios", positioningNote: "Enter the account ratio and position ratio. The position/account ratio, signal tier and interpretation are calculated automatically. Values are stored only in this browser.",
+    accountRatio: "Account ratio", positionRatio: "Position ratio", bookAccountRatio: "Position / account (calculated)", ratioHelp: "Position ratio ÷ account ratio. Display only; not editable.",
+    reset: "Restore published", cancel: "Cancel", saveBrowser: "Save in this browser", close: "Close",
+    savedPositioning: "Long/short ratios saved in this browser", resetPositioning: "Published long/short ratios restored", invalidRatio: "Account ratio must be above 0 and position ratio must be valid",
+    loadingDashboard: "Dashboard is still loading. Please try again shortly.", languageChanged: "Switched to English",
+    capital: "Capital flows", capitalSub: "Is capital entering?", macro: "Macro", macroSub: "Is liquidity supportive?", onchain: "On-chain valuation", onchainSub: "Where are we in the cycle?", positioning: "Positioning", positioningSub: "Derivatives structure",
+    statusGreen: "Active", statusYellow: "Watch", statusRed: "Risk", statusOff: "Inactive"
+  }
+};
+
+const CARD_NAMES = {
+  1: ["BTC ETF Flows", "ETF"], 2: ["Strategy EV mNAV", "mNAV"], 3: ["Stablecoin Market Cap", "Stablecoins"],
+  4: ["Fed Stance", "Fed"], 5: ["DXY Dollar Index", "DXY"], 6: ["Gold", "Gold"],
+  7: ["MVRV Z-Score", "MVRV"], 8: ["Puell Multiple", "Puell"], 9: ["Long/Short Ratio", "L/S Ratio"]
+};
+
+const EXACT_EN = new Map([
+  ["ETF 资金连续净流入，机构配置需求保持强势。", "ETF flows remain net positive, signaling resilient institutional allocation demand."],
+  ["距 1.0 触发仅 2%，BTC 拉升带动回升，现金跑道健康。", "Only 2% below the 1.0 trigger; BTC strength is lifting mNAV and the cash runway remains healthy."],
+  ["稳定币供给扩张", "Stablecoin supply expanding"], ["稳定币供给收缩", "Stablecoin supply contracting"],
+  ["稳定币供给保持扩张，链上可用流动性改善。", "Stablecoin supply is expanding, improving deployable on-chain liquidity."],
+  ["稳定币供给出现收缩，需关注链上流动性压力。", "Stablecoin supply is contracting; monitor on-chain liquidity pressure."],
+  ["降息预期升温 · 宽松预期延续", "Rate-cut expectations rising · Easing outlook intact"],
+  ["关注 FOMC 与 CME FedWatch", "Watch the FOMC and CME FedWatch"],
+  ["市场定价指向更友好的流动性环境，但需跟踪官方表态。", "Market pricing points to a friendlier liquidity backdrop, subject to official guidance."],
+  ["守在 100 下方", "Holding below 100"], ["升至 100 上方", "Above 100"], ["风险资产顺风", "Tailwind for risk assets"], ["美元走强施压", "Dollar strength pressures risk assets"],
+  ["美元指数维持弱势，为风险资产提供宏观顺风。", "A softer dollar remains a macro tailwind for risk assets."],
+  ["美元指数走强，风险资产的流动性环境承压。", "A stronger dollar is tightening the liquidity backdrop for risk assets."],
+  ["日内走强", "Stronger on the day"], ["日内回落", "Lower on the day"], ["较发布值走强", "Stronger vs published"], ["较发布值回落", "Lower vs published"],
+  ["同步观察实际利率", "Watch real yields alongside"], ["黄金用于交叉验证美元、实际利率与避险需求的变化。", "Gold cross-checks moves in the dollar, real yields and safe-haven demand."],
+  ["价 / BP 1.94x", "Price / BP 1.94x"], ["低估累积区", "Undervalued accumulation zone"],
+  ["估值仍在偏低区域，但尚未进入 Z-Score < 0 的历史极值区。", "Valuation remains low, but has not reached the historical extreme of Z-Score < 0."],
+  ["获利主导", "Profit-taking dominant"], ["算力 920.8 EH/s", "Hashrate 920.8 EH/s"],
+  ["矿工承压偏底部，SOPR 转强，仍处定投友好区。", "Miner stress remains near cycle lows, SOPR is firming, and the zone remains DCA-friendly."],
+  ["机构锁仓做多（S+级）", "Institutional locked-long structure (S+)"], ["多头拥挤", "Crowded longs"], ["结构中性", "Neutral structure"],
+  ["账户比偏低而大户仓位比偏高，落入机构锁仓象限。", "A low account ratio and high whale position ratio place the market in the institutional locked-long quadrant."],
+  ["账户比下降而仓位比上升，大户重仓、散户冷静，落入机构锁仓象限。", "The account ratio is lower while the position ratio is higher: whales are heavily positioned and retail remains restrained."],
+  ["账户与仓位同步偏多，需警惕杠杆拥挤。", "Accounts and positions are both long-biased; watch for leverage crowding."],
+  ["账户与仓位差异不显著，暂无强结构信号。", "The account/position divergence is limited, with no strong structural signal."],
+  ["财政部回购安排 → 关注对市场流动性的边际影响", "Treasury buybacks → watch the marginal liquidity impact"],
+  ["CLARITY 法案进度 → 关注监管确定性", "CLARITY Act progress → watch regulatory certainty"],
+  ["下一技术观察位：True Market Mean $75,689", "Next technical level: True Market Mean $75,689"],
+  ["Puell 仍在观察区，矿工端压力尚未完全解除", "Puell remains in the watch zone; miner-side pressure has not fully eased."],
+  ["Strategy mNAV 尚未稳定站上 1.0，飞轮效应仍待确认", "Strategy mNAV has not held above 1.0; the flywheel effect is not yet confirmed."],
+  ["访客手工维护", "Visitor-maintained"], ["ECB 推导", "ECB-derived"], ["黄金", "Gold"], ["稳定币", "Stablecoins"], ["多空比", "L/S Ratio"], ["SOPR强", "SOPR strong"]
+  , ["极度贪婪", "Extreme greed"], ["贪婪", "Greed"], ["中性", "Neutral"], ["恐惧", "Fear"], ["极度恐惧", "Extreme fear"]
+]);
+
+export function getInitialLanguage(storage = globalThis.localStorage) {
+  try { return storage?.getItem(LANGUAGE_STORAGE_KEY) === "en" ? "en" : "zh"; } catch { return "zh"; }
+}
+
+export function t(language, key, variables = {}) {
+  let value = MESSAGES[language]?.[key] ?? MESSAGES.zh[key] ?? key;
+  for (const [name, replacement] of Object.entries(variables)) value = value.replaceAll(`{${name}}`, replacement);
+  return value;
+}
+
+export function statusLabel(language, status) {
+  return t(language, { green: "statusGreen", yellow: "statusYellow", red: "statusRed", off: "statusOff" }[status]);
+}
+
+export function translateText(value, language) {
+  if (language !== "en" || value == null) return value;
+  const source = String(value);
+  if (EXACT_EN.has(source)) return EXACT_EN.get(source);
+  let text = source
+    .replace(/\$([\d,.]+)\s*亿/g, (_, number) => `$${(Number(number.replaceAll(",", "")) / 10).toLocaleString("en-US", { maximumFractionDigits: 1 })}B`)
+    .replace(/连续\s*(\d+)\s*日净流入/g, "$1 consecutive days of net inflows")
+    .replace(/累计/g, "total")
+    .replace(/连续(\d+)日/g, "$1-day streak")
+    .replace(/飞轮/g, "Flywheel")
+    .replace(/现金/g, "Cash")
+    .replace(/单券 Runway ([\d.]+)月/g, "Single-security runway $1 mo")
+    .replace(/全局 Runway ([\d.]+)月/g, "Overall runway $1 mo")
+    .replace(/最近数据/g, "Latest data")
+    .replace(/较发布值/g, "vs published")
+    .replace(/较上次/g, "vs previous")
+    .replace(/账户比/g, "Account ratio")
+    .replace(/仓位比/g, "Position ratio")
+    .replace(/仓帐比/g, "Position/account")
+    .replace(/获利主导/g, "Profit-taking dominant")
+    .replace(/算力/g, "Hashrate")
+    .replace(/低估累积区/g, "Undervalued accumulation zone")
+    .replace(/距 1\.0 触发仅 2%/g, "Only 2% below the 1.0 trigger")
+    .replace(/BTC 拉升带动回升/g, "BTC strength is lifting the ratio")
+    .replace(/现金跑道健康/g, "cash runway is healthy")
+    .replace(/跑道健康/g, "runway is healthy")
+    .replace(/飞轮效应仍待确认/g, "the flywheel effect is not yet confirmed")
+    .replace(/仍在观察区，矿工端压力尚未完全解除/g, "remains in the watch zone; miner-side pressure has not fully eased")
+    .replace(/极度贪婪——情绪进入偏热区，注意追高风险/g, "Extreme greed — sentiment is hot; avoid chasing strength")
+    .replace(/贪婪——情绪进入偏热区，注意追高风险/g, "Greed — sentiment is hot; avoid chasing strength")
+    .replace(/24h 上涨 ([\d.]+)%/g, "rose $1% in 24h")
+    .replace(/短线波动放大，需留意获利盘承接/g, "short-term volatility is elevated; watch absorption of profit-taking")
+    .replace(/黄金/g, "Gold")
+    .replace(/稳定币/g, "Stablecoins")
+    .replace(/机构锁仓做多（S\+级）/g, "Institutional locked-long structure (S+)")
+    .replace(/Cashrunway/g, "Cash runway").replace(/Position\/account(?=\d)/g, "Position/account ")
+    .replaceAll("——", " — ").replaceAll("，", ", ").replaceAll("：", ": ").replaceAll("（", " (").replaceAll("）", ")").replaceAll("。", ".");
+  return text;
+}
+
+function englishSummary(data) {
+  const counts = data.counts;
+  const capital = data.cards.filter((item) => item.section === "capital");
+  const capitalGreen = capital.filter((item) => item.status === "green").length;
+  const positioning = data.cards.find((item) => item.id === 9);
+  const direction = counts.red === 0 && counts.green >= 5 ? "a bullish bias" : counts.red >= 3 ? "a risk-dominant regime" : "a mixed regime";
+  const mood = data.market.fng >= 70 ? "hot, reducing the reward-to-risk of chasing strength" : "not yet at an extreme";
+  const structure = positioning?.status === "green"
+    ? `Derivatives positioning is bullish (${translateText(positioning.headline, "en")}), while concentrated leverage can amplify reversals.`
+    : "Derivatives positioning has not formed a clear directional signal.";
+  return `The dashboard has ${counts.green}/${data.total} active signals and ${counts.red} red flags, indicating ${direction}. Capital flows confirm ${capitalGreen}/${capital.length} signals. Sentiment is ${mood}. ${structure}`;
+}
+
+export function localizeDashboard(data, language) {
+  if (language !== "en") return data;
+  const cards = data.cards.map((card) => ({
+    ...card,
+    title: CARD_NAMES[card.id]?.[0] || translateText(card.title, language),
+    shortName: CARD_NAMES[card.id]?.[1] || translateText(card.shortName, language),
+    headline: translateText(card.headline, language), facts: card.facts.map((item) => translateText(item, language)),
+    detail: translateText(card.detail, language), change: translateText(card.change, language),
+    source: { ...card.source, label: translateText(card.source?.label, language) }
+  }));
+  const localized = { ...data, cards, dataMode: translateMode(data.dataMode, language), heat: { ...data.heat, label: translateText(data.heat.label, language) } };
+  localized.summary = englishSummary({ ...localized, cards });
+  localized.risks = data.risks.map((item) => translateText(item, language));
+  localized.macroNotes = data.macroNotes.map((item) => translateText(item, language));
+  localized.previous = data.previous ? { ...data.previous, changes: data.previous.changes.map((item) => translateText(item, language)) } : data.previous;
+  return localized;
+}
+
+export function translateMode(mode, language) {
+  if (language !== "en") return mode;
+  return String(mode)
+    .replace("本地维护 + 实时数据", "Local override + live data")
+    .replace("本地维护 + 混合数据", "Local override + mixed data")
+    .replace("本地维护 + 公开快照", "Local override + public snapshot")
+    .replace("公开实时数据", "Public live data").replace("公开混合数据", "Public mixed data").replace("公开快照", "Public snapshot")
+    .replace("实时数据", "Live data").replace("混合数据", "Mixed data");
+}

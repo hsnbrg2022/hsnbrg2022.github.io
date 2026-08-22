@@ -83,6 +83,7 @@ a { color: inherit; }
 .button-primary { background: var(--mint); color: #08110e; border-color: var(--mint); }
 .button-primary:hover { background: #8be1c4; border-color: #8be1c4; }
 .button-ghost { background: rgba(255,255,255,.025); }
+.language-button { min-width: 52px; font-family: var(--mono); letter-spacing: .04em; }
 .refresh-icon { display: inline-block; font-size: 16px; margin-right: 3px; }
 .loading .refresh-icon { animation: spin .75s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -259,6 +260,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--mint); box-shado
   .briefing { margin-top: 70px; }
   .summary-panel p { font-size: 19px; }
   .form-grid { grid-template-columns: 1fr; gap: 0; }
+  .dialog-actions { flex-wrap: wrap; }
+  .dialog-actions .reset-button { width: 100%; margin-right: 0; }
   footer { display: block; padding: 25px 0; }
 }
 
