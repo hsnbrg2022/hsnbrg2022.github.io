@@ -1,4 +1,5 @@
 import { STATUS, calculateBookAccountRatio, deriveDashboard, formatMoney } from "./model.js";
+import { refreshPublicDashboard } from "./public-refresh.js?v=20260822-1";
 
 const SECTION_META = {
   capital: { number: "01", title: "资金面", subtitle: "资本是否在入场", accent: "mint" },
@@ -30,7 +31,9 @@ function renderCard(card) {
   const refreshLabel = card.refresh === "auto"
     ? card.refreshStatus === "failed"
       ? `<i class="stale-dot"></i> 刷新失败 · 保留最近值`
-      : `<i class="live-dot"></i> 已自动刷新`
+      : card.refreshMethod === "public-manual"
+        ? `<i class="live-dot"></i> 访客刚刚刷新`
+        : `<i class="live-dot"></i> 发布时已刷新`
     : "手动口径";
   return `
     <article class="signal-card status-${card.status}">
@@ -145,14 +148,14 @@ async function refreshData() {
   button.disabled = true;
   button.classList.add("loading");
   try {
-    const result = await api("/api/refresh", { method: "POST" });
+    const result = await refreshPublicDashboard(dashboard);
     dashboard = result.data;
     render();
     if (result.warnings.length) {
       const warningNames = result.warnings.map((item) => item.split("：")[0]).join("、");
       showToast(`已更新 ${result.updated.length} 项；${warningNames} 刷新失败，已保留最近值`, "warning", 7000);
     } else {
-      showToast(`刷新完成：${result.updated.join("、")}`, "success", 5000);
+      showToast(`已获取最新数据：${result.updated.join("、")}`, "success", 5000);
     }
   } catch (error) {
     showToast(`刷新失败：${error.message}`, "error");
@@ -266,7 +269,7 @@ async function saveSnapshot() {
 
 async function init() {
   try {
-    dashboard = await api("./dashboard.json");
+    dashboard = await api(`./dashboard.json?v=${Date.now()}`);
     render();
   } catch (error) {
     showToast(`无法载入看板：${error.message}`, "error", 8000);
