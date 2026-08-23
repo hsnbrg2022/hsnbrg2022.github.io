@@ -59,6 +59,23 @@ export function marketHeat(fng = 0) {
   return { label: "极度恐惧", tone: "blue" };
 }
 
+export function analyzeTrueMarketMean(btcPrice, metric, now = new Date()) {
+  const price = Number(btcPrice);
+  const value = Number(metric?.value);
+  const asOf = metric?.asOf;
+  if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(value) || value <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(asOf || "")) return null;
+  const deviationPct = ((price / value) - 1) * 100;
+  const relation = Math.abs(deviationPct) <= 2 ? "testing" : deviationPct > 0 ? "support" : "resistance";
+  const sourceDate = new Date(`${asOf}T00:00:00+08:00`);
+  const dateParts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Asia/Shanghai"
+  }).formatToParts(now).reduce((parts, part) => ({ ...parts, [part.type]: part.value }), {});
+  const currentDate = new Date(`${dateParts.year}-${dateParts.month}-${dateParts.day}T00:00:00+08:00`);
+  const ageDays = Math.max(0, Math.floor((currentDate - sourceDate) / 86_400_000));
+  const freshness = ageDays <= 3 ? "fresh" : ageDays <= 7 ? "aging" : "stale";
+  return { value, deviationPct, relation, ageDays, freshness };
+}
+
 export function buildRisks(data) {
   const risks = [];
   const { market, cards } = data;
@@ -118,6 +135,7 @@ export function formatMoney(value, digits = 0) {
 export function validateDashboard(data) {
   if (!data || typeof data !== "object") throw new Error("看板数据不能为空");
   if (!Array.isArray(data.cards) || data.cards.length !== 9) throw new Error("看板必须包含 9 项指标");
+  if (!analyzeTrueMarketMean(data.market?.btcPrice, data.trueMarketMean)) throw new Error("True Market Mean 数据无效");
   const ids = new Set(data.cards.map((card) => card.id));
   if (ids.size !== 9) throw new Error("指标编号不可重复");
   for (const card of data.cards) {

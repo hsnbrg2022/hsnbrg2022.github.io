@@ -17,6 +17,8 @@ const MESSAGES = {
     savedPositioning: "多空比已保存到当前浏览器", resetPositioning: "已恢复发布时的多空比", invalidRatio: "账户比必须大于 0，且仓位比必须为有效数字",
     loadingDashboard: "看板数据仍在加载，请稍后重试", languageChanged: "已切换为中文",
     indicatorHelpLabel: "查看{indicator}说明", indicatorGuide: "指标说明", confluenceTitle: "组合信号",
+    trueMarketMeanEyebrow: "活跃投资者成本基础", trueMarketMeanSupport: "BTC 高于成本线 {distance}% · 下方成本支撑", trueMarketMeanResistance: "BTC 低于成本线 {distance}% · 上方成本阻力", trueMarketMeanTesting: "BTC 距成本线 {distance}% · 正在测试",
+    trueMarketMeanAsOf: "数据截至 {date}", trueMarketMeanManual: "手工维护", freshnessFresh: "数据正常", freshnessAging: "数据可能滞后", freshnessStale: "数据已过期",
     capital: "资金面", capitalSub: "资本是否在入场", macro: "宏观", macroSub: "流动性环境是否友好", onchain: "链上估值", onchainSub: "周期位置", positioning: "仓位情绪", positioningSub: "衍生品结构",
     statusGreen: "触发", statusYellow: "观察", statusRed: "风险", statusOff: "未触发"
   },
@@ -36,6 +38,8 @@ const MESSAGES = {
     savedPositioning: "Long/short ratios saved in this browser", resetPositioning: "Published long/short ratios restored", invalidRatio: "Account ratio must be above 0 and position ratio must be valid",
     loadingDashboard: "Dashboard is still loading. Please try again shortly.", languageChanged: "Switched to English",
     indicatorHelpLabel: "About {indicator}", indicatorGuide: "Indicator guide", confluenceTitle: "Confluence signal",
+    trueMarketMeanEyebrow: "Active-investor cost basis", trueMarketMeanSupport: "BTC is {distance}% above · Cost-basis support below", trueMarketMeanResistance: "BTC is {distance}% below · Cost-basis resistance above", trueMarketMeanTesting: "BTC is {distance}% from the cost basis · Testing the level",
+    trueMarketMeanAsOf: "Data as of {date}", trueMarketMeanManual: "Manually maintained", freshnessFresh: "Current", freshnessAging: "May be stale", freshnessStale: "Stale data",
     capital: "Capital flows", capitalSub: "Is capital entering?", macro: "Macro", macroSub: "Is liquidity supportive?", onchain: "On-chain valuation", onchainSub: "Where are we in the cycle?", positioning: "Positioning", positioningSub: "Derivatives structure",
     statusGreen: "Active", statusYellow: "Watch", statusRed: "Risk", statusOff: "Inactive"
   }
@@ -79,6 +83,11 @@ const INDICATOR_HELP = {
       title: "ahr999 定投指数",
       summary: "综合 BTC 当前价格与 200 日定投成本，用于判断定投性价比。",
       points: ["<0.45：抄底区；0.45–1.2：适合定投区。", ">1.2：价格偏贵，应谨慎追高。"]
+    },
+    trueMarketMean: {
+      title: "True Market Mean（真实市场均值）",
+      summary: "面向活跃投资者的链上平均成本基础，也称 Active-Investor Price。",
+      points: ["计算方式：Investor Cap（投资者资本）÷ Active Supply（活跃供应量）。", "BTC 位于其上方时，该水平通常作为潜在成本支撑；位于其下方时，通常作为潜在成本阻力。", "这是链上估值参考，不是保证价格反转的单一交易信号。"]
     }
   },
   en: {
@@ -118,6 +127,11 @@ const INDICATOR_HELP = {
       title: "ahr999 DCA Index",
       summary: "Combines BTC’s current price with its 200-day dollar-cost-averaging basis to assess accumulation value.",
       points: ["<0.45: deep-value zone; 0.45–1.2: regular accumulation zone.", ">1.2: price is relatively expensive, so chasing requires caution."]
+    },
+    trueMarketMean: {
+      title: "True Market Mean",
+      summary: "The aggregate on-chain cost basis of active investors, also known as the Active-Investor Price.",
+      points: ["Formula: Investor Cap ÷ Active Supply.", "When BTC trades above it, the level may act as cost-basis support; when BTC trades below it, it may act as cost-basis resistance.", "It is an on-chain valuation reference, not a standalone guarantee of price reversal."]
     }
   }
 };
@@ -170,7 +184,6 @@ const EXACT_EN = new Map([
   ["账户与仓位差异不显著，暂无强结构信号。", "The account/position divergence is limited, with no strong structural signal."],
   ["财政部回购安排 → 关注对市场流动性的边际影响", "Treasury buybacks → watch the marginal liquidity impact"],
   ["CLARITY 法案进度 → 关注监管确定性", "CLARITY Act progress → watch regulatory certainty"],
-  ["下一技术观察位：True Market Mean $75,689", "Next technical level: True Market Mean $75,689"],
   ["Puell 仍在观察区，矿工端压力尚未完全解除", "Puell remains in the watch zone; miner-side pressure has not fully eased."],
   ["Strategy mNAV 尚未稳定站上 1.0，飞轮效应仍待确认", "Strategy mNAV has not held above 1.0; the flywheel effect is not yet confirmed."],
   ["访客手工维护", "Visitor-maintained"], ["ECB 推导", "ECB-derived"], ["黄金", "Gold"], ["稳定币", "Stablecoins"], ["多空比", "L/S Ratio"], ["SOPR强", "SOPR strong"]

@@ -15,6 +15,15 @@
     "wmaSource": "DefiLlama",
     "wmaFetchedAt": "2026-08-22T05:51:02.086Z"
   },
+  "trueMarketMean": {
+    "value": 75689,
+    "asOf": "2026-08-21",
+    "refresh": "manual",
+    "source": {
+      "label": "Glassnode",
+      "url": "https://studio.glassnode.com/charts/52946311-be28-4dbd-4a6f-c5a6861c3511?a=BTC"
+    }
+  },
   "cards": [
     {
       "id": 1,
@@ -213,8 +222,7 @@
   ],
   "macroNotes": [
     "财政部回购安排 → 关注对市场流动性的边际影响",
-    "CLARITY 法案进度 → 关注监管确定性",
-    "下一技术观察位：True Market Mean $75,689"
+    "CLARITY 法案进度 → 关注监管确定性"
   ],
   "previous": {
     "date": "2026-08-21",

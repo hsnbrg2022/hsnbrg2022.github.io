@@ -147,6 +147,24 @@ a { color: inherit; }
 .cards-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .cards-grid.single-card { grid-template-columns: 1fr; }
 
+.true-market-mean { position: relative; margin-bottom: 14px; padding: 19px 22px; overflow: hidden; border: 1px solid rgba(109,166,207,.26); border-radius: var(--radius); background: linear-gradient(135deg, rgba(109,166,207,.1), rgba(15,19,20,.95) 54%); }
+.true-market-mean::after { content: ""; position: absolute; right: 0; top: -55px; width: 115px; height: 145px; border-radius: 50%; background: rgba(109,166,207,.16); filter: blur(42px); pointer-events: none; }
+.true-market-mean-topline, .true-market-mean-footer { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.true-market-mean-topline > span { color: #8ebbd8; font: 500 9px var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+.true-market-mean-topline b { padding: 4px 7px; border-radius: 99px; color: var(--mint); background: var(--mint-dim); font: 500 9px var(--mono); }
+.true-market-mean.freshness-aging .true-market-mean-topline b { color: var(--gold); background: var(--gold-dim); }
+.true-market-mean.freshness-stale .true-market-mean-topline b { color: var(--red); background: rgba(236,125,112,.12); }
+.true-market-mean-main { position: relative; z-index: 1; display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-top: 13px; }
+.true-market-mean-title { display: flex; align-items: center; gap: 8px; }
+.true-market-mean-title h3 { margin: 0; color: var(--text); font-size: 16px; }
+.true-market-mean-main p { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
+.true-market-mean-main > strong { flex: 0 0 auto; color: #a9d4eb; font: 500 28px var(--mono); letter-spacing: -.04em; }
+.true-market-mean.relation-testing .true-market-mean-main > strong { color: var(--gold); }
+.true-market-mean.relation-resistance .true-market-mean-main > strong { color: #e9b07b; }
+.true-market-mean-footer { margin-top: 15px; padding-top: 11px; border-top: 1px solid rgba(255,255,255,.07); color: var(--muted); font-size: 10px; }
+.true-market-mean-footer a { color: #bdc4c1; text-decoration: none; }
+.true-market-mean-footer a:hover { color: var(--mint); }
+
 .signal-card { position: relative; min-height: 250px; padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(145deg, rgba(21,26,27,.97), rgba(13,17,18,.96)); overflow: hidden; transition: border-color .22s ease, transform .22s ease; }
 .signal-card::after { content: ""; position: absolute; width: 130px; height: 130px; border-radius: 50%; right: -85px; top: -85px; background: currentColor; filter: blur(50px); opacity: .07; pointer-events: none; }
 .signal-card:hover { transform: translateY(-2px); border-color: var(--line-bright); }
@@ -292,6 +310,10 @@ input:focus, textarea:focus, select:focus { border-color: var(--mint); box-shado
   .market-primary strong { font-size: 27px; }
   .change-pill { font-size: 10px; }
   .market-metric { overflow: hidden; }
+  .true-market-mean { padding: 17px; }
+  .true-market-mean-main { align-items: flex-start; }
+  .true-market-mean-main > strong { font-size: 23px; }
+  .true-market-mean-footer { align-items: flex-start; }
 }
 
 @media (prefers-reduced-motion: reduce) {
