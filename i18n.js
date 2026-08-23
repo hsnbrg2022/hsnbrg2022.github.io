@@ -16,6 +16,7 @@ const MESSAGES = {
     reset: "恢复发布值", cancel: "取消", saveBrowser: "保存到本浏览器", close: "关闭",
     savedPositioning: "多空比已保存到当前浏览器", resetPositioning: "已恢复发布时的多空比", invalidRatio: "账户比必须大于 0，且仓位比必须为有效数字",
     loadingDashboard: "看板数据仍在加载，请稍后重试", languageChanged: "已切换为中文",
+    indicatorHelpLabel: "查看{indicator}说明", indicatorGuide: "指标说明", confluenceTitle: "组合信号",
     capital: "资金面", capitalSub: "资本是否在入场", macro: "宏观", macroSub: "流动性环境是否友好", onchain: "链上估值", onchainSub: "周期位置", positioning: "仓位情绪", positioningSub: "衍生品结构",
     statusGreen: "触发", statusYellow: "观察", statusRed: "风险", statusOff: "未触发"
   },
@@ -34,10 +35,109 @@ const MESSAGES = {
     reset: "Restore published", cancel: "Cancel", saveBrowser: "Save in this browser", close: "Close",
     savedPositioning: "Long/short ratios saved in this browser", resetPositioning: "Published long/short ratios restored", invalidRatio: "Account ratio must be above 0 and position ratio must be valid",
     loadingDashboard: "Dashboard is still loading. Please try again shortly.", languageChanged: "Switched to English",
+    indicatorHelpLabel: "About {indicator}", indicatorGuide: "Indicator guide", confluenceTitle: "Confluence signal",
     capital: "Capital flows", capitalSub: "Is capital entering?", macro: "Macro", macroSub: "Is liquidity supportive?", onchain: "On-chain valuation", onchainSub: "Where are we in the cycle?", positioning: "Positioning", positioningSub: "Derivatives structure",
     statusGreen: "Active", statusYellow: "Watch", statusRed: "Risk", statusOff: "Inactive"
   }
 };
+
+const INDICATOR_HELP = {
+  zh: {
+    fearGreed: {
+      title: "恐惧贪婪指数",
+      summary: "范围为 0–100，数值越低代表市场越恐慌。",
+      points: ["<25：极度恐惧，通常对应抛售与潜在低位机会。", ">75：极度贪婪，市场偏热，应避免盲目追高。"]
+    },
+    wma200: {
+      title: "200 周均线（200 WMA）",
+      summary: "比特币的长期成本锚。历史上持续跌破该均线的情况很少。",
+      points: ["价格接近 200 WMA 时，通常进入深度价值观察区。", "页面显示的倍数 = BTC 价格 ÷ 200 WMA；越接近 1.0x，价格越靠近均线。"]
+    },
+    mvrv: {
+      title: "MVRV Z-Score",
+      summary: "对 MVRV 做统计标准化，以减弱极端波动干扰，用于判断周期估值位置。",
+      points: ["Z-Score <0：历史级低估区；>7：历史泡沫高位区。", "MVRV = 市值 ÷ 已实现市值。<1 通常表示多数持币者处于亏损；>3.5 表示整体盈利丰厚、估值偏热。"],
+      confluence: "MVRV <1、Puell <0.5、恐惧指数处于极度恐惧且价格接近 200 WMA 时，四项共振才构成历史级抄底窗口。"
+    },
+    balancedPrice: {
+      title: "Balanced Price（均衡价格）",
+      summary: "已实现价格减去链上转移价格得到的公允价值参考。",
+      points: ["历史周期底部经常落在该价格附近。", "页面中的“价 / BP”表示 BTC 价格相对 Balanced Price 的倍数。"]
+    },
+    puell: {
+      title: "Puell Multiple",
+      summary: "矿工每日新增 BTC 的美元价值 ÷ 过去 365 天平均值，用于衡量矿工收入压力。",
+      points: ["<0.5：矿工收入严重承压，历史上常见于大周期底部。", ">4：矿工收入异常高，顶部风险升温。"],
+      confluence: "MVRV <1、Puell <0.5、恐惧指数处于极度恐惧且价格接近 200 WMA 时，四项共振才构成历史级抄底窗口。"
+    },
+    sopr: {
+      title: "SOPR（卖出盈亏比）",
+      summary: "衡量链上每一笔卖出相对买入成本的整体盈亏。",
+      points: ["<1：市场整体在亏损卖出，常见于投降阶段；>1：市场整体在获利卖出。", "长期低于 1 后重新回升，常被视为底部修复信号。"]
+    },
+    ahr999: {
+      title: "ahr999 定投指数",
+      summary: "综合 BTC 当前价格与 200 日定投成本，用于判断定投性价比。",
+      points: ["<0.45：抄底区；0.45–1.2：适合定投区。", ">1.2：价格偏贵，应谨慎追高。"]
+    }
+  },
+  en: {
+    fearGreed: {
+      title: "Fear & Greed Index",
+      summary: "Ranges from 0 to 100. Lower readings indicate greater market fear.",
+      points: ["<25: Extreme Fear, often associated with capitulation and potential value opportunities.", ">75: Extreme Greed; the market is running hot, so avoid chasing price blindly."]
+    },
+    wma200: {
+      title: "200-Week Moving Average (200 WMA)",
+      summary: "Bitcoin’s long-term cost anchor. Sustained trades below it have historically been rare.",
+      points: ["When price approaches the 200 WMA, it often enters a deep-value watch zone.", "The displayed multiple equals BTC price ÷ 200 WMA; the closer it is to 1.0x, the closer price is to the average."]
+    },
+    mvrv: {
+      title: "MVRV Z-Score",
+      summary: "A statistically standardized version of MVRV that reduces the effect of extreme volatility and helps locate cycle valuation.",
+      points: ["Z-Score <0: historically undervalued; >7: historical bubble territory.", "MVRV = market cap ÷ realized cap. Below 1 usually means most holders are underwater; above 3.5 suggests broad profits and overheated valuation."],
+      confluence: "A historical accumulation window requires four-way confirmation: MVRV <1, Puell <0.5, Extreme Fear, and price near the 200 WMA."
+    },
+    balancedPrice: {
+      title: "Balanced Price",
+      summary: "A fair-value reference calculated as realized price minus transferred price.",
+      points: ["Historical cycle bottoms have often formed near this level.", "The dashboard’s Price / BP value shows BTC price as a multiple of Balanced Price."]
+    },
+    puell: {
+      title: "Puell Multiple",
+      summary: "The USD value of daily BTC issuance divided by its 365-day average, used to measure miner revenue stress.",
+      points: ["<0.5: severe miner stress, historically common near major cycle bottoms.", ">4: unusually high miner income and rising top risk."],
+      confluence: "A historical accumulation window requires four-way confirmation: MVRV <1, Puell <0.5, Extreme Fear, and price near the 200 WMA."
+    },
+    sopr: {
+      title: "SOPR (Spent Output Profit Ratio)",
+      summary: "Measures the aggregate profit or loss realized by coins sold on-chain relative to their acquisition cost.",
+      points: ["Below 1: aggregate selling at a loss, often associated with capitulation; above 1: aggregate selling in profit.", "A recovery after a prolonged period below 1 can signal bottom repair."]
+    },
+    ahr999: {
+      title: "ahr999 DCA Index",
+      summary: "Combines BTC’s current price with its 200-day dollar-cost-averaging basis to assess accumulation value.",
+      points: ["<0.45: deep-value zone; 0.45–1.2: regular accumulation zone.", ">1.2: price is relatively expensive, so chasing requires caution."]
+    }
+  }
+};
+
+const CARD_HELP_KEYS = { 7: "mvrv", 8: "puell" };
+
+export function indicatorHelp(language, key) {
+  return INDICATOR_HELP[language]?.[key] ?? INDICATOR_HELP.zh[key] ?? null;
+}
+
+export function indicatorHelpKeyForCard(cardId) {
+  return CARD_HELP_KEYS[Number(cardId)] ?? null;
+}
+
+export function indicatorHelpKeyForFact(cardId, text) {
+  const value = String(text);
+  if (Number(cardId) === 7 && /(?:价\s*\/\s*BP|Price\s*\/\s*BP)/i.test(value)) return "balancedPrice";
+  if (Number(cardId) === 8 && /ahr999/i.test(value)) return "ahr999";
+  return null;
+}
 
 const CARD_NAMES = {
   1: ["BTC ETF Flows", "ETF"], 2: ["Strategy EV mNAV", "mNAV"], 3: ["Stablecoin Market Cap", "Stablecoins"],

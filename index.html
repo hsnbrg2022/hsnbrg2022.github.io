@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=20260823-1">
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -61,12 +61,12 @@
         <span id="btcChange" class="change-pill">—</span>
       </article>
       <article class="market-metric">
-        <span class="metric-label">FEAR & GREED <b id="fngSource">最近缓存</b></span>
+        <span class="metric-label">FEAR & GREED <span id="fngHelp" class="metric-help-slot"></span><b id="fngSource">最近缓存</b></span>
         <div><strong id="fngValue">—</strong><span id="fngLabel">—</span></div>
         <div class="heat-track"><i id="heatFill"></i><b id="heatMarker"></b></div>
       </article>
       <article class="market-metric">
-        <span class="metric-label">200 WEEK MA <b id="wmaSource">最近缓存</b></span>
+        <span class="metric-label">200 WEEK MA <span id="wmaHelp" class="metric-help-slot"></span><b id="wmaSource">最近缓存</b></span>
         <div><strong id="wmaRatio">—</strong><span id="wmaValue">—</span></div>
         <p id="wmaInsight">—</p>
       </article>
@@ -148,6 +148,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="./app.js?v=20260822-5"></script>
+  <script type="module" src="./app.js?v=20260823-1"></script>
 </body>
 </html>

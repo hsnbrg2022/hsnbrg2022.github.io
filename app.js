@@ -1,6 +1,6 @@
 import { STATUS, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney } from "./model.js?v=20260822-3";
 import { refreshPublicDashboard } from "./public-refresh.js?v=20260822-1";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260822-5";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260823-1";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -13,6 +13,7 @@ let dashboard;
 let language = getInitialLanguage();
 let publishedPositioningCard;
 let publishedDataMode;
+let activeIndicatorTooltip;
 const POSITIONING_STORAGE_KEY = "crypto-signal-tracker:positioning-v1";
 const $ = (selector) => document.querySelector(selector);
 
@@ -20,6 +21,75 @@ function escapeHtml(value = "") {
   return String(value).replace(/[&<>'"]/g, (char) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
   }[char]));
+}
+
+function renderIndicatorHelp(key, context = key) {
+  const help = indicatorHelp(language, key);
+  if (!help) return "";
+  const tooltipId = `indicator-help-${context}`;
+  const points = help.points.map((point) => `<li>${escapeHtml(point)}</li>`).join("");
+  const confluence = help.confluence
+    ? `<div class="indicator-confluence"><b>${t(language, "confluenceTitle")}</b><span>${escapeHtml(help.confluence)}</span></div>`
+    : "";
+  return `<span class="indicator-help" data-indicator-help>
+    <button class="indicator-help-button" type="button" aria-label="${escapeHtml(t(language, "indicatorHelpLabel", { indicator: help.title }))}" aria-describedby="${tooltipId}" aria-expanded="false">i</button>
+    <span id="${tooltipId}" class="indicator-tooltip" role="tooltip" popover="manual">
+      <span class="indicator-tooltip-kicker">${t(language, "indicatorGuide")}</span>
+      <strong>${escapeHtml(help.title)}</strong>
+      <span class="indicator-tooltip-summary">${escapeHtml(help.summary)}</span>
+      <ul>${points}</ul>${confluence}
+    </span>
+  </span>`;
+}
+
+function closeIndicatorTooltip(wrapper) {
+  if (!wrapper) return;
+  const panel = wrapper.querySelector(".indicator-tooltip");
+  const button = wrapper.querySelector(".indicator-help-button");
+  if (panel?.matches(":popover-open")) panel.hidePopover();
+  wrapper.classList.remove("is-open");
+  button?.setAttribute("aria-expanded", "false");
+  if (activeIndicatorTooltip === wrapper) activeIndicatorTooltip = null;
+}
+
+function positionIndicatorTooltip(panel, button) {
+  const viewportGap = 16;
+  const buttonRect = button.getBoundingClientRect();
+  const panelRect = panel.getBoundingClientRect();
+  const left = Math.min(Math.max(buttonRect.left - 12, viewportGap), window.innerWidth - panelRect.width - viewportGap);
+  const roomBelow = window.innerHeight - buttonRect.bottom;
+  const top = roomBelow >= panelRect.height + 18
+    ? buttonRect.bottom + 10
+    : Math.max(viewportGap, buttonRect.top - panelRect.height - 10);
+  panel.style.left = `${left}px`;
+  panel.style.top = `${top}px`;
+}
+
+function openIndicatorTooltip(wrapper) {
+  if (activeIndicatorTooltip && activeIndicatorTooltip !== wrapper) closeIndicatorTooltip(activeIndicatorTooltip);
+  const panel = wrapper.querySelector(".indicator-tooltip");
+  const button = wrapper.querySelector(".indicator-help-button");
+  if (!panel || !button) return;
+  if (typeof panel.showPopover === "function" && !panel.matches(":popover-open")) panel.showPopover();
+  wrapper.classList.add("is-open");
+  button.setAttribute("aria-expanded", "true");
+  activeIndicatorTooltip = wrapper;
+  requestAnimationFrame(() => positionIndicatorTooltip(panel, button));
+}
+
+function bindIndicatorTooltips() {
+  document.querySelectorAll("[data-indicator-help]").forEach((wrapper) => {
+    if (wrapper.dataset.bound) return;
+    wrapper.dataset.bound = "true";
+    wrapper.addEventListener("mouseenter", () => openIndicatorTooltip(wrapper));
+    wrapper.addEventListener("mouseleave", () => {
+      if (!wrapper.contains(document.activeElement)) closeIndicatorTooltip(wrapper);
+    });
+    wrapper.addEventListener("focusin", () => openIndicatorTooltip(wrapper));
+    wrapper.addEventListener("focusout", (event) => {
+      if (!wrapper.contains(event.relatedTarget)) closeIndicatorTooltip(wrapper);
+    });
+  });
 }
 
 function formatDate(dateString) {
@@ -56,6 +126,8 @@ function applyStaticTranslations() {
   $("#cancelPositioning").textContent = t(language, "cancel");
   $("#savePositioning").textContent = t(language, "saveBrowser");
   $("#closePositioning").ariaLabel = t(language, "close");
+  $("#fngHelp").innerHTML = renderIndicatorHelp("fearGreed", "fear-greed");
+  $("#wmaHelp").innerHTML = renderIndicatorHelp("wma200", "200-wma");
 }
 
 function renderCard(card) {
@@ -74,6 +146,8 @@ function renderCard(card) {
   const maintenanceButton = card.id === 9
     ? `<button class="maintenance-button" type="button" data-maintain-positioning>${t(language, "maintain")}</button>`
     : "";
+  const helpKey = indicatorHelpKeyForCard(card.id);
+  const headlineHelp = card.id === 8 && /SOPR/i.test(card.headline) ? renderIndicatorHelp("sopr", `card-${card.id}-sopr`) : "";
   return `
     <article class="signal-card status-${card.status}">
       <div class="signal-topline">
@@ -81,9 +155,12 @@ function renderCard(card) {
         <span class="status-chip"><i>${status.icon}</i>${statusLabel(language, card.status)}</span>
         ${maintenanceButton}
       </div>
-      <h3>${escapeHtml(card.title)}</h3>
-      <strong class="signal-headline">${escapeHtml(card.headline)}</strong>
-      <div class="facts">${card.facts.map((fact) => `<span>${escapeHtml(fact)}</span>`).join("")}</div>
+      <div class="signal-title-row"><h3>${escapeHtml(card.title)}</h3>${helpKey ? renderIndicatorHelp(helpKey, `card-${card.id}`) : ""}</div>
+      <strong class="signal-headline">${escapeHtml(card.headline)}${headlineHelp}</strong>
+      <div class="facts">${card.facts.map((fact, index) => {
+        const factHelpKey = indicatorHelpKeyForFact(card.id, fact);
+        return `<span>${escapeHtml(fact)}${factHelpKey ? renderIndicatorHelp(factHelpKey, `card-${card.id}-fact-${index}`) : ""}</span>`;
+      }).join("")}</div>
       <p>${escapeHtml(card.detail)}</p>
       <div class="signal-footer">
         <span title="${escapeHtml(card.refreshMessage || "")}">${refreshLabel}</span>
@@ -134,6 +211,7 @@ function renderBriefing(data) {
 }
 
 function render() {
+  activeIndicatorTooltip = null;
   applyStaticTranslations();
   const data = localizeDashboard(deriveDashboard(dashboard), language);
   $("#dashboardDate").textContent = formatDate(data.date);
@@ -165,6 +243,7 @@ function render() {
   renderSections(data.cards);
   renderTracker(data);
   renderBriefing(data);
+  bindIndicatorTooltips();
 }
 
 async function api(url, options = {}) {

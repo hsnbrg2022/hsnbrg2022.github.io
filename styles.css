@@ -107,6 +107,23 @@ a { color: inherit; }
 .asset-orb { display: grid; place-items: center; width: 56px; height: 56px; flex: 0 0 56px; border-radius: 50%; background: var(--gold); color: #171107; font: 500 28px var(--mono); box-shadow: 0 0 0 7px var(--gold-dim); }
 .metric-label { display: block; color: var(--muted); font: 500 10px var(--mono); letter-spacing: .15em; margin-bottom: 8px; }
 .metric-label b { color: var(--mint); font: inherit; letter-spacing: .05em; }
+.metric-help-slot { display: inline-flex; vertical-align: -3px; margin: 0 4px; }
+.indicator-help { display: inline-flex; align-items: center; color: var(--mint); font-family: var(--sans); letter-spacing: normal; }
+.indicator-help-button { display: inline-grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 1px solid rgba(120,215,183,.42); border-radius: 50%; color: var(--mint); background: rgba(120,215,183,.08); cursor: help; font: 600 11px/1 var(--mono); transition: border-color .18s ease, background .18s ease, box-shadow .18s ease; }
+.indicator-help-button:hover, .indicator-help-button:focus-visible, .indicator-help.is-open .indicator-help-button { outline: 0; border-color: var(--mint); background: rgba(120,215,183,.17); box-shadow: 0 0 0 3px rgba(120,215,183,.11); }
+.indicator-tooltip[popover] { box-sizing: border-box; position: fixed; inset: auto; width: min(380px, calc(100vw - 32px)); max-height: min(520px, calc(100vh - 32px)); margin: 0; padding: 18px; overflow: auto; border: 1px solid rgba(120,215,183,.3); border-radius: 13px; color: var(--text); background: rgba(14,19,20,.98); box-shadow: 0 22px 65px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.025) inset; text-align: left; font-family: var(--sans); letter-spacing: normal; line-height: 1.55; z-index: 1000; }
+.indicator-tooltip[popover]::backdrop { background: transparent; }
+.indicator-tooltip-kicker { display: block; margin-bottom: 6px; color: var(--mint); font: 500 9px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+.indicator-tooltip > strong { display: block; color: var(--text); font-size: 15px; line-height: 1.35; }
+.indicator-tooltip-summary { display: block; margin-top: 8px; color: #c4cdca; font-size: 12px; }
+.indicator-tooltip ul { margin: 11px 0 0; padding-left: 18px; color: var(--muted); font-size: 11px; }
+.indicator-tooltip li + li { margin-top: 7px; }
+.indicator-tooltip li::marker { color: var(--mint); }
+.indicator-confluence { display: grid; gap: 5px; margin-top: 13px; padding: 11px 12px; border: 1px solid rgba(229,183,102,.22); border-radius: 8px; background: rgba(229,183,102,.07); }
+.indicator-confluence b { color: var(--gold); font: 500 10px var(--mono); letter-spacing: .08em; }
+.indicator-confluence span { color: #d5cec0; font-size: 11px; }
+.signal-title-row { display: flex; align-items: center; gap: 8px; margin: 18px 0 10px; }
+.signal-card .signal-title-row h3 { margin: 0; }
 .market-primary strong { font: 500 clamp(28px, 3vw, 38px) var(--mono); letter-spacing: -.05em; }
 .change-pill { margin-left: auto; align-self: center; font: 500 12px var(--mono); padding: 7px 9px; border-radius: 8px; }
 .change-pill.positive { color: var(--mint); background: var(--mint-dim); }
@@ -149,7 +166,9 @@ a { color: inherit; }
 .signal-card h3 { color: var(--text); font-size: 15px; margin: 18px 0 10px; }
 .signal-headline { display: block; color: var(--text); font: 500 18px/1.45 var(--mono); letter-spacing: -.025em; }
 .facts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
-.facts span { padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; color: #b7bfbc; background: rgba(255,255,255,.02); font: 400 10px var(--mono); }
+.facts > span { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; color: #b7bfbc; background: rgba(255,255,255,.02); font: 400 10px var(--mono); }
+.facts .indicator-help-button, .signal-headline .indicator-help-button { width: 16px; height: 16px; font-size: 9px; }
+.signal-headline .indicator-help { margin-left: 7px; vertical-align: 2px; }
 .signal-card > p { color: var(--muted); font-size: 12px; line-height: 1.75; margin: 15px 0 45px; }
 .signal-footer { position: absolute; left: 22px; right: 22px; bottom: 18px; padding-top: 13px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 10px; }
 .signal-footer a { text-decoration: none; color: #bdc4c1; white-space: nowrap; }
