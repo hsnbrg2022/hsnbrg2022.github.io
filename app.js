@@ -1,6 +1,6 @@
 import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney } from "./model.js?v=20260823-2";
-import { refreshPublicDashboard } from "./public-refresh.js?v=20260822-1";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260823-2";
+import { refreshPublicDashboard } from "./public-refresh.js?v=20260823-4";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260823-5";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -136,7 +136,14 @@ function renderCard(card) {
   const source = card.source?.url
     ? `<a href="${escapeHtml(card.source.url)}" target="_blank" rel="noreferrer"${fetchedAt}>${escapeHtml(card.source.label)} ↗</a>`
     : `<span>${escapeHtml(card.source?.label || "未填写")}</span>`;
-  const refreshLabel = card.refresh === "auto"
+  const dataAsOf = card.dataAsOf ? card.dataAsOf.replaceAll("-", "/") : "—";
+  const refreshLabel = card.id === 1 && card.dataAsOf
+    ? card.refreshStatus === "stale"
+      ? `<i class="stale-dot"></i> ${t(language, "etfStaleAsOf", { date: dataAsOf })}`
+      : card.refreshStatus === "snapshot"
+        ? `<i class="snapshot-dot"></i> ${t(language, "etfSnapshotAsOf", { date: dataAsOf })}`
+        : `<i class="live-dot"></i> ${t(language, "etfLiveAsOf", { date: dataAsOf })}`
+    : card.refresh === "auto"
     ? card.refreshStatus === "failed"
       ? `<i class="stale-dot"></i> ${t(language, "refreshFailed")}`
       : card.refreshMethod === "public-manual"

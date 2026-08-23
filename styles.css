@@ -166,7 +166,7 @@ a { color: inherit; }
 .true-market-mean-footer a:hover { color: var(--mint); }
 
 .signal-card { position: relative; min-height: 250px; padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(145deg, rgba(21,26,27,.97), rgba(13,17,18,.96)); overflow: hidden; transition: border-color .22s ease, transform .22s ease; }
-.signal-card::after { content: ""; position: absolute; width: 130px; height: 130px; border-radius: 50%; right: -85px; top: -85px; background: currentColor; filter: blur(50px); opacity: .07; pointer-events: none; }
+.signal-card::after { content: ""; position: absolute; width: 70px; height: 130px; border-radius: 50%; right: 0; top: -85px; background: currentColor; filter: blur(50px); opacity: .07; pointer-events: none; }
 .signal-card:hover { transform: translateY(-2px); border-color: var(--line-bright); }
 .status-green { color: var(--mint); }
 .status-yellow { color: var(--gold); }
@@ -193,6 +193,7 @@ a { color: inherit; }
 .signal-footer a:hover { color: var(--mint); }
 .live-dot { display: inline-block; width: 5px; height: 5px; margin: 0 5px 1px 0; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 3px var(--mint-dim); }
 .stale-dot { display: inline-block; width: 5px; height: 5px; margin: 0 5px 1px 0; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 3px rgba(236,125,112,.12); }
+.snapshot-dot { display: inline-block; width: 5px; height: 5px; margin: 0 5px 1px 0; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 3px var(--gold-dim); }
 
 .sticky-card { position: sticky; top: 104px; }
 .score-card { border: 1px solid var(--line-bright); border-radius: var(--radius); background: rgba(16,20,21,.9); padding: 24px; }

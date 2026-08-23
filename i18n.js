@@ -4,7 +4,7 @@ const MESSAGES = {
   zh: {
     brand: "加密看板追踪器", backTop: "回到顶部", switchLanguage: "Switch to English", languageButton: "EN",
     heroTitle: "先看信号，<br><em>再做决定。</em>", heroCopy: "将资金、宏观、链上估值与仓位结构压缩成一张每日决策面板。",
-    refresh: "刷新最新数据", refreshTitle: "更新 BTC、F&G、稳定币、DXY、黄金与 200WMA", copy: "复制全文",
+    refresh: "刷新最新数据", refreshTitle: "更新 ETF、BTC、F&G、稳定币、DXY、黄金与 200WMA", copy: "复制全文",
     todayStatus: "今日状态", calculating: "正在计算信号…", briefing: "今日研判", summary: "摘要", changes: "核心变化", risks: "风险提示", watch: "宏观观察",
     footer: "公开访客可刷新实时公开数据；手工指标保持发布口径。仅供研究与信息整理，不构成投资建议。",
     lastUpdated: "最后更新 {time}（UTC+8）", syncing: "正在同步最新数据…", cached: "最近缓存",
@@ -19,13 +19,14 @@ const MESSAGES = {
     indicatorHelpLabel: "查看{indicator}说明", indicatorGuide: "指标说明", confluenceTitle: "组合信号",
     trueMarketMeanEyebrow: "活跃投资者成本基础", trueMarketMeanSupport: "BTC 高于成本线 {distance}% · 下方成本支撑", trueMarketMeanResistance: "BTC 低于成本线 {distance}% · 上方成本阻力", trueMarketMeanTesting: "BTC 距成本线 {distance}% · 正在测试",
     trueMarketMeanAsOf: "数据截至 {date}", trueMarketMeanManual: "手工维护", freshnessFresh: "数据正常", freshnessAging: "数据可能滞后", freshnessStale: "数据已过期",
+    etfLiveAsOf: "交易日数据 · 截至 {date}", etfSnapshotAsOf: "发布快照 · 截至 {date}", etfStaleAsOf: "ETF 数据可能滞后 · 截至 {date}",
     capital: "资金面", capitalSub: "资本是否在入场", macro: "宏观", macroSub: "流动性环境是否友好", onchain: "链上估值", onchainSub: "周期位置", positioning: "仓位情绪", positioningSub: "衍生品结构",
     statusGreen: "触发", statusYellow: "观察", statusRed: "风险", statusOff: "未触发"
   },
   en: {
     brand: "Crypto Signal Tracker", backTop: "Back to top", switchLanguage: "切换到中文", languageButton: "中文",
     heroTitle: "Read the signals.<br><em>Then decide.</em>", heroCopy: "A daily decision dashboard spanning capital flows, macro liquidity, on-chain valuation and positioning.",
-    refresh: "Refresh latest data", refreshTitle: "Update BTC, F&G, stablecoins, DXY, gold and 200WMA", copy: "Copy report",
+    refresh: "Refresh latest data", refreshTitle: "Update ETF flows, BTC, F&G, stablecoins, DXY, gold and 200WMA", copy: "Copy report",
     todayStatus: "Today's status", calculating: "Calculating signals…", briefing: "Daily view", summary: "Summary", changes: "Key changes", risks: "Risk alerts", watch: "Macro watch",
     footer: "Visitors can refresh public real-time data. Manual indicators retain their published methodology. For research only; not financial advice.",
     lastUpdated: "Last updated {time} (UTC+8)", syncing: "Syncing latest data…", cached: "cached",
@@ -40,6 +41,7 @@ const MESSAGES = {
     indicatorHelpLabel: "About {indicator}", indicatorGuide: "Indicator guide", confluenceTitle: "Confluence signal",
     trueMarketMeanEyebrow: "Active-investor cost basis", trueMarketMeanSupport: "BTC is {distance}% above · Cost-basis support below", trueMarketMeanResistance: "BTC is {distance}% below · Cost-basis resistance above", trueMarketMeanTesting: "BTC is {distance}% from the cost basis · Testing the level",
     trueMarketMeanAsOf: "Data as of {date}", trueMarketMeanManual: "Manually maintained", freshnessFresh: "Current", freshnessAging: "May be stale", freshnessStale: "Stale data",
+    etfLiveAsOf: "Trading-day data · As of {date}", etfSnapshotAsOf: "Published snapshot · As of {date}", etfStaleAsOf: "ETF data may be stale · As of {date}",
     capital: "Capital flows", capitalSub: "Is capital entering?", macro: "Macro", macroSub: "Is liquidity supportive?", onchain: "On-chain valuation", onchainSub: "Where are we in the cycle?", positioning: "Positioning", positioningSub: "Derivatives structure",
     statusGreen: "Active", statusYellow: "Watch", statusRed: "Risk", statusOff: "Inactive"
   }
@@ -47,6 +49,11 @@ const MESSAGES = {
 
 const INDICATOR_HELP = {
   zh: {
+    btcEtfFlows: {
+      title: "BTC ETF 资金流",
+      summary: "汇总美国现货比特币 ETF 每个交易日的净申购与净赎回，用于观察机构配置资金方向。",
+      points: ["正值代表当日净流入，负值代表当日净流出；单位为百万美元。", "数据只在美股交易日产生，通常在美国晚间陆续更新；周末停留在周五属于正常情况。", "连续净流入反映配置需求增强，但它不是 BTC 当日价格涨跌的直接保证。"]
+    },
     fearGreed: {
       title: "恐惧贪婪指数",
       summary: "范围为 0–100，数值越低代表市场越恐慌。",
@@ -91,6 +98,11 @@ const INDICATOR_HELP = {
     }
   },
   en: {
+    btcEtfFlows: {
+      title: "BTC ETF Flows",
+      summary: "Aggregates daily net subscriptions and redemptions across U.S. spot Bitcoin ETFs to track institutional allocation demand.",
+      points: ["Positive values are net inflows and negative values are net outflows; figures are in USD millions.", "Data is produced only on U.S. trading days and is typically finalized during the U.S. evening; a Friday date over the weekend is normal.", "A sustained inflow streak signals stronger allocation demand, but does not guarantee BTC’s daily price direction."]
+    },
     fearGreed: {
       title: "Fear & Greed Index",
       summary: "Ranges from 0 to 100. Lower readings indicate greater market fear.",
@@ -136,7 +148,7 @@ const INDICATOR_HELP = {
   }
 };
 
-const CARD_HELP_KEYS = { 7: "mvrv", 8: "puell" };
+const CARD_HELP_KEYS = { 1: "btcEtfFlows", 7: "mvrv", 8: "puell" };
 
 export function indicatorHelp(language, key) {
   return INDICATOR_HELP[language]?.[key] ?? INDICATOR_HELP.zh[key] ?? null;
@@ -161,6 +173,10 @@ const CARD_NAMES = {
 
 const EXACT_EN = new Map([
   ["ETF 资金连续净流入，机构配置需求保持强势。", "ETF flows remain net positive, signaling resilient institutional allocation demand."],
+  ["ETF 资金连续净流入，机构配置需求保持支撑。", "ETF flows remain net positive, supporting institutional allocation demand."],
+  ["ETF 资金连续净流出，机构配置需求转弱。", "ETF flows remain net negative, signaling weaker institutional allocation demand."],
+  ["最新交易日 ETF 资金净流量持平。", "ETF net flows were flat on the latest trading day."],
+  ["ETF 发布快照", "ETF published snapshot"], ["ETF 数据可能滞后", "ETF data may be stale"],
   ["距 1.0 触发仅 2%，BTC 拉升带动回升，现金跑道健康。", "Only 2% below the 1.0 trigger; BTC strength is lifting mNAV and the cash runway remains healthy."],
   ["稳定币供给扩张", "Stablecoin supply expanding"], ["稳定币供给收缩", "Stablecoin supply contracting"],
   ["稳定币供给保持扩张，链上可用流动性改善。", "Stablecoin supply is expanding, improving deployable on-chain liquidity."],
@@ -211,6 +227,10 @@ export function translateText(value, language) {
   let text = source
     .replace(/\$([\d,.]+)\s*亿/g, (_, number) => `$${(Number(number.replaceAll(",", "")) / 10).toLocaleString("en-US", { maximumFractionDigits: 1 })}B`)
     .replace(/连续\s*(\d+)\s*日净流入/g, "$1 consecutive days of net inflows")
+    .replace(/连续\s*(\d+)\s*日净流出/g, "$1 consecutive days of net outflows")
+    .replace(/最新交易日净流量持平/g, "Latest trading-day net flow was flat")
+    .replace(/ETF 发布快照/g, "ETF published snapshot")
+    .replace(/ETF 数据可能滞后/g, "ETF data may be stale")
     .replace(/累计/g, "total")
     .replace(/连续(\d+)日/g, "$1-day streak")
     .replace(/飞轮/g, "Flywheel")

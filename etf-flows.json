@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "asset": "BTC",
+  "unit": "USD_MILLIONS",
+  "status": "snapshot",
+  "marketDate": "2026-08-21",
+  "generatedAt": "2026-08-22T05:51:02.596Z",
+  "source": {
+    "label": "Farside",
+    "url": "https://farside.co.uk/btc/",
+    "method": "published-snapshot"
+  },
+  "verificationSource": {
+    "label": "Farside",
+    "url": "https://farside.co.uk/btc/"
+  },
+  "rows": [
+    { "date": "2026-08-17", "flowUsdMillions": 297.6 },
+    { "date": "2026-08-18", "flowUsdMillions": 189.3 },
+    { "date": "2026-08-19", "flowUsdMillions": 517.2 },
+    { "date": "2026-08-21", "flowUsdMillions": 103.3 }
+  ]
+}

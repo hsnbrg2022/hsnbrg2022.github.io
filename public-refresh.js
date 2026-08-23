@@ -17,6 +17,85 @@ function cloneDashboard(data) {
     : JSON.parse(JSON.stringify(data));
 }
 
+function etfSigned(value) {
+  const number = Number(value);
+  const sign = number > 0 ? "+" : number < 0 ? "−" : "";
+  return `${sign}$${Math.abs(number).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}M`;
+}
+
+function etfCumulative(value) {
+  const sign = value < 0 ? "−" : "";
+  const absolute = Math.abs(value);
+  return absolute >= 1000 ? `${sign}$${(absolute / 1000).toFixed(1)}B` : `${sign}$${absolute.toFixed(1)}M`;
+}
+
+export function etfWeekdaysSince(dateString, now = new Date()) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString || "")) return Infinity;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Asia/Shanghai"
+  }).formatToParts(now).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+  const end = new Date(`${parts.year}-${parts.month}-${parts.day}T12:00:00Z`);
+  const cursor = new Date(`${dateString}T12:00:00Z`);
+  if (!Number.isFinite(cursor.getTime())) return Infinity;
+  let weekdays = 0;
+  while (cursor < end && weekdays < 1000) {
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    const day = cursor.getUTCDay();
+    if (day !== 0 && day !== 6) weekdays += 1;
+  }
+  return weekdays;
+}
+
+function summarizeEtfRows(rows) {
+  const sorted = rows.map((row) => ({ date: row.date, flowUsdMillions: Number(row.flowUsdMillions) }))
+    .filter((row) => /^\d{4}-\d{2}-\d{2}$/.test(row.date || "") && Number.isFinite(row.flowUsdMillions))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (!sorted.length) return null;
+  const latest = sorted.at(-1);
+  const direction = latest.flowUsdMillions > 0 ? "inflow" : latest.flowUsdMillions < 0 ? "outflow" : "flat";
+  let streak = 0;
+  let cumulative = 0;
+  for (let index = sorted.length - 1; index >= 0; index -= 1) {
+    const value = sorted[index].flowUsdMillions;
+    if ((direction === "inflow" && value <= 0) || (direction === "outflow" && value >= 0) || direction === "flat") break;
+    streak += 1;
+    cumulative += value;
+  }
+  return { latest, direction, streak, cumulative, recent: sorted.slice(-4) };
+}
+
+async function updateEtf(data, fetchImpl) {
+  const dataset = await fetchJson(`./etf-flows.json?v=${Date.now()}`, fetchImpl);
+  const summary = summarizeEtfRows(dataset.rows || []);
+  if (!summary || dataset.asset !== "BTC" || dataset.unit !== "USD_MILLIONS") throw new Error("ETF 数据文件无效");
+  const target = card(data, 1);
+  const directionText = summary.direction === "inflow" ? "净流入" : summary.direction === "outflow" ? "净流出" : "净流量持平";
+  target.headline = summary.direction === "flat"
+    ? "最新交易日净流量持平"
+    : `连续 ${summary.streak} 日${directionText} · 累计 ${etfCumulative(summary.cumulative)}`;
+  target.facts = summary.recent.map((row) => {
+    const [, month, day] = row.date.split("-");
+    return `${Number(month)}/${Number(day)} ${etfSigned(row.flowUsdMillions)}`;
+  });
+  target.detail = summary.direction === "inflow"
+    ? "ETF 资金连续净流入，机构配置需求保持支撑。"
+    : summary.direction === "outflow" ? "ETF 资金连续净流出，机构配置需求转弱。" : "最新交易日 ETF 资金净流量持平。";
+  target.status = summary.direction === "inflow" && summary.streak >= 2
+    ? "green"
+    : summary.direction === "outflow" && summary.streak >= 3 ? "red" : "yellow";
+  target.change = summary.direction === "flat" ? "最新交易日持平" : `连续${summary.streak}日${directionText}`;
+  target.source = { label: dataset.source?.label || "ETF data", url: dataset.source?.url || "https://farside.co.uk/btc/" };
+  target.refresh = "auto";
+  target.dataAsOf = summary.latest.date;
+  target.marketFetchedAt = dataset.generatedAt || new Date().toISOString();
+  const weekdaysOld = etfWeekdaysSince(summary.latest.date);
+  target.refreshStatus = weekdaysOld > 2 ? "stale" : dataset.status === "live" ? "ok" : "snapshot";
+  target.refreshMessage = `ETF / ${target.source.label} · 截至 ${summary.latest.date}`;
+  return target.refreshStatus === "stale"
+    ? `ETF 数据可能滞后 / ${target.source.label}`
+    : target.refreshStatus === "snapshot" ? `ETF 发布快照 / ${target.source.label}` : `ETF / ${target.source.label}`;
+}
+
 async function fetchJson(url, fetchImpl) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -275,6 +354,7 @@ async function updateWma(data, fetchImpl) {
 export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fetch } = {}) {
   const data = cloneDashboard(input);
   const tasks = [
+    ["ETF", () => updateEtf(data, fetchImpl)],
     ["BTC", () => updateBtc(data, fetchImpl)],
     ["F&G", () => updateFearGreed(data, fetchImpl)],
     ["稳定币", () => updateStablecoins(data, fetchImpl)],
@@ -286,7 +366,7 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
   const updated = [];
   const warnings = [];
   const checkedAt = new Date().toISOString();
-  const cardByTask = { "稳定币": 3, DXY: 5, "黄金": 6 };
+  const cardByTask = { ETF: 1, "稳定币": 3, DXY: 5, "黄金": 6 };
   const checks = [];
 
   results.forEach((result, index) => {
@@ -296,7 +376,7 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
       updated.push(result.value);
       checks.push({ name, status: "ok", result: result.value, checkedAt });
       if (target) Object.assign(target, {
-        refreshStatus: "ok",
+        refreshStatus: target.refreshStatus || "ok",
         refreshMessage: result.value,
         refreshMethod: "public-manual",
         lastRefreshAt: checkedAt
