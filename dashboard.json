@@ -1,6 +1,6 @@
 {
   "date": "2026-08-25",
-  "updatedAt": "2026-08-25T06:12:30.728Z",
+  "updatedAt": "2026-08-25T06:26:48.279Z",
   "dataMode": "公开快照",
   "market": {
     "btcPrice": 77295.84939069621,
@@ -48,7 +48,7 @@
       "refreshStatus": "snapshot",
       "refreshMessage": "ETF / Farside · 手工维护 · 截至 2026-08-24",
       "dataAsOf": "2026-08-24",
-      "marketFetchedAt": "2026-08-25T06:12:30.728Z",
+      "marketFetchedAt": "2026-08-25T06:26:48.279Z",
       "manualEntry": true
     },
     {
