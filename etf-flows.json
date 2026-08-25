@@ -3,21 +3,41 @@
   "asset": "BTC",
   "unit": "USD_MILLIONS",
   "status": "snapshot",
-  "marketDate": "2026-08-21",
-  "generatedAt": "2026-08-22T05:51:02.596Z",
+  "marketDate": "2026-08-24",
+  "generatedAt": "2026-08-25T06:12:30.728Z",
   "source": {
     "label": "Farside",
     "url": "https://farside.co.uk/btc/",
-    "method": "published-snapshot"
+    "method": "manual-entry"
   },
   "verificationSource": {
-    "label": "Farside",
-    "url": "https://farside.co.uk/btc/"
+    "label": "SoSoValue",
+    "url": "https://sosovalue.com/zh/assets/etf/us-btc-spot"
   },
   "rows": [
-    { "date": "2026-08-17", "flowUsdMillions": 297.6 },
-    { "date": "2026-08-18", "flowUsdMillions": 189.3 },
-    { "date": "2026-08-19", "flowUsdMillions": 517.2 },
-    { "date": "2026-08-21", "flowUsdMillions": 103.3 }
+    {
+      "date": "2026-08-17",
+      "flowUsdMillions": 297.5
+    },
+    {
+      "date": "2026-08-18",
+      "flowUsdMillions": 189.3
+    },
+    {
+      "date": "2026-08-19",
+      "flowUsdMillions": 517.2
+    },
+    {
+      "date": "2026-08-20",
+      "flowUsdMillions": 606.3
+    },
+    {
+      "date": "2026-08-21",
+      "flowUsdMillions": 307.5
+    },
+    {
+      "date": "2026-08-24",
+      "flowUsdMillions": 337.6
+    }
   ]
 }
