@@ -258,6 +258,17 @@ input:focus, textarea:focus, select:focus { border-color: var(--mint); box-shado
 .calculated-output::after { content: " ×"; color: var(--muted); font-size: 11px; margin-left: 5px; }
 .calculated-output.is-invalid { color: var(--red); border-color: rgba(236,125,112,.4); background: rgba(236,125,112,.08); }
 .ratio-fields label > small { display: block; margin-top: 6px; color: #66706d; font-size: 10px; }
+label > small { display: block; margin-top: 6px; color: #66706d; font-size: 10px; }
+.etf-history-panel { margin: 4px 0 14px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(5,8,9,.38); }
+.etf-history-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.etf-history-head strong { color: #cbd2cf; font-size: 11px; }
+.etf-history-head span { color: var(--muted); font: 500 9px var(--mono); }
+.etf-history { display: grid; gap: 6px; }
+.etf-history-row { display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 8px 9px; border-radius: 8px; background: rgba(255,255,255,.025); font: 500 11px var(--mono); }
+.etf-history-row span { color: #9da7a4; }
+.etf-history-row strong { color: var(--mint); }
+.etf-history-row.is-outflow strong { color: var(--red); }
+.publish-hint { margin: 12px 0 2px; padding: 10px 12px; border-left: 2px solid var(--gold); color: #a79f8e; background: rgba(229,183,102,.06); font-size: 10px; line-height: 1.6; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 8px; }
 .dialog-actions .reset-button { margin-right: auto; }
 

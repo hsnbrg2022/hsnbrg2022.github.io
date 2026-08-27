@@ -1,0 +1,43 @@
+name: Update BTC ETF flows
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 美股周一至周五收盘后的亚洲时段运行（UTC 周二至周六）。
+    - cron: "30 1 * * 2-6"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-btc-etf-flows
+  cancel-in-progress: false
+
+jobs:
+  update-etf-flows:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Fetch and normalize ETF flows
+        env:
+          COINGLASS_API_KEY: ${{ secrets.COINGLASS_API_KEY }}
+          ETF_FLOW_BACKUP_URL: ${{ secrets.ETF_FLOW_BACKUP_URL }}
+          ETF_FLOW_BACKUP_KEY: ${{ secrets.ETF_FLOW_BACKUP_KEY }}
+          ETF_FLOW_BACKUP_LABEL: ${{ vars.ETF_FLOW_BACKUP_LABEL }}
+          ETF_FLOW_BACKUP_SOURCE_URL: ${{ vars.ETF_FLOW_BACKUP_SOURCE_URL }}
+        run: node scripts/update-etf-flows.mjs
+      - name: Commit updated public data
+        run: |
+          if git diff --quiet -- etf-flows.json dashboard.json; then
+            echo "No ETF update available."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add etf-flows.json dashboard.json
+          git commit -m "data: update BTC ETF flows"
+          git push

@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20260823-5">
+  <link rel="stylesheet" href="./styles.css?v=20260827-1">
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -122,13 +122,48 @@
     <p>公开访客可刷新实时公开数据；手工指标保持发布口径。仅供研究与信息整理，不构成投资建议。</p>
   </footer>
 
+  <dialog id="etfDialog">
+    <form id="etfForm" method="dialog">
+      <div class="dialog-head">
+        <div><span class="panel-index">SIGNAL 01</span><h2 id="etfDialogTitle">维护 BTC ETF 资金流</h2></div>
+        <button id="closeEtf" class="icon-button" value="cancel" type="button" aria-label="关闭">×</button>
+      </div>
+      <p id="etfDialogNote" class="maintenance-note">填写交易日期和当日总净流量，系统将自动计算连续天数、累计金额和信号状态。</p>
+      <div class="form-grid">
+        <label><span id="etfDateLabel">交易日期</span>
+          <input id="etfDate" type="date" required>
+        </label>
+        <label><span id="etfFlowLabel">当日总净流量（百万美元）</span>
+          <input id="etfFlow" type="number" min="-10000" max="10000" step="0.01" inputmode="decimal" placeholder="例如：337.56" required>
+          <small id="etfFlowHelp">正数表示净流入，负数表示净流出</small>
+        </label>
+      </div>
+      <label><span id="etfSourceLabel">人工核对来源</span>
+        <select id="etfSource">
+          <option value="sosovalue">SoSoValue</option>
+          <option value="farside">Farside</option>
+        </select>
+      </label>
+      <section class="etf-history-panel">
+        <div class="etf-history-head"><strong id="etfHistoryTitle">最近记录</strong><span id="etfHistoryAsOf">—</span></div>
+        <div id="etfHistory" class="etf-history"></div>
+      </section>
+      <p id="etfSavePolicy" class="publish-hint"></p>
+      <div class="dialog-actions">
+        <button class="button button-ghost reset-button" type="button" id="resetEtf">恢复发布值</button>
+        <button class="button button-ghost" value="cancel" type="button" id="cancelEtf">取消</button>
+        <button class="button button-primary" type="submit" id="saveEtf">保存</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="positioningDialog">
     <form id="positioningForm" method="dialog">
       <div class="dialog-head">
         <div><span class="panel-index">SIGNAL 09</span><h2>手动维护多空比</h2></div>
-        <button id="closePositioning" class="icon-button" value="cancel" aria-label="关闭">×</button>
+        <button id="closePositioning" class="icon-button" value="cancel" type="button" aria-label="关闭">×</button>
       </div>
-      <p class="maintenance-note">只需填写账户比与仓位比；仓帐比、信号等级和解读将自动计算。数据仅保存在当前浏览器，不会影响其他访客。</p>
+      <p id="positioningNote" class="maintenance-note">只需填写账户比与仓位比；仓帐比、信号等级和解读将自动计算。</p>
       <div class="ratio-fields">
         <div class="form-grid ratio-inputs">
           <label><span id="maintenanceAccountLabel">账户比</span><input id="maintenanceAccountRatio" type="number" min="0.01" step="0.01" inputmode="decimal" required></label>
@@ -148,6 +183,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="./app.js?v=20260823-5"></script>
+  <script type="module" src="./app.js?v=20260827-1"></script>
 </body>
 </html>

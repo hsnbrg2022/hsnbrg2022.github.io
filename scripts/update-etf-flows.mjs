@@ -12,7 +12,8 @@ const FARSIDE_URL = "https://farside.co.uk/btc/";
 function isoDate(timestamp) {
   const value = Number(timestamp);
   if (!Number.isFinite(value)) return null;
-  return new Date(value).toISOString().slice(0, 10);
+  const milliseconds = value < 10_000_000_000 ? value * 1000 : value;
+  return new Date(milliseconds).toISOString().slice(0, 10);
 }
 
 function validDate(value) {
@@ -20,12 +21,20 @@ function validDate(value) {
 }
 
 export function normalizeEtfPayload(payload, source = {}) {
-  const inputRows = Array.isArray(payload?.rows) ? payload.rows : Array.isArray(payload?.data) ? payload.data : [];
+  const inputRows = Array.isArray(payload?.rows)
+    ? payload.rows
+    : Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload?.data?.list)
+        ? payload.data.list
+        : Array.isArray(payload?.result?.data)
+          ? payload.result.data
+          : [];
   const rows = inputRows.map((row) => {
     const date = validDate(row.date) ? row.date : isoDate(row.timestamp);
-    const flowUsdMillions = Number.isFinite(Number(row.flowUsdMillions))
-      ? Number(row.flowUsdMillions)
-      : Number(row.flow_usd) / 1_000_000;
+    const directMillions = Number(row.flowUsdMillions ?? row.flow_usd_millions);
+    const rawUsd = Number(row.flow_usd ?? row.flowUsd ?? row.net_flow_usd ?? row.netFlowUsd);
+    const flowUsdMillions = Number.isFinite(directMillions) ? directMillions : rawUsd / 1_000_000;
     return { date, flowUsdMillions };
   }).filter((row) => validDate(row.date) && Number.isFinite(row.flowUsdMillions));
   const unique = new Map(rows.map((row) => [row.date, row]));
@@ -103,47 +112,79 @@ export function applyEtfDataset(dashboard, dataset) {
   target.refreshMessage = `ETF / ${dataset.source.label} · 截至 ${dataset.marketDate}`;
   target.dataAsOf = dataset.marketDate;
   target.marketFetchedAt = dataset.generatedAt;
+  target.manualEntry = dataset.source?.method === "manual-entry";
   return dashboard;
 }
 
 async function fetchJson(url, options = {}) {
-  const response = await fetch(url, { ...options, headers: { accept: "application/json", ...(options.headers || {}) } });
+  const { fetchImpl = globalThis.fetch, ...requestOptions } = options;
+  const response = await fetchImpl(url, {
+    ...requestOptions,
+    headers: { accept: "application/json", ...(requestOptions.headers || {}) }
+  });
   if (!response.ok) throw new Error(`${url} 返回 HTTP ${response.status}`);
   return response.json();
 }
 
-async function loadProviderDataset() {
-  if (process.env.ETF_FLOW_INPUT_PATH) {
-    const payload = JSON.parse(await readFile(resolve(process.env.ETF_FLOW_INPUT_PATH), "utf8"));
+export async function loadProviderDataset({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
+  if (env.ETF_FLOW_INPUT_PATH) {
+    const payload = JSON.parse(await readFile(resolve(env.ETF_FLOW_INPUT_PATH), "utf8"));
     return normalizeEtfPayload(payload, payload.source || { label: "Fixture", method: "file" });
   }
-  if (process.env.COINGLASS_API_KEY) {
-    const payload = await fetchJson(COINGLASS_ENDPOINT, { headers: { "CG-API-KEY": process.env.COINGLASS_API_KEY } });
-    return normalizeEtfPayload(payload, {
+
+  const providers = [];
+  if (env.COINGLASS_API_KEY) {
+    providers.push({
       label: "CoinGlass",
-      url: "https://www.coinglass.com/bitcoin-etf",
-      method: "official-api"
+      load: async () => {
+        const payload = await fetchJson(COINGLASS_ENDPOINT, {
+          fetchImpl,
+          headers: { "CG-API-KEY": env.COINGLASS_API_KEY }
+        });
+        return normalizeEtfPayload(payload, {
+          label: "CoinGlass",
+          url: "https://www.coinglass.com/bitcoin-etf",
+          method: "official-api"
+        });
+      }
     });
   }
-  if (process.env.ETF_FLOW_BACKUP_URL) {
-    const headers = process.env.ETF_FLOW_BACKUP_KEY ? { authorization: `Bearer ${process.env.ETF_FLOW_BACKUP_KEY}` } : {};
-    const payload = await fetchJson(process.env.ETF_FLOW_BACKUP_URL, { headers });
-    return normalizeEtfPayload(payload, {
-      label: process.env.ETF_FLOW_BACKUP_LABEL || "Backup ETF API",
-      url: process.env.ETF_FLOW_BACKUP_SOURCE_URL || process.env.ETF_FLOW_BACKUP_URL,
-      method: "backup-api"
+  if (env.ETF_FLOW_BACKUP_URL) {
+    providers.push({
+      label: env.ETF_FLOW_BACKUP_LABEL || "Backup ETF API",
+      load: async () => {
+        const headers = env.ETF_FLOW_BACKUP_KEY ? { authorization: `Bearer ${env.ETF_FLOW_BACKUP_KEY}` } : {};
+        const payload = await fetchJson(env.ETF_FLOW_BACKUP_URL, { fetchImpl, headers });
+        return normalizeEtfPayload(payload, {
+          label: env.ETF_FLOW_BACKUP_LABEL || "Backup ETF API",
+          url: env.ETF_FLOW_BACKUP_SOURCE_URL || env.ETF_FLOW_BACKUP_URL,
+          method: "backup-api"
+        });
+      }
     });
   }
-  return null;
+  if (!providers.length) {
+    throw new Error("未配置 COINGLASS_API_KEY 或 ETF_FLOW_BACKUP_URL；Farside 会拦截服务器抓取，仅能作为人工复核来源");
+  }
+
+  const errors = [];
+  for (const provider of providers) {
+    try {
+      return await provider.load();
+    } catch (error) {
+      errors.push(`${provider.label}: ${error.message}`);
+    }
+  }
+  throw new Error(`ETF 数据源全部失败：${errors.join("；")}`);
 }
 
 async function main() {
   const dataset = await loadProviderDataset();
-  if (!dataset) {
-    console.log("未配置 COINGLASS_API_KEY 或 ETF_FLOW_BACKUP_URL；保留最近 ETF 快照。Farside 仅用于人工复核。" );
-    return;
-  }
   const dashboard = JSON.parse(await readFile(DASHBOARD_FILE, "utf8"));
+  const current = JSON.parse(await readFile(ETF_FILE, "utf8"));
+  if (validDate(current.marketDate) && dataset.marketDate < current.marketDate) {
+    throw new Error(`新数据 ${dataset.marketDate} 早于现有数据 ${current.marketDate}，已拒绝回退`);
+  }
   applyEtfDataset(dashboard, dataset);
   await writeFile(ETF_FILE, `${JSON.stringify(dataset, null, 2)}\n`);
   await writeFile(DASHBOARD_FILE, `${JSON.stringify(dashboard, null, 2)}\n`);

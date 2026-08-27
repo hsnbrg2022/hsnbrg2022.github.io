@@ -1,6 +1,6 @@
 {
-  "date": "2026-08-25",
-  "updatedAt": "2026-08-25T06:26:48.279Z",
+  "date": "2026-08-27",
+  "updatedAt": "2026-08-27T09:27:48.353Z",
   "dataMode": "公开快照",
   "market": {
     "btcPrice": 77295.84939069621,
@@ -48,7 +48,7 @@
       "refreshStatus": "snapshot",
       "refreshMessage": "ETF / Farside · 手工维护 · 截至 2026-08-24",
       "dataAsOf": "2026-08-24",
-      "marketFetchedAt": "2026-08-25T06:26:48.279Z",
+      "marketFetchedAt": "2026-08-27T09:27:47.418Z",
       "manualEntry": true
     },
     {
@@ -210,7 +210,7 @@
         "仓位比 1.96",
         "仓帐比 1.70"
       ],
-      "detail": "账户比下降而仓位比上升，大户重仓、散户冷静，落入机构锁仓象限。",
+      "detail": "账户比偏低而大户仓位比偏高，落入机构锁仓象限。",
       "change": "🟦S+ 仓帐比1.70",
       "source": {
         "label": "Binance Futures",
@@ -222,7 +222,9 @@
         "accountRatio": 1.15,
         "positionRatio": 1.96,
         "bookAccountRatio": 1.7043478260869567
-      }
+      },
+      "marketFetchedAt": "2026-08-27T09:27:48.353Z",
+      "manualEntry": true
     }
   ],
   "macroNotes": [

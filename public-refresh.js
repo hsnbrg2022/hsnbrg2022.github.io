@@ -64,8 +64,7 @@ function summarizeEtfRows(rows) {
   return { latest, direction, streak, cumulative, recent: sorted.slice(-4) };
 }
 
-async function updateEtf(data, fetchImpl) {
-  const dataset = await fetchJson(`./etf-flows.json?v=${Date.now()}`, fetchImpl);
+export function applyEtfDatasetToDashboard(data, dataset, { now = new Date() } = {}) {
   const summary = summarizeEtfRows(dataset.rows || []);
   if (!summary || dataset.asset !== "BTC" || dataset.unit !== "USD_MILLIONS") throw new Error("ETF 数据文件无效");
   const target = card(data, 1);
@@ -88,12 +87,18 @@ async function updateEtf(data, fetchImpl) {
   target.refresh = "auto";
   target.dataAsOf = summary.latest.date;
   target.marketFetchedAt = dataset.generatedAt || new Date().toISOString();
-  const weekdaysOld = etfWeekdaysSince(summary.latest.date);
+  target.manualEntry = dataset.source?.method === "manual-entry";
+  const weekdaysOld = etfWeekdaysSince(summary.latest.date, now);
   target.refreshStatus = weekdaysOld > 2 ? "stale" : dataset.status === "live" ? "ok" : "snapshot";
   target.refreshMessage = `ETF / ${target.source.label} · 截至 ${summary.latest.date}`;
   return target.refreshStatus === "stale"
     ? `ETF 数据可能滞后 / ${target.source.label}`
     : target.refreshStatus === "snapshot" ? `ETF 发布快照 / ${target.source.label}` : `ETF / ${target.source.label}`;
+}
+
+async function updateEtf(data, fetchImpl) {
+  const dataset = await fetchJson(`./etf-flows.json?v=${Date.now()}`, fetchImpl);
+  return applyEtfDatasetToDashboard(data, dataset);
 }
 
 async function fetchJson(url, fetchImpl) {
