@@ -12,6 +12,8 @@ ETF 数据来自同源的 `etf-flows.json`。页面会自动计算连续净流�
 
 没有 API Key 时，在本地维护版点击 ETF 卡片右上角“手动维护”，从 SoSoValue 或 Farside 核对后录入交易日期与当日总净流量。保存会自动生成本目录的 `etf-flows.json` 和 `dashboard.json`；将这两个文件上传到 GitHub 仓库根目录即可发布。系统会自动计算连续方向、累计金额和信号状态，同日重录会覆盖旧值。
 
+ETF 维护窗口中的最近记录可直接点击并回填。修正金额后保存会覆盖该交易日的原记录，不会生成重复日期；修改状态、保存按钮和成功提示均会明确标识这是二次修改。
+
 如以后取得 API Key，可在 GitHub 仓库的 **Settings → Secrets and variables → Actions** 中添加 `COINGLASS_API_KEY`。自动任务使用 CoinGlass 官方 ETF Flow API，并保留 Farside 作为人工复核链接。Farside 会拦截 GitHub 服务器的直接抓取，因此不作为无密钥 API 使用。还可以通过 `ETF_FLOW_BACKUP_URL` 与可选的 `ETF_FLOW_BACKUP_KEY` 配置备用 JSON 接口。主数据源失败时会自动尝试备用源；两个数据源都未配置或全部失败时，任务会明确失败，不再伪装成成功更新。
 
 True Market Mean 在 `dashboard.json` 的 `trueMarketMean` 字段中维护：更新 `value` 和 `asOf` 即可。页面会使用实时 BTC 自动计算距离，并判断该成本线处于下方支撑、上方阻力或正在测试；超过 3 天提示可能滞后，超过 7 天提示数据过期。

@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20260827-1">
+  <link rel="stylesheet" href="./styles.css?v=20260828-1">
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -138,6 +138,7 @@
           <small id="etfFlowHelp">正数表示净流入，负数表示净流出</small>
         </label>
       </div>
+      <p id="etfEditState" class="etf-edit-state" hidden></p>
       <label><span id="etfSourceLabel">人工核对来源</span>
         <select id="etfSource">
           <option value="sosovalue">SoSoValue</option>
@@ -146,6 +147,7 @@
       </label>
       <section class="etf-history-panel">
         <div class="etf-history-head"><strong id="etfHistoryTitle">最近记录</strong><span id="etfHistoryAsOf">—</span></div>
+        <p id="etfHistoryHint" class="etf-history-hint">点击任一记录可载入并修改</p>
         <div id="etfHistory" class="etf-history"></div>
       </section>
       <p id="etfSavePolicy" class="publish-hint"></p>
@@ -183,6 +185,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="./app.js?v=20260827-1"></script>
+  <script type="module" src="./app.js?v=20260828-1"></script>
 </body>
 </html>

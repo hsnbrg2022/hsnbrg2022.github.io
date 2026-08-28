@@ -1,7 +1,7 @@
 import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney } from "./model.js?v=20260823-2";
 import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260827-1";
-import { nextEtfTradingDate, upsertManualEtfFlow } from "./scripts/manual-etf-flow.mjs?v=20260827-1";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260827-1";
+import { nextEtfTradingDate, upsertManualEtfFlow } from "./scripts/manual-etf-flow.mjs?v=20260828-1";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260828-1";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -14,6 +14,7 @@ let dashboard;
 let language = getInitialLanguage();
 let publishedEtfDataset;
 let currentEtfDataset;
+let editingEtfDate = "";
 let publishedPositioningCard;
 let publishedDataMode;
 let activeIndicatorTooltip;
@@ -139,12 +140,14 @@ function applyStaticTranslations() {
   $("#etfFlowHelp").textContent = t(language, "etfNetFlowHelp");
   $("#etfSourceLabel").textContent = t(language, "etfManualSource");
   $("#etfHistoryTitle").textContent = t(language, "etfRecentHistory");
+  $("#etfHistoryHint").textContent = t(language, "etfRecentHistoryHint");
   $("#etfSavePolicy").textContent = t(language, IS_LOCAL_MAINTENANCE ? "etfLocalPolicy" : "etfBrowserPolicy");
   $("#resetEtf").textContent = t(language, "reset");
   $("#resetEtf").hidden = IS_LOCAL_MAINTENANCE;
   $("#cancelEtf").textContent = t(language, "cancel");
   $("#saveEtf").textContent = t(language, IS_LOCAL_MAINTENANCE ? "saveAndSync" : "saveBrowser");
   $("#closeEtf").ariaLabel = t(language, "close");
+  syncEtfEditorState();
   $("#fngHelp").innerHTML = renderIndicatorHelp("fearGreed", "fear-greed");
   $("#wmaHelp").innerHTML = renderIndicatorHelp("wma200", "200-wma");
 }
@@ -413,8 +416,41 @@ function renderEtfHistory(dataset) {
   const rows = Array.isArray(dataset?.rows) ? dataset.rows.slice(-6).reverse() : [];
   $("#etfHistoryAsOf").textContent = dataset?.marketDate ? dataset.marketDate.replaceAll("-", "/") : "—";
   $("#etfHistory").innerHTML = rows.length
-    ? rows.map((row) => `<div class="etf-history-row ${Number(row.flowUsdMillions) < 0 ? "is-outflow" : ""}"><span>${escapeHtml(row.date.replaceAll("-", "/"))}</span><strong>${escapeHtml(formatEtfFlow(row.flowUsdMillions))}</strong></div>`).join("")
+    ? rows.map((row) => `<button type="button" class="etf-history-row ${Number(row.flowUsdMillions) < 0 ? "is-outflow" : ""} ${editingEtfDate === row.date ? "is-editing" : ""}" data-etf-edit-date="${escapeHtml(row.date)}" aria-pressed="${editingEtfDate === row.date}"><span>${escapeHtml(row.date.replaceAll("-", "/"))}</span><strong>${escapeHtml(formatEtfFlow(row.flowUsdMillions))}</strong><em>${t(language, "etfEditAction")}</em></button>`).join("")
     : `<div class="etf-history-row"><span>—</span><strong>—</strong></div>`;
+}
+
+function findEtfRecord(date) {
+  return Array.isArray(currentEtfDataset?.rows)
+    ? currentEtfDataset.rows.find((row) => row.date === date)
+    : null;
+}
+
+function syncEtfEditorState() {
+  const state = $("#etfEditState");
+  if (!state) return;
+  state.hidden = !editingEtfDate;
+  state.textContent = editingEtfDate
+    ? t(language, "etfEditingRecord", { date: editingEtfDate.replaceAll("-", "/") })
+    : "";
+  $("#saveEtf").textContent = editingEtfDate
+    ? t(language, IS_LOCAL_MAINTENANCE ? "etfUpdateAndSync" : "etfUpdateBrowser")
+    : t(language, IS_LOCAL_MAINTENANCE ? "saveAndSync" : "saveBrowser");
+}
+
+function selectEtfRecord(date, { focus = true } = {}) {
+  const row = findEtfRecord(date);
+  if (!row) return false;
+  editingEtfDate = row.date;
+  $("#etfDate").value = row.date;
+  $("#etfFlow").value = String(row.flowUsdMillions);
+  syncEtfEditorState();
+  renderEtfHistory(currentEtfDataset);
+  if (focus) {
+    $("#etfFlow").focus();
+    $("#etfFlow").select();
+  }
+  return true;
 }
 
 function applyBrowserEtfDataset(dataset) {
@@ -430,6 +466,8 @@ async function openEtfMaintenance() {
   const dialog = $("#etfDialog");
   $("#etfHistory").textContent = t(language, "etfLoading");
   $("#etfHistoryAsOf").textContent = "—";
+  editingEtfDate = "";
+  syncEtfEditorState();
   $("#etfFlow").value = "";
   dialog.showModal();
   try {
@@ -442,12 +480,18 @@ async function openEtfMaintenance() {
       currentEtfDataset = await api(`./etf-flows.json?v=${Date.now()}`);
     }
     suggestedNextDate ||= nextEtfTradingDate(currentEtfDataset?.marketDate);
-    $("#etfDate").value = suggestedNextDate || currentEtfDataset?.marketDate || "";
+    const initialDate = suggestedNextDate || currentEtfDataset?.marketDate || "";
+    $("#etfDate").value = initialDate;
     $("#etfDate").max = new Intl.DateTimeFormat("en-CA", {
       year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Asia/Shanghai"
     }).format(new Date());
     $("#etfSource").value = /farside/i.test(currentEtfDataset?.source?.label || "") ? "farside" : "sosovalue";
-    renderEtfHistory(currentEtfDataset);
+    if (!selectEtfRecord(initialDate, { focus: false })) {
+      editingEtfDate = "";
+      $("#etfFlow").value = "";
+      syncEtfEditorState();
+      renderEtfHistory(currentEtfDataset);
+    }
     $("#etfFlow").focus();
   } catch (error) {
     dialog.close();
@@ -465,17 +509,22 @@ async function saveEtfMaintenance(event) {
     sourceKey: $("#etfSource").value
   };
   try {
+    let action;
     if (IS_LOCAL_MAINTENANCE) {
       const result = await api("/api/etf-flows", { method: "POST", body: JSON.stringify(input) });
       dashboard = result.data;
       currentEtfDataset = result.dataset;
-      showToast(`${t(language, "etfSaved")} · ${result.publishFiles.join(" + ")}`, "success", 7000);
+      action = result.action;
+      const messageKey = action === "updated" ? "etfUpdated" : "etfSaved";
+      showToast(`${t(language, messageKey)} · ${result.publishFiles.join(" + ")}`, "success", 7000);
     } else {
       const result = upsertManualEtfFlow(currentEtfDataset || publishedEtfDataset, input);
+      action = result.action;
       localStorage.setItem(ETF_STORAGE_KEY, JSON.stringify(result.dataset));
       applyBrowserEtfDataset(result.dataset);
-      showToast(t(language, "etfSavedBrowser"), "success", 6000);
+      showToast(t(language, action === "updated" ? "etfUpdatedBrowser" : "etfSavedBrowser"), "success", 6000);
     }
+    editingEtfDate = "";
     $("#etfDialog").close();
     render();
   } catch (error) {
@@ -646,6 +695,18 @@ $("#sections").addEventListener("click", (event) => {
   if (event.target.closest("[data-maintain-positioning]")) openPositioningMaintenance();
 });
 $("#etfForm").addEventListener("submit", saveEtfMaintenance);
+$("#etfHistory").addEventListener("click", (event) => {
+  const record = event.target.closest("[data-etf-edit-date]");
+  if (record) selectEtfRecord(record.dataset.etfEditDate);
+});
+$("#etfDate").addEventListener("change", () => {
+  const date = $("#etfDate").value;
+  if (selectEtfRecord(date, { focus: false })) return;
+  editingEtfDate = "";
+  $("#etfFlow").value = "";
+  syncEtfEditorState();
+  renderEtfHistory(currentEtfDataset);
+});
 $("#resetEtf").addEventListener("click", resetEtfMaintenance);
 $("#closeEtf").addEventListener("click", () => $("#etfDialog").close());
 $("#cancelEtf").addEventListener("click", () => $("#etfDialog").close());

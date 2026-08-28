@@ -263,11 +263,18 @@ label > small { display: block; margin-top: 6px; color: #66706d; font-size: 10px
 .etf-history-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .etf-history-head strong { color: #cbd2cf; font-size: 11px; }
 .etf-history-head span { color: var(--muted); font: 500 9px var(--mono); }
+.etf-history-hint { margin: -3px 0 10px; color: #6f7976; font-size: 10px; }
 .etf-history { display: grid; gap: 6px; }
-.etf-history-row { display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 8px 9px; border-radius: 8px; background: rgba(255,255,255,.025); font: 500 11px var(--mono); }
+.etf-history-row { display: grid; grid-template-columns: 1fr auto 42px; align-items: center; width: 100%; padding: 8px 9px; border: 1px solid transparent; border-radius: 8px; color: inherit; background: rgba(255,255,255,.025); font: 500 11px var(--mono); text-align: left; }
+button.etf-history-row { cursor: pointer; transition: border-color .18s ease, background .18s ease; }
+button.etf-history-row:hover { border-color: var(--line-bright); background: rgba(255,255,255,.05); }
+.etf-history-row.is-editing { border-color: rgba(120,215,183,.55); background: var(--mint-dim); }
 .etf-history-row span { color: #9da7a4; }
-.etf-history-row strong { color: var(--mint); }
+.etf-history-row strong { color: var(--mint); text-align: right; }
 .etf-history-row.is-outflow strong { color: var(--red); }
+.etf-history-row em { color: var(--gold); font: 600 10px var(--sans); text-align: right; }
+.etf-edit-state { margin: -4px 0 14px; padding: 9px 11px; border: 1px solid rgba(120,215,183,.28); border-radius: 8px; color: var(--mint); background: var(--mint-dim); font-size: 10px; line-height: 1.5; }
+.etf-edit-state[hidden] { display: none; }
 .publish-hint { margin: 12px 0 2px; padding: 10px 12px; border-left: 2px solid var(--gold); color: #a79f8e; background: rgba(229,183,102,.06); font-size: 10px; line-height: 1.6; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 8px; }
 .dialog-actions .reset-button { margin-right: auto; }
