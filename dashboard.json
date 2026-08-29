@@ -1,6 +1,6 @@
 {
-  "date": "2026-08-27",
-  "updatedAt": "2026-08-27T09:27:48.353Z",
+  "date": "2026-08-29",
+  "updatedAt": "2026-08-29T07:52:30.000Z",
   "dataMode": "公开快照",
   "market": {
     "btcPrice": 77295.84939069621,
@@ -30,25 +30,25 @@
       "section": "capital",
       "title": "BTC ETF 资金流",
       "shortName": "ETF",
-      "status": "green",
-      "headline": "连续 6 日净流入 · 累计 $2.3B",
+      "status": "yellow",
+      "headline": "连续 1 日净流出 · 累计 −$168.5M",
       "facts": [
-        "8/19 +$517.2M",
-        "8/20 +$606.3M",
-        "8/21 +$307.5M",
-        "8/24 +$337.6M"
+        "8/25 +$314.3M",
+        "8/26 +$232.2M",
+        "8/27 +$242.3M",
+        "8/28 −$168.5M"
       ],
-      "detail": "ETF 资金连续净流入，机构配置需求保持支撑。",
-      "change": "连续6日净流入",
+      "detail": "ETF 资金连续净流出，机构配置需求转弱。",
+      "change": "连续1日净流出",
       "source": {
         "label": "Farside",
         "url": "https://farside.co.uk/btc/"
       },
       "refresh": "auto",
       "refreshStatus": "snapshot",
-      "refreshMessage": "ETF / Farside · 手工维护 · 截至 2026-08-24",
-      "dataAsOf": "2026-08-24",
-      "marketFetchedAt": "2026-08-27T09:27:47.418Z",
+      "refreshMessage": "ETF / Farside · 手工维护 · 截至 2026-08-28",
+      "dataAsOf": "2026-08-28",
+      "marketFetchedAt": "2026-08-29T07:52:30.000Z",
       "manualEntry": true
     },
     {
@@ -247,7 +247,7 @@
       "⑨ 机构锁仓做多（S+级）——🟦S+ 仓帐比1.70",
       "② mNAV：0.96 → 0.98x，距 1.0 触发仅 2%，BTC 拉升带动回升，现金跑道健康。",
       "⑥ 黄金：$4,604.40 · 较上次 -0.00%",
-      "① ETF：连续 6 日净流入 · 累计 $2.3B",
+      "① ETF：连续 1 日净流出 · 累计 −$168.5M",
       "③ 稳定币：$3,085 亿 · 7d +0.65%"
     ]
   },
