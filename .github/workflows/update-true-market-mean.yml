@@ -1,0 +1,36 @@
+name: Update True Market Mean shadow
+
+on:
+  schedule:
+    - cron: "43 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dashboard-true-market-mean-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Read Glassnode public metrics
+        run: node scripts/update-true-market-mean.mjs
+      - name: Commit changed shadow snapshot
+        run: |
+          if git diff --quiet -- true-market-mean.json; then
+            echo "No True Market Mean update available."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add true-market-mean.json
+          git commit -m "data: update True Market Mean shadow snapshot"
+          git push

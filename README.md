@@ -20,6 +20,8 @@ ETF 维护窗口中的最近记录可直接点击并回填。修正金额后保�
 
 True Market Mean 在 `dashboard.json` 的 `trueMarketMean` 字段中维护：更新 `value` 和 `asOf` 即可。页面会使用实时 BTC 自动计算距离，并判断该成本线处于下方支撑、上方阻力或正在测试；超过 3 天提示可能滞后，超过 7 天提示数据过期。
 
+True Market Mean 自动更新目前处于影子验证阶段：`.github/workflows/update-true-market-mean.yml` 每日通过 Glassnode Public MCP 读取同一 UTC 日的 BTC 收盘价和 AVIV，并按 `BTC 收盘价 ÷ AVIV` 生成独立的 `true-market-mean.json`。影子值暂不进入网页，也不会覆盖 `dashboard.json` 的人工发布值；数据滞后超过 3 天、超出合理范围或较上一快照跳变超过 10% 时任务会失败并保留最后有效文件。该方案无需 API Key，连续观察 3–7 个有效交易日并完成对照后再决定是否接入页面。
+
 “多空比”卡片支持访客手动维护账户比与仓位比，仓帐比和信号等级自动计算。访客数据仅保存在自己的浏览器，可随时恢复发布值。
 
 本地预览与 GitHub Pages 现在使用本目录中的同一套前端。环境差异仅体现在保存策略：本地 `127.0.0.1` 是维护者模式，ETF 和多空比保存会更新发布 JSON；GitHub Pages 是公开模式，这两项手工维护均只保存在当前访客浏览器，不写回 GitHub、不影响其他访客。全局 ETF 数据仍以仓库根目录的 `etf-flows.json` 和 `dashboard.json` 为准。

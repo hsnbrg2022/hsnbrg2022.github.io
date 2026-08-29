@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "status": "shadow",
+  "generatedAt": "2026-08-29T07:22:17.483Z",
+  "asOf": "2026-08-28",
+  "value": 76334.89,
+  "formula": "glassnode_price_usd_close / glassnode_aviv",
+  "inputs": {
+    "priceUsdClose": 77842.6453180136,
+    "aviv": 1.0197517874624005,
+    "timestamp": 1787875200
+  },
+  "comparison": {
+    "publishedValue": 75689,
+    "deviationFromPublishedPct": 0.85
+  },
+  "validation": {
+    "sameUtcTimestamp": true,
+    "dataAgeDays": 1,
+    "activation": "shadow-only"
+  },
+  "source": {
+    "label": "Glassnode Public MCP",
+    "url": "https://studio.glassnode.com/charts/indicators.Aviv?a=BTC",
+    "endpoint": "https://mcp.glassnode.com",
+    "metrics": [
+      "/v1/metrics/indicators/aviv",
+      "/v1/metrics/market/price_usd_close"
+    ]
+  }
+}
