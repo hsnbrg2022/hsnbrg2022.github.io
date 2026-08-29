@@ -1,6 +1,12 @@
 name: Update True Market Mean shadow
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/update-true-market-mean.yml"
+      - "scripts/update-true-market-mean.mjs"
   schedule:
     - cron: "43 2 * * *"
   workflow_dispatch:
