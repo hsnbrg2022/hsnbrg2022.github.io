@@ -108,7 +108,7 @@ export function calculateTrueMarketMean({ avivRows, priceRows, now = new Date(),
   const publishedValue = Number(publishedMetric?.value);
   return {
     schemaVersion: 1,
-    status: "shadow",
+    status: "active",
     generatedAt: now.toISOString(),
     asOf: dataDate.toISOString().slice(0, 10),
     value: Number(value.toFixed(2)),
@@ -124,7 +124,7 @@ export function calculateTrueMarketMean({ avivRows, priceRows, now = new Date(),
         ? Number((((value / publishedValue) - 1) * 100).toFixed(2))
         : null
     },
-    validation: { sameUtcTimestamp: true, dataAgeDays: ageDays, activation: "shadow-only" },
+    validation: { sameUtcTimestamp: true, dataAgeDays: ageDays, activation: "active" },
     source: {
       label: "Glassnode Public MCP",
       url: "https://studio.glassnode.com/charts/indicators.Aviv?a=BTC",
@@ -140,7 +140,9 @@ function sameObservation(left, right) {
     && left.value === right.value
     && left.inputs?.timestamp === right.inputs?.timestamp
     && left.inputs?.aviv === right.inputs?.aviv
-    && left.inputs?.priceUsdClose === right.inputs?.priceUsdClose;
+    && left.inputs?.priceUsdClose === right.inputs?.priceUsdClose
+    && left.status === right.status
+    && left.validation?.activation === right.validation?.activation;
 }
 
 export async function updateTrueMarketMean({ fetchImpl = globalThis.fetch, now = new Date() } = {}) {
@@ -162,10 +164,10 @@ export async function updateTrueMarketMean({ fetchImpl = globalThis.fetch, now =
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   updateTrueMarketMean().then(({ dataset, changed }) => {
     console.log(changed
-      ? `True Market Mean 影子快照已更新：${dataset.asOf} · $${dataset.value.toLocaleString("en-US")}`
-      : "True Market Mean 影子快照没有变化。");
+      ? `True Market Mean 自动快照已更新：${dataset.asOf} · $${dataset.value.toLocaleString("en-US")}`
+      : "True Market Mean 自动快照没有变化。");
   }).catch((error) => {
-    console.error(`True Market Mean 影子更新失败，保留最后有效数据：${error.message}`);
+    console.error(`True Market Mean 自动更新失败，保留最后有效数据：${error.message}`);
     process.exitCode = 1;
   });
 }

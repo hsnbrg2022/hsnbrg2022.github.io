@@ -1,7 +1,7 @@
 import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney } from "./model.js?v=20260823-2";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260829-1";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260829-2";
 import { nextEtfTradingDate, upsertManualEtfFlow } from "./scripts/manual-etf-flow.mjs?v=20260828-1";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260829-1";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260829-2";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -227,6 +227,9 @@ function renderTrueMarketMean(data) {
   const source = view.metric.source?.url
     ? `<a href="${escapeHtml(view.metric.source.url)}" target="_blank" rel="noreferrer">${escapeHtml(view.metric.source.label)} ↗</a>`
     : `<span>${escapeHtml(view.metric.source?.label || "Glassnode")}</span>`;
+  const refreshLabel = view.metric.refreshStatus === "failed"
+    ? t(language, "trueMarketMeanFailed")
+    : t(language, view.metric.refresh === "auto" ? "trueMarketMeanAuto" : "trueMarketMeanManual");
   return `<article class="true-market-mean relation-${view.analysis.relation} freshness-${view.analysis.freshness}">
     <div class="true-market-mean-topline">
       <span>${t(language, "trueMarketMeanEyebrow")}</span>
@@ -240,7 +243,7 @@ function renderTrueMarketMean(data) {
       <strong>${formatMoney(view.analysis.value, 0)}</strong>
     </div>
     <div class="true-market-mean-footer">
-      <span>${t(language, "trueMarketMeanAsOf", { date: view.asOf })} · ${t(language, "trueMarketMeanManual")}</span>
+      <span title="${escapeHtml(view.metric.refreshMessage || "")}">${t(language, "trueMarketMeanAsOf", { date: view.asOf })} · ${refreshLabel}</span>
       ${source}
     </div>
   </article>`;

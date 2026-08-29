@@ -4,7 +4,7 @@
 
 访问地址：<https://hsnbrg2022.github.io/>
 
-公开访客可通过页面右上角的“刷新最新数据”按钮获取 ETF、BTC、F&G、稳定币、Fed、DXY、黄金和 200WMA。mNAV、MVRV、Puell、True Market Mean 与多空比继续使用发布时的手工口径。
+公开访客可通过页面右上角的“刷新最新数据”按钮获取 ETF、BTC、F&G、稳定币、Fed、True Market Mean、DXY、黄金和 200WMA。mNAV、MVRV、Puell 与多空比继续使用发布时的手工口径。
 
 Fed 卡片读取同源 `fed-signals.json`。`.github/workflows/update-fed-signals.yml` 每小时检查 Federal Reserve 官方货币政策 RSS、公告原文、主席讲话与 FOMC 会议日历；只有官方事件发生变化时才提交新数据。状态灯只由 FOMC 集体行动决定（降息绿、维持黄、加息红），主席讲话仅作偏鹰/偏鸽/中性的辅助语气，不覆盖实际利率决策。抓取或解析失败时任务不会覆盖最后有效快照。
 
@@ -20,7 +20,7 @@ ETF 维护窗口中的最近记录可直接点击并回填。修正金额后保�
 
 True Market Mean 在 `dashboard.json` 的 `trueMarketMean` 字段中维护：更新 `value` 和 `asOf` 即可。页面会使用实时 BTC 自动计算距离，并判断该成本线处于下方支撑、上方阻力或正在测试；超过 3 天提示可能滞后，超过 7 天提示数据过期。
 
-True Market Mean 自动更新目前处于影子验证阶段：`.github/workflows/update-true-market-mean.yml` 每日通过 Glassnode Public MCP 读取同一 UTC 日的 BTC 收盘价和 AVIV，并按 `BTC 收盘价 ÷ AVIV` 生成独立的 `true-market-mean.json`。影子值暂不进入网页，也不会覆盖 `dashboard.json` 的人工发布值；数据滞后超过 3 天、超出合理范围或较上一快照跳变超过 10% 时任务会失败并保留最后有效文件。该方案无需 API Key，连续观察 3–7 个有效交易日并完成对照后再决定是否接入页面。
+True Market Mean 已启用自动更新：`.github/workflows/update-true-market-mean.yml` 每日通过 Glassnode Public MCP 读取同一 UTC 日的 BTC 收盘价和 AVIV，并按 `BTC 收盘价 ÷ AVIV` 生成 `true-market-mean.json`。网页打开和手动刷新时会校验并读取该文件；数据滞后超过 3 天、超出合理范围、公式不一致或较上一快照跳变超过 10% 时不会覆盖最近有效值，首次读取失败则回退到 `dashboard.json` 的人工发布值。该方案无需 API Key。
 
 “多空比”卡片支持访客手动维护账户比与仓位比，仓帐比和信号等级自动计算。访客数据仅保存在自己的浏览器，可随时恢复发布值。
 

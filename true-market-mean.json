@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "status": "shadow",
-  "generatedAt": "2026-08-29T07:22:17.483Z",
+  "status": "active",
+  "generatedAt": "2026-08-29T07:42:11.596Z",
   "asOf": "2026-08-28",
   "value": 76334.89,
   "formula": "glassnode_price_usd_close / glassnode_aviv",
@@ -17,7 +17,7 @@
   "validation": {
     "sameUtcTimestamp": true,
     "dataAgeDays": 1,
-    "activation": "shadow-only"
+    "activation": "active"
   },
   "source": {
     "label": "Glassnode Public MCP",

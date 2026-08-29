@@ -1,5 +1,6 @@
 import { calculateDxyFromRates } from "./model.js";
 import { applyFedDatasetToDashboard } from "./fed-signals.js?v=20260829-1";
+import { applyTrueMarketMeanDataset } from "./true-market-mean.js?v=20260829-1";
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -105,6 +106,11 @@ async function updateEtf(data, fetchImpl) {
 async function updateFed(data, fetchImpl) {
   const dataset = await fetchJson(`./fed-signals.json?v=${Date.now()}`, fetchImpl);
   return applyFedDatasetToDashboard(data, dataset);
+}
+
+async function updateTrueMarketMean(data, fetchImpl) {
+  const dataset = await fetchJson(`./true-market-mean.json?v=${Date.now()}`, fetchImpl);
+  return applyTrueMarketMeanDataset(data, dataset);
 }
 
 async function fetchJson(url, fetchImpl) {
@@ -370,6 +376,7 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
     ["F&G", () => updateFearGreed(data, fetchImpl)],
     ["稳定币", () => updateStablecoins(data, fetchImpl)],
     ["Fed", () => updateFed(data, fetchImpl)],
+    ["True Market Mean", () => updateTrueMarketMean(data, fetchImpl)],
     ["DXY", () => updateMacroQuote(data, fetchImpl, { id: 5 })],
     ["黄金", () => updateMacroQuote(data, fetchImpl, { id: 6, prefix: "$" })],
     ["200WMA", () => updateWma(data, fetchImpl)]
@@ -384,6 +391,7 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
   results.forEach((result, index) => {
     const name = tasks[index][0];
     const target = cardByTask[name] ? card(data, cardByTask[name]) : null;
+    const metricTarget = name === "True Market Mean" ? data.trueMarketMean : null;
     if (result.status === "fulfilled") {
       updated.push(result.value);
       checks.push({ name, status: "ok", result: result.value, checkedAt });
@@ -393,6 +401,7 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
         refreshMethod: "public-manual",
         lastRefreshAt: checkedAt
       });
+      if (metricTarget) Object.assign(metricTarget, { refreshStatus: "ok", lastRefreshAt: checkedAt });
     } else {
       const message = result.reason?.message || "刷新失败";
       warnings.push(`${name}：${message}`);
@@ -401,6 +410,11 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
         refreshStatus: "failed",
         refreshMessage: message,
         refreshMethod: "public-manual",
+        lastRefreshAt: checkedAt
+      });
+      if (metricTarget) Object.assign(metricTarget, {
+        refreshStatus: "failed",
+        refreshMessage: message,
         lastRefreshAt: checkedAt
       });
     }
