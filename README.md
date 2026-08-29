@@ -4,11 +4,13 @@
 
 访问地址：<https://hsnbrg2022.github.io/>
 
-公开访客可通过页面右上角的“刷新最新数据”按钮获取 ETF、BTC、F&G、稳定币、DXY、黄金和 200WMA。mNAV、Fed、MVRV、Puell、True Market Mean 与多空比继续使用发布时的手工口径。
+公开访客可通过页面右上角的“刷新最新数据”按钮获取 ETF、BTC、F&G、稳定币、Fed、DXY、黄金和 200WMA。mNAV、MVRV、Puell、True Market Mean 与多空比继续使用发布时的手工口径。
+
+Fed 卡片读取同源 `fed-signals.json`。`.github/workflows/update-fed-signals.yml` 每小时检查 Federal Reserve 官方货币政策 RSS、公告原文、主席讲话与 FOMC 会议日历；只有官方事件发生变化时才提交新数据。状态灯只由 FOMC 集体行动决定（降息绿、维持黄、加息红），主席讲话仅作偏鹰/偏鸽/中性的辅助语气，不覆盖实际利率决策。抓取或解析失败时任务不会覆盖最后有效快照。
 
 ETF 数据来自同源的 `etf-flows.json`。页面会自动计算连续净流入/流出、累计金额与卡片状态；周末不会把周五数据误判为过期，超过 2 个工作日仍无新数据时会明确提示可能滞后。未配置自动接口时，页面显示“发布快照”，不会把它伪装成实时数据。
 
-仓库中的 `.github/workflows/update-etf-flows.yml` 会在美股交易日后的亚洲时段运行。上传到 GitHub 时必须保留仓库根目录下的隐藏目录 `.github`，否则定时任务不会出现。
+仓库中的 `.github/workflows/update-etf-flows.yml` 会在美股交易日后的亚洲时段运行，`.github/workflows/update-fed-signals.yml` 每小时检查官方 Fed 更新。上传到 GitHub 时必须保留仓库根目录下的隐藏目录 `.github`，否则定时任务不会出现。
 
 没有 API Key 时，在本地维护版点击 ETF 卡片右上角“手动维护”，从 SoSoValue 或 Farside 核对后录入交易日期与当日总净流量。保存会自动生成本目录的 `etf-flows.json` 和 `dashboard.json`；将这两个文件上传到 GitHub 仓库根目录即可发布。系统会自动计算连续方向、累计金额和信号状态，同日重录会覆盖旧值。
 

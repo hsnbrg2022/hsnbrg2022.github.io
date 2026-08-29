@@ -4,7 +4,7 @@ const MESSAGES = {
   zh: {
     brand: "加密看板追踪器", backTop: "回到顶部", switchLanguage: "Switch to English", languageButton: "EN",
     heroTitle: "先看信号，<br><em>再做决定。</em>", heroCopy: "将资金、宏观、链上估值与仓位结构压缩成一张每日决策面板。",
-    refresh: "刷新最新数据", refreshTitle: "更新 ETF、BTC、F&G、稳定币、DXY、黄金与 200WMA", copy: "复制全文",
+    refresh: "刷新最新数据", refreshTitle: "更新 ETF、BTC、F&G、稳定币、Fed、DXY、黄金与 200WMA", copy: "复制全文",
     todayStatus: "今日状态", calculating: "正在计算信号…", briefing: "今日研判", summary: "摘要", changes: "核心变化", risks: "风险提示", watch: "宏观观察",
     footer: "公开访客可刷新实时公开数据；手工维护仅保存在当前浏览器。仅供研究与信息整理，不构成投资建议。", footerLocal: "本地维护会同步生成公开版数据文件。仅供研究与信息整理，不构成投资建议。",
     lastUpdated: "最后更新 {time}（UTC+8）", syncing: "正在同步最新数据…", cached: "最近缓存",
@@ -29,7 +29,7 @@ const MESSAGES = {
   en: {
     brand: "Crypto Signal Tracker", backTop: "Back to top", switchLanguage: "切换到中文", languageButton: "中文",
     heroTitle: "Read the signals.<br><em>Then decide.</em>", heroCopy: "A daily decision dashboard spanning capital flows, macro liquidity, on-chain valuation and positioning.",
-    refresh: "Refresh latest data", refreshTitle: "Update ETF flows, BTC, F&G, stablecoins, DXY, gold and 200WMA", copy: "Copy report",
+    refresh: "Refresh latest data", refreshTitle: "Update ETF flows, BTC, F&G, stablecoins, Fed, DXY, gold and 200WMA", copy: "Copy report",
     todayStatus: "Today's status", calculating: "Calculating signals…", briefing: "Daily view", summary: "Summary", changes: "Key changes", risks: "Risk alerts", watch: "Macro watch",
     footer: "Visitors can refresh public data. Manual changes are stored only in this browser. For research only; not financial advice.", footerLocal: "Local maintenance generates the public data files for publishing. For research only; not financial advice.",
     lastUpdated: "Last updated {time} (UTC+8)", syncing: "Syncing latest data…", cached: "cached",
@@ -59,6 +59,11 @@ const INDICATOR_HELP = {
       title: "BTC ETF 资金流",
       summary: "汇总美国现货比特币 ETF 每个交易日的净申购与净赎回，用于观察机构配置资金方向。",
       points: ["正值代表当日净流入，负值代表当日净流出；单位为百万美元。", "数据只在美股交易日产生，通常在美国晚间陆续更新；周末停留在周五属于正常情况。", "连续净流入反映配置需求增强，但它不是 BTC 当日价格涨跌的直接保证。"]
+    },
+    fedOfficialStance: {
+      title: "Fed 官方立场",
+      summary: "跟踪 FOMC 集体利率决策，并用美联储主席最新货币政策讲话补充语气判断。",
+      points: ["状态灯只由 FOMC 实际行动决定：降息为绿色、维持为黄色、加息为红色。", "主席讲话属于辅助信息，只显示偏鹰、偏鸽或中性，不能覆盖 FOMC 集体决策。", "数据来自 Federal Reserve 官方 RSS、公告原文和 FOMC 会议日历；不代表市场降息概率。"]
     },
     fearGreed: {
       title: "恐惧贪婪指数",
@@ -109,6 +114,11 @@ const INDICATOR_HELP = {
       summary: "Aggregates daily net subscriptions and redemptions across U.S. spot Bitcoin ETFs to track institutional allocation demand.",
       points: ["Positive values are net inflows and negative values are net outflows; figures are in USD millions.", "Data is produced only on U.S. trading days and is typically finalized during the U.S. evening; a Friday date over the weekend is normal.", "A sustained inflow streak signals stronger allocation demand, but does not guarantee BTC’s daily price direction."]
     },
+    fedOfficialStance: {
+      title: "Official Fed Stance",
+      summary: "Tracks collective FOMC rate decisions, with the Fed Chair’s latest monetary-policy remarks as a secondary tone signal.",
+      points: ["Only actual FOMC action sets the status: a cut is green, a hold is yellow, and a hike is red.", "Chair remarks are secondary and can be labeled hawkish, dovish or neutral, but never override the collective decision.", "Data comes from official Federal Reserve RSS feeds, source pages and the FOMC calendar; it is not a market-implied rate probability."]
+    },
     fearGreed: {
       title: "Fear & Greed Index",
       summary: "Ranges from 0 to 100. Lower readings indicate greater market fear.",
@@ -154,7 +164,7 @@ const INDICATOR_HELP = {
   }
 };
 
-const CARD_HELP_KEYS = { 1: "btcEtfFlows", 7: "mvrv", 8: "puell" };
+const CARD_HELP_KEYS = { 1: "btcEtfFlows", 4: "fedOfficialStance", 7: "mvrv", 8: "puell" };
 
 export function indicatorHelp(language, key) {
   return INDICATOR_HELP[language]?.[key] ?? INDICATOR_HELP.zh[key] ?? null;
@@ -173,7 +183,7 @@ export function indicatorHelpKeyForFact(cardId, text) {
 
 const CARD_NAMES = {
   1: ["BTC ETF Flows", "ETF"], 2: ["Strategy EV mNAV", "mNAV"], 3: ["Stablecoin Market Cap", "Stablecoins"],
-  4: ["Fed Stance", "Fed"], 5: ["DXY Dollar Index", "DXY"], 6: ["Gold", "Gold"],
+  4: ["Official Fed Stance", "Fed"], 5: ["DXY Dollar Index", "DXY"], 6: ["Gold", "Gold"],
   7: ["MVRV Z-Score", "MVRV"], 8: ["Puell Multiple", "Puell"], 9: ["Long/Short Ratio", "L/S Ratio"]
 };
 
@@ -190,6 +200,7 @@ const EXACT_EN = new Map([
   ["降息预期升温 · 宽松预期延续", "Rate-cut expectations rising · Easing outlook intact"],
   ["关注 FOMC 与 CME FedWatch", "Watch the FOMC and CME FedWatch"],
   ["市场定价指向更友好的流动性环境，但需跟踪官方表态。", "Market pricing points to a friendlier liquidity backdrop, subject to official guidance."],
+  ["FOMC 集体决策决定状态灯；主席讲话仅作语气辅助，不能覆盖实际利率行动。", "The collective FOMC decision sets the status; Chair remarks are secondary tone context and cannot override the actual rate action."],
   ["守在 100 下方", "Holding below 100"], ["升至 100 上方", "Above 100"], ["风险资产顺风", "Tailwind for risk assets"], ["美元走强施压", "Dollar strength pressures risk assets"],
   ["美元指数维持弱势，为风险资产提供宏观顺风。", "A softer dollar remains a macro tailwind for risk assets."],
   ["美元指数走强，风险资产的流动性环境承压。", "A stronger dollar is tightening the liquidity backdrop for risk assets."],
@@ -237,6 +248,22 @@ export function translateText(value, language) {
     .replace(/最新交易日净流量持平/g, "Latest trading-day net flow was flat")
     .replace(/ETF 发布快照/g, "ETF published snapshot")
     .replace(/ETF 数据可能滞后/g, "ETF data may be stale")
+    .replace(/Fed 官方数据可能滞后/g, "Official Fed data may be stale")
+    .replace(/维持利率/g, "Held rates")
+    .replace(/降息/g, "Rate cut")
+    .replace(/加息/g, "Rate hike")
+    .replace(/目标区间/g, "Target range")
+    .replace(/主席基调偏鹰/g, "Chair tone hawkish")
+    .replace(/主席基调偏鸽/g, "Chair tone dovish")
+    .replace(/主席基调中性/g, "Chair tone neutral")
+    .replace(/主席偏鹰/g, "Chair hawkish")
+    .replace(/主席偏鸽/g, "Chair dovish")
+    .replace(/主席中性/g, "Chair neutral")
+    .replace(/主席\s+/g, "Chair ")
+    .replace(/基调偏鹰/g, "Hawkish tone")
+    .replace(/基调偏鸽/g, "Dovish tone")
+    .replace(/基调中性/g, "Neutral tone")
+    .replace(/下次会议/g, "Next meeting")
     .replace(/累计/g, "total")
     .replace(/连续(\d+)日/g, "$1-day streak")
     .replace(/飞轮/g, "Flywheel")

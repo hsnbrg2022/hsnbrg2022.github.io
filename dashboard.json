@@ -97,20 +97,27 @@
     {
       "id": 4,
       "section": "macro",
-      "title": "Fed 态度",
+      "title": "Fed 官方立场",
       "shortName": "Fed",
-      "status": "green",
-      "headline": "降息预期升温 · 宽松预期延续",
+      "status": "yellow",
+      "headline": "维持利率 · 主席基调偏鹰",
       "facts": [
-        "关注 FOMC 与 CME FedWatch"
+        "目标区间 3.50%–3.75%",
+        "FOMC 7/29：维持利率",
+        "主席 8/28：基调偏鹰",
+        "下次会议 9/15–9/16"
       ],
-      "detail": "市场定价指向更友好的流动性环境，但需跟踪官方表态。",
-      "change": "—",
+      "detail": "FOMC 集体决策决定状态灯；主席讲话仅作语气辅助，不能覆盖实际利率行动。",
+      "change": "维持利率 · 主席偏鹰",
       "source": {
         "label": "Federal Reserve",
-        "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+        "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260729a.htm"
       },
-      "refresh": "manual"
+      "refresh": "auto",
+      "dataAsOf": "2026-08-28",
+      "marketFetchedAt": "2026-08-29T06:55:47.239Z",
+      "refreshStatus": "ok",
+      "refreshMessage": "Fed / Federal Reserve · 截至 2026-08-28"
     },
     {
       "id": 5,

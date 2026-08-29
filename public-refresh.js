@@ -1,4 +1,5 @@
 import { calculateDxyFromRates } from "./model.js";
+import { applyFedDatasetToDashboard } from "./fed-signals.js?v=20260829-1";
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -99,6 +100,11 @@ export function applyEtfDatasetToDashboard(data, dataset, { now = new Date() } =
 async function updateEtf(data, fetchImpl) {
   const dataset = await fetchJson(`./etf-flows.json?v=${Date.now()}`, fetchImpl);
   return applyEtfDatasetToDashboard(data, dataset);
+}
+
+async function updateFed(data, fetchImpl) {
+  const dataset = await fetchJson(`./fed-signals.json?v=${Date.now()}`, fetchImpl);
+  return applyFedDatasetToDashboard(data, dataset);
 }
 
 async function fetchJson(url, fetchImpl) {
@@ -363,6 +369,7 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
     ["BTC", () => updateBtc(data, fetchImpl)],
     ["F&G", () => updateFearGreed(data, fetchImpl)],
     ["稳定币", () => updateStablecoins(data, fetchImpl)],
+    ["Fed", () => updateFed(data, fetchImpl)],
     ["DXY", () => updateMacroQuote(data, fetchImpl, { id: 5 })],
     ["黄金", () => updateMacroQuote(data, fetchImpl, { id: 6, prefix: "$" })],
     ["200WMA", () => updateWma(data, fetchImpl)]
@@ -371,7 +378,7 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
   const updated = [];
   const warnings = [];
   const checkedAt = new Date().toISOString();
-  const cardByTask = { ETF: 1, "稳定币": 3, DXY: 5, "黄金": 6 };
+  const cardByTask = { ETF: 1, "稳定币": 3, Fed: 4, DXY: 5, "黄金": 6 };
   const checks = [];
 
   results.forEach((result, index) => {

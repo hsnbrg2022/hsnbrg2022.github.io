@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-29T06:55:47.239Z",
+  "status": "live",
+  "source": {
+    "label": "Federal Reserve",
+    "url": "https://www.federalreserve.gov/feeds/feeds.htm",
+    "method": "official-rss-and-html"
+  },
+  "fomc": {
+    "eventDate": "2026-07-29",
+    "publishedAt": "2026-07-29T18:00:00.000Z",
+    "title": "Federal Reserve issues FOMC statement",
+    "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260729a.htm",
+    "action": "hold",
+    "targetRange": {
+      "lower": 3.5,
+      "upper": 3.75
+    },
+    "role": "primary"
+  },
+  "chair": {
+    "eventDate": "2026-08-28",
+    "publishedAt": "2026-08-28T14:00:00.000Z",
+    "author": "Warsh",
+    "title": "In Our Time",
+    "url": "https://www.federalreserve.gov/newsevents/speech/warsh20260828a.htm",
+    "tone": "hawkish",
+    "confidence": "high",
+    "scores": {
+      "hawkish": 4,
+      "dovish": 0
+    },
+    "role": "secondary"
+  },
+  "nextMeeting": {
+    "startDate": "2026-09-15",
+    "endDate": "2026-09-16",
+    "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+  }
+}

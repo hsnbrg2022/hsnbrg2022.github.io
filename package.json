@@ -2,7 +2,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test ../crypto-dashboard/tests/public-refresh.test.mjs",
+    "test": "node --test ../crypto-dashboard/tests/*.test.mjs",
     "publish:dry-run": "node scripts/publish-github.mjs --dry-run",
     "publish": "node scripts/publish-github.mjs"
   }
