@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
   "status": "active",
-  "generatedAt": "2026-08-29T07:42:11.596Z",
-  "asOf": "2026-08-28",
-  "value": 76334.89,
+  "generatedAt": "2026-08-30T08:32:32.288Z",
+  "asOf": "2026-08-29",
+  "value": 76345.66,
   "formula": "glassnode_price_usd_close / glassnode_aviv",
   "inputs": {
-    "priceUsdClose": 77842.6453180136,
-    "aviv": 1.0197517874624005,
-    "timestamp": 1787875200
+    "priceUsdClose": 78241.7981985499,
+    "aviv": 1.0248361687712835,
+    "timestamp": 1787961600
   },
   "comparison": {
     "publishedValue": 75689,
-    "deviationFromPublishedPct": 0.85
+    "deviationFromPublishedPct": 0.87
   },
   "validation": {
     "sameUtcTimestamp": true,
