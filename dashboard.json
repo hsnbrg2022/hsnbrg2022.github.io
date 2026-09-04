@@ -59,8 +59,8 @@
       "status": "green",
       "headline": "1.15x · MSTR $144.82",
       "facts": [
-        "Net BPS $126.37",
-        "净 BTC 662,291 · FDSO 424.5M",
+        "Net BPS $126.10",
+        "净 BTC 661,983 · FDSO 424.5M",
         "资本结构截至 2026-08-31"
       ],
       "detail": "按 Strategy 2026-07-23 起最新口径估算：MSTR 股价 ÷ Net BTC Per Share ($)；资本结构采用 2026-08-31 官方披露，行情自动更新。",
@@ -75,8 +75,8 @@
       "refreshMethod": "scheduled-snapshot",
       "dataAsOf": "2026-09-03",
       "basisAsOf": "2026-08-31",
-      "marketFetchedAt": "2026-09-04T02:03:43.446Z",
-      "lastRefreshAt": "2026-09-04T02:03:43.446Z"
+      "marketFetchedAt": "2026-09-04T02:08:12.858Z",
+      "lastRefreshAt": "2026-09-04T02:08:12.858Z"
     },
     {
       "id": 3,

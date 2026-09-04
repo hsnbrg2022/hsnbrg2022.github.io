@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "active",
-  "generatedAt": "2026-09-04T02:03:43.446Z",
+  "generatedAt": "2026-09-04T02:08:12.858Z",
   "marketAsOf": "2026-09-03",
   "basisAsOf": "2026-08-31",
   "mnav": 1.15,
@@ -13,9 +13,9 @@
   },
   "inputs": {
     "mstrPriceUsd": 144.82,
-    "btcPriceUsd": 80996.47,
-    "netBtcPerShareUsd": 126.37,
-    "netBtc": 662291.05,
+    "btcPriceUsd": 80860.09,
+    "netBtcPerShareUsd": 126.1,
+    "netBtc": 661982.79,
     "btcHoldings": 845050,
     "usdAssetsUsd": 6714000000,
     "seniorClaimsUsd": 21516830700,
@@ -39,7 +39,7 @@
     "btc": {
       "label": "DefiLlama",
       "url": "https://defillama.com/",
-      "fetchedAt": "2026-09-04T01:58:50.000Z"
+      "fetchedAt": "2026-09-04T02:04:40.000Z"
     }
   },
   "basis": {
