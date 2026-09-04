@@ -1,7 +1,7 @@
 import { calculateDxyFromRates } from "./model.js";
 import { applyFedDatasetToDashboard } from "./fed-signals.js?v=20260829-1";
 import { applyTrueMarketMeanDataset } from "./true-market-mean.js?v=20260829-1";
-import { updateMnavFromSource } from "./mnav-source.js?v=20260904-1";
+import { updateMnavFromSnapshot } from "./mnav-source.js?v=20260904-2";
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -373,7 +373,7 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
   const data = cloneDashboard(input);
   const tasks = [
     ["ETF", () => updateEtf(data, fetchImpl)],
-    ["mNAV", () => updateMnavFromSource(data, fetchImpl)],
+    ["mNAV", () => updateMnavFromSnapshot(data, fetchImpl)],
     ["BTC", () => updateBtc(data, fetchImpl)],
     ["F&G", () => updateFearGreed(data, fetchImpl)],
     ["稳定币", () => updateStablecoins(data, fetchImpl)],

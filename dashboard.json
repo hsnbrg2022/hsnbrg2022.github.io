@@ -54,22 +54,29 @@
     {
       "id": 2,
       "section": "capital",
-      "title": "Strategy EV mNAV",
+      "title": "Strategy mNAV",
       "shortName": "mNAV",
-      "status": "yellow",
-      "headline": "0.98x · STRC $94.84 · 飞轮 30/100",
+      "status": "green",
+      "headline": "1.15x · MSTR $144.82",
       "facts": [
-        "现金 $4.80B",
-        "单券 Runway 47.5月",
-        "全局 Runway 32.6月"
+        "Net BPS $126.37",
+        "净 BTC 662,291 · FDSO 424.5M",
+        "资本结构截至 2026-08-31"
       ],
-      "detail": "距 1.0 触发仅 2%，BTC 拉升带动回升，现金跑道健康。",
-      "change": "0.96 → 0.98x",
+      "detail": "按 Strategy 2026-07-23 起最新口径估算：MSTR 股价 ÷ Net BTC Per Share ($)；资本结构采用 2026-08-31 官方披露，行情自动更新。",
+      "change": "mNAV 1.15x · 最新口径",
       "source": {
-        "label": "MSTR Dashboard",
-        "url": "https://mstr.fuckbtc.com/"
+        "label": "Strategy 官方口径",
+        "url": "https://www.strategy.com/btc"
       },
-      "refresh": "manual"
+      "refresh": "auto",
+      "refreshStatus": "ok",
+      "refreshMessage": "mNAV / Strategy 官方口径 · 行情截至 2026-09-03",
+      "refreshMethod": "scheduled-snapshot",
+      "dataAsOf": "2026-09-03",
+      "basisAsOf": "2026-08-31",
+      "marketFetchedAt": "2026-09-04T02:03:43.446Z",
+      "lastRefreshAt": "2026-09-04T02:03:43.446Z"
     },
     {
       "id": 3,
@@ -245,7 +252,7 @@
     "changes": [
       "BTC $72,310 → $77,295.849（+6.90%），F&G 68 → 71",
       "⑨ 机构锁仓做多（S+级）——🟦S+ 仓帐比1.70",
-      "② mNAV：0.96 → 0.98x，距 1.0 触发仅 2%，BTC 拉升带动回升，现金跑道健康。",
+      "② mNAV：mNAV 1.15x · 最新口径，按 Strategy 2026-07-23 起最新口径估算：MSTR 股价 ÷ Net BTC Per Share ($)；资本结构采用 2026-08-31 官方披露，行情自动更新。",
       "⑥ 黄金：$4,604.40 · 较上次 -0.00%",
       "① ETF：连续 1 日净流出 · 累计 −$168.5M",
       "③ 稳定币：$3,085 亿 · 7d +0.65%"

@@ -1,82 +1,127 @@
-const SOURCE_URL = "https://mstr.fuckbtc.com/";
+const FORMULA = "mstr_price_usd / net_btc_per_share_usd";
+const METHODOLOGY_EFFECTIVE_DATE = "2026-07-23";
 
-function text(value) {
-  return value.replace(/<[^>]*>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/\s+/g, " ").trim();
+function card(data, id) {
+  return data.cards.find((item) => item.id === id);
 }
 
-function capture(html, pattern, label) {
-  const match = html.match(pattern);
-  if (!match) throw new Error(`${label} 未找到`);
-  return text(match[1]);
+function businessDaysSince(dateString, now = new Date()) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString || "")) return Infinity;
+  const current = new Date(`${dateString}T12:00:00Z`);
+  const endParts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric", month: "2-digit", day: "2-digit", timeZone: "America/New_York"
+  }).formatToParts(now).reduce((result, part) => ({ ...result, [part.type]: part.value }), {});
+  const end = new Date(`${endParts.year}-${endParts.month}-${endParts.day}T12:00:00Z`);
+  if (!Number.isFinite(current.getTime()) || current > end) return 0;
+  let count = 0;
+  while (current < end && count < 1000) {
+    current.setUTCDate(current.getUTCDate() + 1);
+    const day = current.getUTCDay();
+    if (day !== 0 && day !== 6) count += 1;
+  }
+  return count;
 }
 
-function number(value, label) {
-  const match = String(value).replaceAll(",", "").match(/\d+(?:\.\d+)?/);
-  const parsed = Number(match?.[0]);
-  if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`${label} 无效`);
-  return parsed;
+function positiveNumber(value, label, { min = 0, max = Infinity } = {}) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= min || number > max) throw new Error(`${label} 无效`);
+  return number;
 }
 
-function valueAfterLabel(html, label) {
-  return capture(html, new RegExp(`${label}[\\s\\S]{0,260}?<div class="tile-value[^>]*">([\\s\\S]*?)</div>`, "i"), label);
+function money(value, digits = 2) {
+  return Number(value).toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
-export function parseMnavSourceHtml(html) {
-  if (typeof html !== "string" || !html) throw new Error("mNAV 来源返回为空");
-  const mnavText = capture(html, /mNAV\s*·\s*EV<\/div>\s*<div class="hero-value[^>]*">([\s\S]*?)<\/div>/i, "mNAV");
-  if (/n\/?a|暂无|等待/i.test(mnavText)) throw new Error("mNAV 暂无可用数值");
-  const healthText = capture(html, /FLYWHEEL HEALTH<\/div>\s*<div class="hero-value[^>]*">([\s\S]*?)<\/div>/i, "飞轮评分");
-  const strcText = capture(html, /data-live="STRC-price">([\s\S]*?)<\/div>/i, "STRC");
-  const singleRunwayText = valueAfterLabel(html, "STRC-only runway");
-  const globalRunwayText = valueAfterLabel(html, "Global runway");
-  const reserveText = valueAfterLabel(html, "USD Reserve");
-  const mnav = number(mnavText, "mNAV");
-  const health = number(healthText, "飞轮评分");
-  const strc = number(strcText, "STRC");
-  const singleRunwayMonths = number(singleRunwayText, "单券 Runway");
-  const globalRunwayMonths = number(globalRunwayText, "全局 Runway");
-  const reserveBillions = number(reserveText, "美元储备") / (/[MB]\b/i.test(reserveText) && /M\b/i.test(reserveText) ? 1000 : 1);
-  return { mnav, health, strc, singleRunwayMonths, globalRunwayMonths, reserveBillions };
+export function validateStrategyMnavDataset(dataset, { now = new Date() } = {}) {
+  if (dataset?.schemaVersion !== 1 || dataset.status !== "active") throw new Error("Strategy mNAV 自动快照尚未启用");
+  if (dataset.formula !== FORMULA || dataset.methodologyEffectiveDate !== METHODOLOGY_EFFECTIVE_DATE) {
+    throw new Error("Strategy mNAV 快照不是 2026-07-23 起的新口径");
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataset.marketAsOf || "")) throw new Error("Strategy mNAV 行情日期无效");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dataset.basisAsOf || "")) throw new Error("Strategy mNAV 资本结构日期无效");
+
+  const mnav = positiveNumber(dataset.mnav, "Strategy mNAV", { min: 0.2, max: 10 });
+  const mstrPriceUsd = positiveNumber(dataset.inputs?.mstrPriceUsd, "MSTR 股价", { min: 1, max: 10_000 });
+  const btcPriceUsd = positiveNumber(dataset.inputs?.btcPriceUsd, "BTC 价格", { min: 1_000, max: 10_000_000 });
+  const netBtcPerShareUsd = positiveNumber(dataset.inputs?.netBtcPerShareUsd, "Net BTC Per Share ($)", { min: 1, max: 10_000 });
+  const expectedMnav = mstrPriceUsd / netBtcPerShareUsd;
+  if (Math.abs(expectedMnav - mnav) > 0.03) throw new Error("Strategy mNAV 公式校验失败");
+
+  if (dataset.calculation?.mode === "official-methodology-estimate") {
+    const btcHoldings = positiveNumber(dataset.inputs?.btcHoldings, "BTC 持仓", { min: 1, max: 21_000_000 });
+    const usdAssetsUsd = positiveNumber(dataset.inputs?.usdAssetsUsd, "USD Assets", { min: 0, max: 1e12 });
+    const seniorClaimsUsd = positiveNumber(dataset.inputs?.seniorClaimsUsd, "高级索偿", { min: 0, max: 1e12 });
+    const fullyDilutedShares = positiveNumber(dataset.inputs?.fullyDilutedShares, "完全摊薄股数", { min: 1, max: 10e9 });
+    const expectedNetBps = ((btcHoldings * btcPriceUsd) + usdAssetsUsd - seniorClaimsUsd) / fullyDilutedShares;
+    if (Math.abs(expectedNetBps - netBtcPerShareUsd) > Math.max(0.02, netBtcPerShareUsd * 0.0001)) {
+      throw new Error("Strategy Net BPS 资本结构公式校验失败");
+    }
+  }
+
+  const ageBusinessDays = businessDaysSince(dataset.marketAsOf, now);
+  if (ageBusinessDays > 3) throw new Error(`Strategy mNAV 行情已滞后 ${ageBusinessDays} 个交易日`);
+  return { mnav, mstrPriceUsd, btcPriceUsd, netBtcPerShareUsd, ageBusinessDays };
 }
 
-export function applyMnavSourceToDashboard(data, quote, { fetchedAt = new Date().toISOString() } = {}) {
-  const target = data.cards.find((item) => item.id === 2);
-  if (!target) throw new Error("mNAV 卡片未找到");
-  target.headline = `${quote.mnav.toFixed(2)}x · STRC $${quote.strc.toFixed(2)} · 飞轮 ${Math.round(quote.health)}/100`;
+export function applyStrategyMnavDataset(data, dataset, { now = new Date() } = {}) {
+  const values = validateStrategyMnavDataset(dataset, { now });
+  const target = card(data, 2);
+  if (!target) throw new Error("Strategy mNAV 卡片未找到");
+  const directOfficial = dataset.calculation?.mode === "official-live";
+  const netBtc = Number(dataset.inputs?.netBtc);
+  const fullyDilutedShares = Number(dataset.inputs?.fullyDilutedShares);
+
+  target.title = "Strategy mNAV";
+  target.headline = `${values.mnav.toFixed(2)}x · MSTR $${money(values.mstrPriceUsd)}`;
   target.facts = [
-    `美元储备 $${quote.reserveBillions.toFixed(2)}B`,
-    `单券 Runway ${quote.singleRunwayMonths.toFixed(1)}月`,
-    `全局 Runway ${quote.globalRunwayMonths.toFixed(1)}月`
+    `Net BPS $${money(values.netBtcPerShareUsd)}`,
+    Number.isFinite(netBtc) && netBtc > 0
+      ? `净 BTC ${Math.round(netBtc).toLocaleString("en-US")} · FDSO ${(fullyDilutedShares / 1e6).toFixed(1)}M`
+      : `BTC $${money(values.btcPriceUsd, 0)}`,
+    `资本结构截至 ${dataset.basisAsOf}`
   ];
-  target.detail = quote.mnav >= 1
-    ? `mNAV ${quote.mnav.toFixed(2)}x，高于 1.0；飞轮与现金跑道数据来自来源页。`
-    : `mNAV ${quote.mnav.toFixed(2)}x，低于 1.0；关注估值折价与飞轮健康度。`;
-  target.status = quote.mnav >= 1 ? "green" : quote.mnav >= 0.9 ? "yellow" : "red";
-  target.change = `mNAV ${quote.mnav.toFixed(2)}x · 飞轮 ${Math.round(quote.health)}/100`;
-  target.source = { label: "MSTR Flywheel Monitor", url: SOURCE_URL };
+  target.detail = directOfficial
+    ? "采用 Strategy 2026-07-23 起最新口径：MSTR 股价 ÷ Net BTC Per Share ($)；数值来自官方看板。"
+    : `按 Strategy 2026-07-23 起最新口径估算：MSTR 股价 ÷ Net BTC Per Share ($)；资本结构采用 ${dataset.basisAsOf} 官方披露，行情自动更新。`;
+  target.status = values.mnav >= 1 ? "green" : values.mnav >= 0.9 ? "yellow" : "red";
+  target.change = `mNAV ${values.mnav.toFixed(2)}x · 最新口径`;
+  target.source = {
+    label: directOfficial ? "Strategy 官方看板" : "Strategy 官方口径",
+    url: dataset.source?.url || "https://www.strategy.com/btc"
+  };
   target.refresh = "auto";
   target.refreshStatus = "ok";
-  target.refreshMessage = "mNAV / MSTR Flywheel Monitor";
-  target.refreshMethod = "public-manual";
-  target.marketFetchedAt = fetchedAt;
-  target.lastRefreshAt = fetchedAt;
-  return target;
+  target.refreshMessage = `mNAV / ${target.source.label} · 行情截至 ${dataset.marketAsOf}`;
+  target.refreshMethod = "scheduled-snapshot";
+  target.dataAsOf = dataset.marketAsOf;
+  target.basisAsOf = dataset.basisAsOf;
+  target.marketFetchedAt = dataset.generatedAt;
+  target.lastRefreshAt = dataset.generatedAt;
+  if (Array.isArray(data.previous?.changes)) {
+    const line = `② mNAV：${target.change}，${target.detail}`;
+    const index = data.previous.changes.findIndex((item) => item.startsWith("② mNAV："));
+    if (index >= 0) data.previous.changes[index] = line;
+    else data.previous.changes.push(line);
+  }
+  return target.refreshMessage;
 }
 
-export async function updateMnavFromSource(data, fetchImpl = globalThis.fetch) {
+export async function updateMnavFromSnapshot(data, fetchImpl = globalThis.fetch) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10_000);
   try {
-    const response = await fetchImpl(`${SOURCE_URL}?v=${Date.now()}`, {
+    const response = await fetchImpl(`./strategy-mnav.json?v=${Date.now()}`, {
       cache: "no-store",
-      headers: { accept: "text/html" },
+      headers: { accept: "application/json" },
       signal: controller.signal
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const quote = parseMnavSourceHtml(await response.text());
-    applyMnavSourceToDashboard(data, quote);
-    return "mNAV / MSTR Flywheel Monitor";
+    return applyStrategyMnavDataset(data, await response.json());
   } finally {
     clearTimeout(timer);
   }
 }
+
+export const STRATEGY_MNAV_FORMULA = FORMULA;
+export const STRATEGY_MNAV_METHODOLOGY_EFFECTIVE_DATE = METHODOLOGY_EFFECTIVE_DATE;
+export const strategyMnavBusinessDaysSince = businessDaysSince;

@@ -4,7 +4,9 @@
 
 访问地址：<https://hsnbrg2022.github.io/>
 
-公开访客可通过页面右上角的“刷新最新数据”按钮获取 ETF、Strategy EV mNAV、BTC、F&G、稳定币、Fed、True Market Mean、DXY、黄金和 200WMA。mNAV 读取 `mstr.fuckbtc.com` 的页面现有数值；仅在 mNAV、飞轮、STRC、储备与两类 Runway 同时有效时覆盖整张卡片。来源返回 `n/a`、字段缺失或请求失败时保留上一次有效值，并在卡片底部显示刷新失败。MVRV、Puell 与多空比继续使用发布时的手工口径。
+公开访客可通过页面右上角的“刷新最新数据”按钮获取 ETF、Strategy mNAV、BTC、F&G、稳定币、Fed、True Market Mean、DXY、黄金和 200WMA。Strategy mNAV 使用 2026-07-23 起的最新官方定义：`MSTR 股价 ÷ Net Bitcoin Per Share ($)`，不再沿用旧 EV mNAV。页面读取仓库根目录的 `strategy-mnav.json` 自动快照；任务优先读取 Strategy 官方页面更新资本结构，官方页面受反爬限制时保留最近有效的官方资本结构，并用 Nasdaq（备用 mNAV.com / Yahoo Finance）与 DefiLlama（备用 Coinbase / Kraken）的行情重新计算。公式、日期或合理区间校验失败时不会覆盖上一次有效值。MVRV、Puell 与多空比继续使用发布时的手工口径。
+
+Strategy mNAV 快照由 `.github/workflows/update-strategy-mnav.yml` 在美股交易日收盘后运行 `scripts/update-strategy-mnav.mjs` 生成。卡片会同时标注行情日期与资本结构基准日；当官方资本结构暂时无法重新读取时，它属于“最新官方口径估算”，不是 Strategy 官方页面的逐字转录值。
 
 Fed 卡片读取同源 `fed-signals.json`。`.github/workflows/update-fed-signals.yml` 每小时检查 Federal Reserve 官方货币政策 RSS、公告原文、主席讲话与 FOMC 会议日历；只有官方事件发生变化时才提交新数据。状态灯只由 FOMC 集体行动决定（降息绿、维持黄、加息红），主席讲话仅作偏鹰/偏鸽/中性的辅助语气，不覆盖实际利率决策。抓取或解析失败时任务不会覆盖最后有效快照。
 

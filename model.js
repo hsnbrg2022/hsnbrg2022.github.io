@@ -87,7 +87,7 @@ export function buildRisks(data) {
   const puell = cards.find((item) => item.id === 8);
   if (puell?.status === "yellow") risks.push(`Puell 仍在观察区，矿工端压力尚未完全解除`);
   const mnav = cards.find((item) => item.id === 2);
-  if (mnav?.status === "yellow") risks.push(`Strategy mNAV 尚未稳定站上 1.0，飞轮效应仍待确认`);
+  if (mnav?.status === "yellow") risks.push(`Strategy mNAV 低于 1.0，市场价格低于 Net BPS 参考线`);
   return risks.slice(0, 5);
 }
 

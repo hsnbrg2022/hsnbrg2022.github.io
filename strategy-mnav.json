@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "status": "active",
+  "generatedAt": "2026-09-04T02:03:43.446Z",
+  "marketAsOf": "2026-09-03",
+  "basisAsOf": "2026-08-31",
+  "mnav": 1.15,
+  "formula": "mstr_price_usd / net_btc_per_share_usd",
+  "methodologyEffectiveDate": "2026-07-23",
+  "calculation": {
+    "mode": "official-methodology-estimate",
+    "note": "Latest market prices applied to Strategy's latest disclosed capital-structure basis"
+  },
+  "inputs": {
+    "mstrPriceUsd": 144.82,
+    "btcPriceUsd": 80996.47,
+    "netBtcPerShareUsd": 126.37,
+    "netBtc": 662291.05,
+    "btcHoldings": 845050,
+    "usdAssetsUsd": 6714000000,
+    "seniorClaimsUsd": 21516830700,
+    "fullyDilutedShares": 424479000
+  },
+  "validation": {
+    "activation": "active",
+    "formulaChecked": true,
+    "basisClassification": "Official latest disclosure; out-of-the-money claims remain senior claims"
+  },
+  "source": {
+    "label": "Strategy official methodology",
+    "url": "https://www.strategy.com/btc",
+    "methodologyUrl": "https://www.strategy.com/notes"
+  },
+  "marketSources": {
+    "mstr": {
+      "label": "Nasdaq",
+      "url": "https://www.nasdaq.com/market-activity/stocks/mstr"
+    },
+    "btc": {
+      "label": "DefiLlama",
+      "url": "https://defillama.com/",
+      "fetchedAt": "2026-09-04T01:58:50.000Z"
+    }
+  },
+  "basis": {
+    "asOf": "2026-08-31",
+    "btcHoldings": 845050,
+    "usdAssetsUsd": 6714000000,
+    "seniorClaimsUsd": 21516830700,
+    "fullyDilutedShares": 424479000,
+    "classification": "Official latest disclosure; out-of-the-money claims remain senior claims",
+    "classificationPriceUsd": 144.82,
+    "classificationVerifiedAt": "2026-09-03",
+    "maxClassificationPriceDeviationPct": 0.2
+  }
+}

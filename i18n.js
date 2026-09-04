@@ -4,13 +4,13 @@ const MESSAGES = {
   zh: {
     brand: "加密看板追踪器", backTop: "回到顶部", switchLanguage: "Switch to English", languageButton: "EN",
     heroTitle: "先看信号，<br><em>再做决定。</em>", heroCopy: "将资金、宏观、链上估值与仓位结构压缩成一张每日决策面板。",
-    refresh: "刷新最新数据", refreshTitle: "更新 ETF、BTC、F&G、稳定币、Fed、True Market Mean、DXY、黄金与 200WMA", copy: "复制全文",
+    refresh: "刷新最新数据", refreshTitle: "更新 ETF、mNAV、BTC、F&G、稳定币、Fed、True Market Mean、DXY、黄金与 200WMA", copy: "复制全文",
     todayStatus: "今日状态", calculating: "正在计算信号…", briefing: "今日研判", summary: "摘要", changes: "核心变化", risks: "风险提示", watch: "宏观观察",
     footer: "公开访客可刷新实时公开数据；手工维护仅保存在当前浏览器。仅供研究与信息整理，不构成投资建议。", footerLocal: "本地维护会同步生成公开版数据文件。仅供研究与信息整理，不构成投资建议。",
     lastUpdated: "最后更新 {time}（UTC+8）", syncing: "正在同步最新数据…", cached: "最近缓存",
     aboveWma: "价格位于长期成本线上方", belowWma: "价格位于长期成本线下方",
     bullishNoRed: "偏多主导 · 无红灯", redSignals: "出现 {count} 项风险信号", mixedSignals: "信号分化 · 保持观察",
-    maintain: "手动维护", manual: "手动口径", publishedRefresh: "发布时已刷新", visitorRefresh: "访客刚刚刷新", refreshFailed: "刷新失败 · 保留最近值",
+    maintain: "手动维护", manual: "手动口径", publishedRefresh: "发布时已刷新", visitorRefresh: "访客刚刚刷新", refreshFailed: "刷新失败 · 保留最近值", mnavAuto: "交易日自动更新",
     positioningTitle: "手动维护多空比", positioningNote: "只需填写账户比与仓位比；仓帐比、信号等级和解读将自动计算。数据仅保存在当前浏览器，不会影响其他访客。",
     positioningLocalNote: "只需填写账户比与仓位比；仓帐比、信号等级和解读将自动计算。保存会同步更新 GitHub Pages 发布快照。",
     accountRatio: "账户比", positionRatio: "仓位比", bookAccountRatio: "仓帐比（自动计算）", ratioHelp: "仓位比 ÷ 账户比，仅展示、不可编辑",
@@ -29,13 +29,13 @@ const MESSAGES = {
   en: {
     brand: "Crypto Signal Tracker", backTop: "Back to top", switchLanguage: "切换到中文", languageButton: "中文",
     heroTitle: "Read the signals.<br><em>Then decide.</em>", heroCopy: "A daily decision dashboard spanning capital flows, macro liquidity, on-chain valuation and positioning.",
-    refresh: "Refresh latest data", refreshTitle: "Update ETF flows, BTC, F&G, stablecoins, Fed, True Market Mean, DXY, gold and 200WMA", copy: "Copy report",
+    refresh: "Refresh latest data", refreshTitle: "Update ETF flows, mNAV, BTC, F&G, stablecoins, Fed, True Market Mean, DXY, gold and 200WMA", copy: "Copy report",
     todayStatus: "Today's status", calculating: "Calculating signals…", briefing: "Daily view", summary: "Summary", changes: "Key changes", risks: "Risk alerts", watch: "Macro watch",
     footer: "Visitors can refresh public data. Manual changes are stored only in this browser. For research only; not financial advice.", footerLocal: "Local maintenance generates the public data files for publishing. For research only; not financial advice.",
     lastUpdated: "Last updated {time} (UTC+8)", syncing: "Syncing latest data…", cached: "cached",
     aboveWma: "Price is above the long-term cost basis", belowWma: "Price is below the long-term cost basis",
     bullishNoRed: "Bullish bias · No red flags", redSignals: "{count} risk signal(s)", mixedSignals: "Mixed signals · Stay selective",
-    maintain: "Maintain", manual: "Manual", publishedRefresh: "Refreshed at publish", visitorRefresh: "Just refreshed", refreshFailed: "Refresh failed · Using last value",
+    maintain: "Maintain", manual: "Manual", publishedRefresh: "Refreshed at publish", visitorRefresh: "Just refreshed", refreshFailed: "Refresh failed · Using last value", mnavAuto: "Updated automatically each trading day",
     positioningTitle: "Maintain long/short ratios", positioningNote: "Enter the account ratio and position ratio. The position/account ratio, signal tier and interpretation are calculated automatically. Values are stored only in this browser.",
     positioningLocalNote: "Enter the account and position ratios. The derived ratio and signal are calculated automatically, then synced to the GitHub Pages snapshot.",
     accountRatio: "Account ratio", positionRatio: "Position ratio", bookAccountRatio: "Position / account (calculated)", ratioHelp: "Position ratio ÷ account ratio. Display only; not editable.",
@@ -59,6 +59,11 @@ const INDICATOR_HELP = {
       title: "BTC ETF 资金流",
       summary: "汇总美国现货比特币 ETF 每个交易日的净申购与净赎回，用于观察机构配置资金方向。",
       points: ["正值代表当日净流入，负值代表当日净流出；单位为百万美元。", "数据只在美股交易日产生，通常在美国晚间陆续更新；周末停留在周五属于正常情况。", "连续净流入反映配置需求增强，但它不是 BTC 当日价格涨跌的直接保证。"]
+    },
+    strategyMnav: {
+      title: "Strategy mNAV（最新口径）",
+      summary: "衡量 MSTR 股价相对每股净比特币美元价值的溢价或折价。Strategy 自 2026-07-23 起采用此口径。",
+      points: ["计算方式：MSTR 股价 ÷ Net Bitcoin Per Share ($)。", "Net BPS 会扣除债务与优先股等高级索偿，并计入 USD Assets，再除以完全摊薄股数。", "1.0x 以上表示股价高于 Net BPS，1.0x 以下表示折价；本卡的市场价格自动更新，资本结构采用最新官方披露基准。"]
     },
     fedOfficialStance: {
       title: "Fed 官方立场",
@@ -114,6 +119,11 @@ const INDICATOR_HELP = {
       summary: "Aggregates daily net subscriptions and redemptions across U.S. spot Bitcoin ETFs to track institutional allocation demand.",
       points: ["Positive values are net inflows and negative values are net outflows; figures are in USD millions.", "Data is produced only on U.S. trading days and is typically finalized during the U.S. evening; a Friday date over the weekend is normal.", "A sustained inflow streak signals stronger allocation demand, but does not guarantee BTC’s daily price direction."]
     },
+    strategyMnav: {
+      title: "Strategy mNAV (current methodology)",
+      summary: "Measures the premium or discount of MSTR's share price to its net Bitcoin value per share. Strategy has used this definition since July 23, 2026.",
+      points: ["Formula: MSTR share price ÷ Net Bitcoin Per Share ($).", "Net BPS deducts senior debt and preferred claims, adds USD Assets, then divides by fully diluted shares.", "Above 1.0x means the shares trade above Net BPS; below 1.0x means a discount. Market prices update automatically while the capital structure follows the latest official disclosure basis."]
+    },
     fedOfficialStance: {
       title: "Official Fed Stance",
       summary: "Tracks collective FOMC rate decisions, with the Fed Chair’s latest monetary-policy remarks as a secondary tone signal.",
@@ -164,7 +174,7 @@ const INDICATOR_HELP = {
   }
 };
 
-const CARD_HELP_KEYS = { 1: "btcEtfFlows", 4: "fedOfficialStance", 7: "mvrv", 8: "puell" };
+const CARD_HELP_KEYS = { 1: "btcEtfFlows", 2: "strategyMnav", 4: "fedOfficialStance", 7: "mvrv", 8: "puell" };
 
 export function indicatorHelp(language, key) {
   return INDICATOR_HELP[language]?.[key] ?? INDICATOR_HELP.zh[key] ?? null;
@@ -182,7 +192,7 @@ export function indicatorHelpKeyForFact(cardId, text) {
 }
 
 const CARD_NAMES = {
-  1: ["BTC ETF Flows", "ETF"], 2: ["Strategy EV mNAV", "mNAV"], 3: ["Stablecoin Market Cap", "Stablecoins"],
+  1: ["BTC ETF Flows", "ETF"], 2: ["Strategy mNAV", "mNAV"], 3: ["Stablecoin Market Cap", "Stablecoins"],
   4: ["Official Fed Stance", "Fed"], 5: ["DXY Dollar Index", "DXY"], 6: ["Gold", "Gold"],
   7: ["MVRV Z-Score", "MVRV"], 8: ["Puell Multiple", "Puell"], 9: ["Long/Short Ratio", "L/S Ratio"]
 };
@@ -193,6 +203,7 @@ const EXACT_EN = new Map([
   ["ETF 资金连续净流出，机构配置需求转弱。", "ETF flows remain net negative, signaling weaker institutional allocation demand."],
   ["最新交易日 ETF 资金净流量持平。", "ETF net flows were flat on the latest trading day."],
   ["ETF 发布快照", "ETF published snapshot"], ["ETF 数据可能滞后", "ETF data may be stale"],
+  ["采用 Strategy 2026-07-23 起最新口径：MSTR 股价 ÷ Net BTC Per Share ($)；数值来自官方看板。", "Uses Strategy's current methodology effective July 23, 2026: MSTR share price ÷ Net BTC Per Share ($). Values come directly from the official dashboard."],
   ["距 1.0 触发仅 2%，BTC 拉升带动回升，现金跑道健康。", "Only 2% below the 1.0 trigger; BTC strength is lifting mNAV and the cash runway remains healthy."],
   ["稳定币供给扩张", "Stablecoin supply expanding"], ["稳定币供给收缩", "Stablecoin supply contracting"],
   ["稳定币供给保持扩张，链上可用流动性改善。", "Stablecoin supply is expanding, improving deployable on-chain liquidity."],
@@ -218,7 +229,7 @@ const EXACT_EN = new Map([
   ["财政部回购安排 → 关注对市场流动性的边际影响", "Treasury buybacks → watch the marginal liquidity impact"],
   ["CLARITY 法案进度 → 关注监管确定性", "CLARITY Act progress → watch regulatory certainty"],
   ["Puell 仍在观察区，矿工端压力尚未完全解除", "Puell remains in the watch zone; miner-side pressure has not fully eased."],
-  ["Strategy mNAV 尚未稳定站上 1.0，飞轮效应仍待确认", "Strategy mNAV has not held above 1.0; the flywheel effect is not yet confirmed."],
+  ["Strategy mNAV 低于 1.0，市场价格低于 Net BPS 参考线", "Strategy mNAV is below 1.0, so the market price is below the Net BPS reference."],
   ["访客手工维护", "Visitor-maintained"], ["ECB 推导", "ECB-derived"], ["黄金", "Gold"], ["稳定币", "Stablecoins"], ["多空比", "L/S Ratio"], ["SOPR强", "SOPR strong"]
   , ["极度贪婪", "Extreme greed"], ["贪婪", "Greed"], ["中性", "Neutral"], ["恐惧", "Fear"], ["极度恐惧", "Extreme fear"]
 ]);
@@ -264,6 +275,13 @@ export function translateText(value, language) {
     .replace(/基调偏鸽/g, "Dovish tone")
     .replace(/基调中性/g, "Neutral tone")
     .replace(/下次会议/g, "Next meeting")
+    .replace(/按 Strategy 2026-07-23 起最新口径估算：MSTR 股价 ÷ Net BTC Per Share \(\$\)；资本结构采用 (\d{4}-\d{2}-\d{2}) 官方披露，行情自动更新。/g, "Estimated using Strategy's current methodology effective July 23, 2026: MSTR share price ÷ Net BTC Per Share ($). Capital structure uses the official $1 disclosure; market prices update automatically.")
+    .replace(/Strategy 官方看板/g, "Strategy official dashboard")
+    .replace(/Strategy 官方口径/g, "Strategy official methodology")
+    .replace(/行情截至/g, "Market as of")
+    .replace(/资本结构截至/g, "Capital structure as of")
+    .replace(/净 BTC/g, "Net BTC")
+    .replace(/最新口径/g, "Current methodology")
     .replace(/累计/g, "total")
     .replace(/连续(\d+)日/g, "$1-day streak")
     .replace(/飞轮/g, "Flywheel")
