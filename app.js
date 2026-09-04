@@ -1,5 +1,5 @@
 import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney } from "./model.js?v=20260823-2";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260829-2";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260904-1";
 import { nextEtfTradingDate, upsertManualEtfFlow } from "./scripts/manual-etf-flow.mjs?v=20260828-1";
 import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260829-2";
 
@@ -167,6 +167,8 @@ function renderCard(card) {
       : card.refreshStatus === "snapshot"
         ? `<i class="snapshot-dot"></i> ${t(language, "etfSnapshotAsOf", { date: dataAsOf })}`
         : `<i class="live-dot"></i> ${t(language, "etfLiveAsOf", { date: dataAsOf })}`
+    : card.id === 2 && card.refreshStatus === "failed"
+      ? `<i class="stale-dot"></i> ${t(language, "refreshFailed")}`
     : card.refresh === "auto"
     ? card.refreshStatus === "failed"
       ? `<i class="stale-dot"></i> ${t(language, "refreshFailed")}`
