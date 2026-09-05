@@ -2,6 +2,7 @@ import { calculateDxyFromRates } from "./model.js";
 import { applyFedDatasetToDashboard } from "./fed-signals.js?v=20260829-1";
 import { applyTrueMarketMeanDataset } from "./true-market-mean.js?v=20260829-1";
 import { updateMnavFromSnapshot } from "./mnav-source.js?v=20260904-2";
+import { applyMacroQuote } from "./macro-quote.js?v=20260905-1";
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -277,7 +278,7 @@ async function frankfurterDxy(fetchImpl) {
   if (dates.length < 2) throw new Error("ECB 汇率样本不足");
   const price = calculateDxyFromRates(payload.rates[dates.at(-1)]);
   const previous = calculateDxyFromRates(payload.rates[dates.at(-2)]);
-  return { price, change: ((price / previous) - 1) * 100, fetchedLabel: `${dates.at(-1)} ECB 日终` };
+  return { price, change: ((price / previous) - 1) * 100, changeBasis: "daily-reference", comparisonAsOf: dates.at(-2), instrument: "DXY-ECB", fetchedLabel: `${dates.at(-1)} ECB 日终` };
 }
 
 async function openErDxy(fetchImpl) {
@@ -285,6 +286,7 @@ async function openErDxy(fetchImpl) {
   return {
     price: calculateDxyFromRates(payload.rates),
     change: null,
+    instrument: "DXY-FX-ESTIMATE",
     fetchedLabel: payload.time_last_update_utc || new Date().toISOString()
   };
 }
@@ -300,7 +302,7 @@ async function updateMacroQuote(data, fetchImpl, { id, prefix = "" }) {
       url: "https://gold-api.com/",
       load: async () => {
         const payload = await fetchJson("https://api.gold-api.com/price/XAU", fetchImpl);
-        return { price: Number(payload.price), change: null, fetchedLabel: payload.updatedAt };
+        return { price: Number(payload.price), change: null, instrument: "XAU-USD-SPOT", fetchedLabel: payload.updatedAt };
       }
     },
     {
@@ -309,33 +311,14 @@ async function updateMacroQuote(data, fetchImpl, { id, prefix = "" }) {
       load: async () => {
         const payload = await fetchJson("https://api.goldprice.dev/v1/prices?symbol=XAU-USD-SPOT", fetchImpl);
         const row = payload.symbols?.[0];
-        return { price: Number(row?.price), change: null, fetchedLabel: row?.computed_at };
+        return { price: Number(row?.price), change: null, instrument: "XAU-USD-SPOT", fetchedLabel: row?.computed_at };
       }
     }
   ];
 
   const quote = await firstProvider(providers, (value) =>
     Number.isFinite(value.price) && value.price > 0 && (value.change === null || Number.isFinite(value.change)));
-  const previousDisplayedPrice = Number(target.headline.match(/[\d,]+(?:\.\d+)?/)?.[0]?.replaceAll(",", ""));
-  const fallbackChange = Number.isFinite(previousDisplayedPrice) && previousDisplayedPrice > 0
-    ? ((quote.price / previousDisplayedPrice) - 1) * 100
-    : 0;
-  const change = Number.isFinite(quote.change) ? quote.change : fallbackChange;
-  const changeText = Number.isFinite(quote.change) ? signed(change) : `较发布值 ${signed(change)}`;
-  target.headline = `${prefix}${quote.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · ${changeText}`;
-  target.change = changeText;
-  if (id === 5) {
-    target.facts = [quote.price < 100 ? "守在 100 下方" : "升至 100 上方", change < 0 ? "风险资产顺风" : "美元走强施压"];
-    target.status = quote.price < 100 ? "green" : quote.price < 103 ? "yellow" : "red";
-    target.detail = quote.price < 100 ? "美元指数维持弱势，为风险资产提供宏观顺风。" : "美元指数走强，风险资产的流动性环境承压。";
-  } else {
-    target.facts = [change >= 0 ? "较发布值走强" : "较发布值回落", "同步观察实际利率"];
-    target.status = change >= -1 ? "green" : "yellow";
-    target.detail = "黄金用于交叉验证美元、实际利率与避险需求的变化。";
-  }
-  target.source = { label: quote.source, url: quote.sourceUrl };
-  target.marketFetchedAt = quote.fetchedLabel || new Date().toISOString();
-  return `${target.shortName} / ${quote.source}`;
+  return applyMacroQuote(target, quote, { id, prefix });
 }
 
 async function updateWma(data, fetchImpl) {
@@ -398,7 +381,7 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
       updated.push(result.value);
       checks.push({ name, status: "ok", result: result.value, checkedAt });
       if (target) Object.assign(target, {
-        refreshStatus: target.refreshStatus || "ok",
+        refreshStatus: ["ETF", "Fed"].includes(name) ? target.refreshStatus : "ok",
         refreshMessage: result.value,
         refreshMethod: "public-manual",
         lastRefreshAt: checkedAt

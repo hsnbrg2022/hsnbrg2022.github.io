@@ -34,6 +34,8 @@ True Market Mean 已启用自动更新：`.github/workflows/update-true-market-m
 
 ## 一键同步 GitHub
 
+发布前请停止本地维护服务，发布期间不要编辑本地 JSON；当前发布器与维护服务尚未共用跨进程写入锁。发布器会对照远端与私有同步基线，保留较新的自动快照；同一字段或同一 ETF 日期的双端冲突会停止发布，不会强行覆盖。回收前备份与同步基线保存在网站之外的 `../crypto-dashboard/.publish-backups/` 和 `.publish-state.json`，不要上传这两项。
+
 项目使用 `scripts/publish-github.mjs` 将本目录中的公开文件原子同步到 GitHub Pages 仓库。脚本会自动包含 `.github`、`.nojekyll` 和后续新增的公开文件，并排除 `.git`、`.env`、私钥及本地依赖目录；远端独有文件不会被删除。
 
 首次使用时创建一个仅授权 `hsnbrg2022.github.io` 仓库、权限为 **Contents: Read and write** 的 fine-grained personal access token，然后执行以下命令。命令会等待你在隐藏提示中输入 token，并将其存入 macOS 钥匙串，token 不会写入项目文件：
@@ -45,3 +47,13 @@ security add-generic-password -U -a hsnbrg2022 -s crypto-dashboard-github -w
 以后双击本目录的 `publish-github.command`，或在终端执行 `./publish-github.command`，即可先运行全部测试、再同步全部公开文件；添加 `--dry-run` 参数可只查看同步清单。发布成功后脚本会显示 GitHub 提交链接，GitHub Pages 通常还需要短暂时间完成部署。
 
 仅供研究与信息整理，不构成投资建议。
+
+## 2026-09-05 第一批可靠性优化
+
+- 黄金不再用卡片旧文案作为比较价格；期货仅与该合约前收比较，现货源没有可核实涨跌基准时显示“观察 / 涨跌基准暂不可用”，重复刷新不会凭空变绿。DXY 汇率推导值会标明日终参考口径。
+- 接口失败后成功读取会清除失败标记；ETF、Fed 自身的过期判断仍保留。成功抓取不代表业务数据一定是当日数据。
+- “基线对比与当前信号”根据当前数值重新生成，明确区分历史基线比较和当前卡片状态；不再展示保存时残留的旧日报。
+- Fed 解析支持维持、加息和降息公告，决策与利率区间必须来自同一正式决策句；历史和异议段落不作为本次决策。
+- 本地保存使用串行事务、独立临时文件与普通失败回滚；刷新期间保存的手工值不会被延迟响应覆盖。它不是断电恢复机制，也不支持多个服务进程同时写入。
+
+后续批次再处理统一新鲜度评分、公开 ETF 按日期覆盖、ETF 交易日连续性、200WMA 样本校验及历史基线；本批不改这些算法的业务规则。

@@ -1,7 +1,7 @@
-import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney } from "./model.js?v=20260823-2";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260904-2";
+import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260905-1";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260905-1";
 import { nextEtfTradingDate, upsertManualEtfFlow } from "./scripts/manual-etf-flow.mjs?v=20260828-1";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260904-1";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260905-1";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -99,7 +99,7 @@ function bindIndicatorTooltips() {
 }
 
 function formatDate(dateString) {
-  return new Intl.DateTimeFormat(language === "en" ? "en-GB" : "zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", weekday: "short" })
+  return new Intl.DateTimeFormat(language === "en" ? "en-GB" : "zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", weekday: "short", timeZone: "Asia/Shanghai" })
     .format(new Date(`${dateString}T00:00:00+08:00`));
 }
 
@@ -359,6 +359,7 @@ async function refreshData({ automatic = false } = {}) {
   button.disabled = true;
   button.classList.add("loading");
   if (automatic) $("#updatedAt").textContent = t(language, "syncing");
+  const started = cloneValue(dashboard);
   try {
     const result = IS_LOCAL_MAINTENANCE
       ? await api("/api/refresh", { method: "POST" })
@@ -380,18 +381,21 @@ async function refreshData({ automatic = false } = {}) {
     if (!IS_LOCAL_MAINTENANCE && (localStorage.getItem(POSITIONING_STORAGE_KEY) || localStorage.getItem(ETF_STORAGE_KEY))) {
       result.data.dataMode = result.warnings.length ? "本地维护 + 混合数据" : "本地维护 + 实时数据";
     }
-    dashboard = result.data;
+    dashboard = mergeRefreshView(dashboard, started, result.data);
     render();
+    const retainedNote = result.retained?.length
+      ? (language === "en" ? ` Changes saved during refresh were retained: ${result.retained.map((name) => translateText(name, language)).join(", ")}.` : `；已保留刷新期间保存的值：${result.retained.join("、")}`)
+      : "";
     if (result.warnings.length) {
       const warningNames = result.warnings.map((item) => item.split("：")[0]).join("、");
       showToast(language === "en"
-        ? `${automatic ? "Auto-refresh" : "Refresh"} updated ${result.updated.length} item(s); ${translateText(warningNames, language)} failed, last values retained.`
-        : `${automatic ? "自动刷新" : "刷新"}已更新 ${result.updated.length} 项；${warningNames} 失败，已保留最近值`, "warning", 7000);
+        ? `${automatic ? "Auto-refresh" : "Refresh"} updated ${result.updated.length} item(s); ${translateText(warningNames, language)} failed, last values retained.${retainedNote}`
+        : `${automatic ? "自动刷新" : "刷新"}已更新 ${result.updated.length} 项；${warningNames} 失败，已保留最近值${retainedNote}`, "warning", 7000);
     } else {
       const updatedNames = result.updated.map((item) => translateText(item, language)).join(language === "en" ? ", " : "、");
       showToast(language === "en"
-        ? `${automatic ? "Page opened and auto-refreshed" : "Latest data loaded"}: ${updatedNames}`
-        : `${automatic ? "打开页面已自动刷新" : "已获取最新数据"}：${updatedNames}`, "success", 5000);
+        ? `${automatic ? "Page opened and auto-refreshed" : "Latest data loaded"}: ${updatedNames}${retainedNote}`
+        : `${automatic ? "打开页面已自动刷新" : "已获取最新数据"}：${updatedNames}${retainedNote}`, "success", 5000);
     }
   } catch (error) {
     if (automatic) render();
@@ -519,7 +523,7 @@ async function saveEtfMaintenance(event) {
     let action;
     if (IS_LOCAL_MAINTENANCE) {
       const result = await api("/api/etf-flows", { method: "POST", body: JSON.stringify(input) });
-      dashboard = result.data;
+      dashboard = mergeMaintenanceView(dashboard, result.data, 1);
       currentEtfDataset = result.dataset;
       action = result.action;
       const messageKey = action === "updated" ? "etfUpdated" : "etfSaved";
@@ -599,7 +603,7 @@ async function savePositioningMaintenance(event) {
         method: "POST",
         body: JSON.stringify({ accountRatio, positionRatio })
       });
-      dashboard = result.data;
+      dashboard = mergeMaintenanceView(dashboard, result.data, 9);
       showToast(`${t(language, "savedPositioningLocal")} · ${result.publishFiles.join(" + ")}`, "success", 7000);
     } else {
       applyPositioning(accountRatio, positionRatio, savedAt);

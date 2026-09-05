@@ -99,11 +99,9 @@ export function buildSummary(data) {
   const positioning = data.cards.find((card) => card.id === 9);
   const direction = counts.red === 0 && counts.green >= 5 ? "偏多主导" : counts.red >= 3 ? "风险主导" : "多空拉锯";
   const basic = `看板 ${counts.green}/${total} 项触发，${counts.red} 项红灯，整体维持${direction}。`;
-  const money = capitalGreen >= 2
-    ? `资金面有 ${capitalGreen}/${capital.length} 项确认，增量资本仍在入场。`
-    : `资金面仅 ${capitalGreen}/${capital.length} 项确认，增量资金需要继续观察。`;
+  const money = `资金面有 ${capitalGreen}/${capital.length} 项触发，需结合 ETF 净流量、稳定币供给与 mNAV 分别判断。`;
   const mood = data.market.fng >= 70
-    ? `情绪面处于${marketHeat(data.market.fng).label}，趋势虽强但追高性价比下降。`
+    ? `情绪面处于${marketHeat(data.market.fng).label}，需留意追高风险。`
     : `情绪面处于${marketHeat(data.market.fng).label}，尚未进入极端拥挤区。`;
   const structure = positioning?.status === "green"
     ? `衍生品结构偏多（${positioning.headline}），但需防范杠杆集中后的反向波动。`
@@ -111,10 +109,56 @@ export function buildSummary(data) {
   return [basic, money, mood, structure].join("");
 }
 
+export function buildCurrentChanges(data, language = "zh") {
+  const en = language === "en";
+  const lines = [];
+  const previous = Number(data.previous?.btcPrice);
+  const current = Number(data.market?.btcPrice);
+  if (Number.isFinite(previous) && previous > 0 && Number.isFinite(current) && current > 0) {
+    const delta = ((current / previous) - 1) * 100;
+    lines.push(`BTC ${formatMoney(previous, 0)} → ${formatMoney(current, 0)} (${delta >= 0 ? "+" : ""}${delta.toFixed(2)}%)`);
+  } else if (Number.isFinite(current) && current > 0) {
+    lines.push(`BTC ${formatMoney(current, 0)}`);
+  }
+  const fng = data.market?.fng;
+  if (Number.isFinite(fng)) lines.push(`F&G ${Number.isFinite(data.previous?.fng) ? `${data.previous.fng} → ` : ""}${fng}`);
+  for (const id of [1, 2, 3, 6, 9]) {
+    const item = data.cards.find((card) => card.id === id);
+    if (item) lines.push(`${String(id).padStart(2, "0")} ${item.title} ${en ? "currently" : "当前"}：${item.headline}`);
+  }
+  return lines;
+}
+
+// A delayed refresh must not replace a manual edit made after that refresh started.
+export function mergeRefreshView(current, started, incoming) {
+  const later = Date.parse(current.updatedAt) > Date.parse(incoming.updatedAt) ? current : incoming;
+  return {
+    ...incoming,
+    date: later.date,
+    updatedAt: later.updatedAt,
+    dataMode: later.dataMode,
+    cards: incoming.cards.map((item) => {
+      const latest = current.cards.find((card) => card.id === item.id);
+      const before = started.cards.find((card) => card.id === item.id);
+      return latest && (item.id === 9 || (item.id === 1 && JSON.stringify(latest) !== JSON.stringify(before))) ? latest : item;
+    })
+  };
+}
+
+// Saving one card must not roll back unrelated quotes that arrived during the request.
+export function mergeMaintenanceView(current, saved, id) {
+  const later = Date.parse(saved.updatedAt) >= Date.parse(current.updatedAt) ? saved : current;
+  return {
+    ...current, date: later.date, updatedAt: later.updatedAt, dataMode: saved.dataMode,
+    cards: current.cards.map((item) => item.id === id ? saved.cards.find((card) => card.id === id) || item : item)
+  };
+}
+
 export function deriveDashboard(data) {
   const counts = statusCounts(data.cards);
   return {
     ...data,
+    previous: { ...data.previous, changes: buildCurrentChanges(data) },
     counts,
     score: counts.green,
     total: data.cards.length,

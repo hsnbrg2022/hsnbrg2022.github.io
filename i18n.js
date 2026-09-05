@@ -1,3 +1,5 @@
+import { buildCurrentChanges } from "./model.js?v=20260905-1";
+
 export const LANGUAGE_STORAGE_KEY = "crypto-signal-tracker:language-v1";
 
 const MESSAGES = {
@@ -5,7 +7,7 @@ const MESSAGES = {
     brand: "加密看板追踪器", backTop: "回到顶部", switchLanguage: "Switch to English", languageButton: "EN",
     heroTitle: "先看信号，<br><em>再做决定。</em>", heroCopy: "将资金、宏观、链上估值与仓位结构压缩成一张每日决策面板。",
     refresh: "刷新最新数据", refreshTitle: "更新 ETF、mNAV、BTC、F&G、稳定币、Fed、True Market Mean、DXY、黄金与 200WMA", copy: "复制全文",
-    todayStatus: "今日状态", calculating: "正在计算信号…", briefing: "今日研判", summary: "摘要", changes: "核心变化", risks: "风险提示", watch: "宏观观察",
+    todayStatus: "今日状态", calculating: "正在计算信号…", briefing: "今日研判", summary: "摘要", changes: "基线对比与当前信号", risks: "风险提示", watch: "宏观观察",
     footer: "公开访客可刷新实时公开数据；手工维护仅保存在当前浏览器。仅供研究与信息整理，不构成投资建议。", footerLocal: "本地维护会同步生成公开版数据文件。仅供研究与信息整理，不构成投资建议。",
     lastUpdated: "最后更新 {time}（UTC+8）", syncing: "正在同步最新数据…", cached: "最近缓存",
     aboveWma: "价格位于长期成本线上方", belowWma: "价格位于长期成本线下方",
@@ -30,7 +32,7 @@ const MESSAGES = {
     brand: "Crypto Signal Tracker", backTop: "Back to top", switchLanguage: "切换到中文", languageButton: "中文",
     heroTitle: "Read the signals.<br><em>Then decide.</em>", heroCopy: "A daily decision dashboard spanning capital flows, macro liquidity, on-chain valuation and positioning.",
     refresh: "Refresh latest data", refreshTitle: "Update ETF flows, mNAV, BTC, F&G, stablecoins, Fed, True Market Mean, DXY, gold and 200WMA", copy: "Copy report",
-    todayStatus: "Today's status", calculating: "Calculating signals…", briefing: "Daily view", summary: "Summary", changes: "Key changes", risks: "Risk alerts", watch: "Macro watch",
+    todayStatus: "Today's status", calculating: "Calculating signals…", briefing: "Daily view", summary: "Summary", changes: "Baseline comparison & current signals", risks: "Risk alerts", watch: "Macro watch",
     footer: "Visitors can refresh public data. Manual changes are stored only in this browser. For research only; not financial advice.", footerLocal: "Local maintenance generates the public data files for publishing. For research only; not financial advice.",
     lastUpdated: "Last updated {time} (UTC+8)", syncing: "Syncing latest data…", cached: "cached",
     aboveWma: "Price is above the long-term cost basis", belowWma: "Price is below the long-term cost basis",
@@ -253,6 +255,13 @@ export function translateText(value, language) {
   const source = String(value);
   if (EXACT_EN.has(source)) return EXACT_EN.get(source);
   let text = source
+    .replace(/涨跌基准暂不可用/g, "Comparison baseline unavailable")
+    .replace(/较前收/g, "vs previous close")
+    .replace(/较上个日终/g, "vs prior daily reference")
+    .replace(/较基准走强/g, "Stronger vs reference")
+    .replace(/较基准回落/g, "Lower vs reference")
+    .replace(/黄金期货/g, "Gold futures")
+    .replace(/黄金现货/g, "Spot gold")
     .replace(/\$([\d,.]+)\s*亿/g, (_, number) => `$${(Number(number.replaceAll(",", "")) / 10).toLocaleString("en-US", { maximumFractionDigits: 1 })}B`)
     .replace(/连续\s*(\d+)\s*日净流入/g, "$1 consecutive days of net inflows")
     .replace(/连续\s*(\d+)\s*日净流出/g, "$1 consecutive days of net outflows")
@@ -325,7 +334,7 @@ function englishSummary(data) {
   const structure = positioning?.status === "green"
     ? `Derivatives positioning is bullish (${translateText(positioning.headline, "en")}), while concentrated leverage can amplify reversals.`
     : "Derivatives positioning has not formed a clear directional signal.";
-  return `The dashboard has ${counts.green}/${data.total} active signals and ${counts.red} red flags, indicating ${direction}. Capital flows confirm ${capitalGreen}/${capital.length} signals. Sentiment is ${mood}. ${structure}`;
+  return `The dashboard has ${counts.green}/${data.total} active signals and ${counts.red} red flags, indicating ${direction}. Capital indicators have ${capitalGreen}/${capital.length} active signals; assess ETF flows, stablecoin supply and mNAV separately. Sentiment is ${mood}. ${structure}`;
 }
 
 export function localizeDashboard(data, language) {
@@ -342,7 +351,7 @@ export function localizeDashboard(data, language) {
   localized.summary = englishSummary({ ...localized, cards });
   localized.risks = data.risks.map((item) => translateText(item, language));
   localized.macroNotes = data.macroNotes.map((item) => translateText(item, language));
-  localized.previous = data.previous ? { ...data.previous, changes: data.previous.changes.map((item) => translateText(item, language)) } : data.previous;
+  localized.previous = { ...data.previous, changes: buildCurrentChanges(localized, "en").map((item) => translateText(item, language)) };
   return localized;
 }
 

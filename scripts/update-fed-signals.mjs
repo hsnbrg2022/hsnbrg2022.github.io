@@ -54,21 +54,35 @@ function mixedNumber(value) {
   const normalized = String(value).trim();
   const mixed = normalized.match(/^(\d+)(?:-|\s+)(\d+)\/(\d+)$/);
   if (mixed) return Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3]);
+  const fraction = normalized.match(/^(\d+)\/(\d+)$/);
+  if (fraction) return Number(fraction[1]) / Number(fraction[2]);
   return Number(normalized);
 }
 
 export function parseFomcDecision(html) {
-  const text = stripHtml(html);
-  const rangeMatch = text.match(/target range for the federal funds rate at\s+(\d+(?:\.\d+|(?:-|\s+)\d+\/\d+)?)\s+to\s+(\d+(?:\.\d+|(?:-|\s+)\d+\/\d+)?)\s+percent/i);
-  if (!rangeMatch) throw new Error("FOMC 公告未找到目标利率区间");
-  const lower = mixedNumber(rangeMatch[1]);
-  const upper = mixedNumber(rangeMatch[2]);
-  let action;
-  if (/decided to (?:maintain|keep)|maintained the target range/i.test(text)) action = "hold";
-  else if (/(?:decided to )?(?:lower|reduce|decrease)(?:d)? the target range/i.test(text)) action = "cut";
-  else if (/(?:decided to )?(?:raise|increase)(?:d)? the target range/i.test(text)) action = "hike";
-  if (!action || !Number.isFinite(lower) || !Number.isFinite(upper)) throw new Error("FOMC 决策无法确定");
-  return { action, targetRange: { lower, upper } };
+  // Keep paragraph boundaries and stop before the vote list; a dissenter is not the Committee's decision.
+  const text = stripHtml(String(html).replace(/<\/(?:p|div|main|section|article)>/gi, ". "))
+    .split(/\bVoting (?:for|against)\b/i)[0];
+  const number = String.raw`\d+(?:(?:-|\s+)\d+\/\d+|\/\d+|\.\d+)?`;
+  const decisionPattern = new RegExp(String.raw`\bthe Committee decided to (maintain|keep|lower|reduce|decrease|raise|increase) the target range for the federal funds rate\s+(?:(at|to)\s+|by\s+(${number})\s+percentage points?\s+to\s+)(${number})\s+to\s+(${number})\s+percent\b`, "gi");
+  const decisions = [];
+  for (const sentence of text.split(/(?<=[.!?])\s+/)) {
+    for (const match of sentence.matchAll(decisionPattern)) {
+      const context = sentence.slice(0, match.index);
+      if (/\b(?:previous|prior|last|earlier|formerly|preferred|dissent\w*)\b/i.test(context)) continue;
+      const action = /maintain|keep/i.test(match[1]) ? "hold" : /lower|reduce|decrease/i.test(match[1]) ? "cut" : "hike";
+      const lower = mixedNumber(match[4]);
+      const upper = mixedNumber(match[5]);
+      const adjustment = match[3] === undefined ? null : mixedNumber(match[3]);
+      if (!Number.isFinite(lower) || !Number.isFinite(upper) || lower < 0 || lower >= upper || upper > 100
+        || (adjustment !== null && (!Number.isFinite(adjustment) || adjustment <= 0 || action === "hold"))) {
+        throw new Error("FOMC 决策或目标利率区间无效");
+      }
+      decisions.push({ action, targetRange: { lower, upper } });
+    }
+  }
+  if (decisions.length !== 1) throw new Error("FOMC 公告未找到唯一的集体利率决策");
+  return decisions[0];
 }
 
 const HAWKISH_PATTERNS = [
