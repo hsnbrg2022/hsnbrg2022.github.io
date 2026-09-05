@@ -1,7 +1,8 @@
-import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260905-1";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260905-1";
-import { nextEtfTradingDate, upsertManualEtfFlow } from "./scripts/manual-etf-flow.mjs?v=20260828-1";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260905-1";
+import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260905-2";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260905-2";
+import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260828-1";
+import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260905-2";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260905-2";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -19,7 +20,6 @@ let publishedPositioningCard;
 let publishedDataMode;
 let activeIndicatorTooltip;
 const IS_LOCAL_MAINTENANCE = ["127.0.0.1", "localhost"].includes(location.hostname);
-const ETF_STORAGE_KEY = "crypto-signal-tracker:etf-flows-v1";
 const POSITIONING_STORAGE_KEY = "crypto-signal-tracker:positioning-v1";
 const $ = (selector) => document.querySelector(selector);
 
@@ -147,6 +147,11 @@ function applyStaticTranslations() {
   $("#cancelEtf").textContent = t(language, "cancel");
   $("#saveEtf").textContent = t(language, IS_LOCAL_MAINTENANCE ? "saveAndSync" : "saveBrowser");
   $("#closeEtf").ariaLabel = t(language, "close");
+  $("#qualityCoverage").title = t(language, "qualityRules");
+  $("#etfLegacyTitle").textContent = t(language, "etfLegacyTitle");
+  $("#etfLegacyNote").textContent = t(language, "etfLegacyNote");
+  $("#migrateEtf").textContent = t(language, "etfMigrate");
+  $("#skipEtfLegacy").textContent = t(language, "etfSkipLegacy");
   syncEtfEditorState();
   $("#fngHelp").innerHTML = renderIndicatorHelp("fearGreed", "fear-greed");
   $("#wmaHelp").innerHTML = renderIndicatorHelp("wma200", "200-wma");
@@ -199,6 +204,7 @@ function renderCard(card) {
         return `<span>${escapeHtml(fact)}${factHelpKey ? renderIndicatorHelp(factHelpKey, `card-${card.id}-fact-${index}`) : ""}</span>`;
       }).join("")}</div>
       <p>${escapeHtml(card.detail)}</p>
+      <p class="quality-note ${card.quality?.eligible ? "" : "needs-review"}">${t(language, card.quality?.eligible ? "qualityFresh" : card.quality?.state === "stale" ? "qualityStale" : "qualityUnknown")}${card.browserEditCount ? ` · ${t(language, "etfEditsCount", { count: card.browserEditCount })}` : ""}</p>
       <div class="signal-footer">
         <span title="${escapeHtml(card.refreshMessage || "")}">${refreshLabel}</span>
         ${source}
@@ -280,7 +286,7 @@ function renderTracker(data) {
       <span class="tracker-status tracker-${card.status}">${STATUS[card.status].icon}</span>
       <b>${String(card.id).padStart(2, "0")}</b>
       <span>${escapeHtml(card.shortName)}</span>
-      <em>${escapeHtml(card.change || "—")}</em>
+      <em>${escapeHtml(card.change || "—")}${card.quality?.eligible ? "" : ` · ${t(language, "qualityPending")}`}</em>
     </div>`).join("");
   $("#statusLegend").innerHTML = ["green", "yellow", "red", "off"].map((key) => `
     <div><i class="legend-${key}"></i><strong>${data.counts[key]}</strong><span>${statusLabel(language, key)}</span></div>`).join("");
@@ -324,12 +330,14 @@ function render() {
   $("#wmaValue").textContent = formatMoney(data.market.wma200, 0);
   $("#wmaInsight").textContent = data.market.wmaRatio >= 1 ? t(language, "aboveWma") : t(language, "belowWma");
   $("#scoreValue").textContent = data.score;
+  $("#qualityCoverage").textContent = t(language, "qualityCoverage", { count: data.coverage, total: data.total, pending: data.pending });
   $("#scoreRing").style.setProperty("--score-angle", `${data.score / data.total * 360}deg`);
-  $("#scoreVerdict").textContent = data.counts.red === 0 && data.score >= 6 ? t(language, "bullishNoRed") : data.counts.red ? t(language, "redSignals", { count: data.counts.red }) : t(language, "mixedSignals");
+  $("#scoreVerdict").textContent = data.pending ? t(language, "qualityIncomplete") : data.counts.red === 0 && data.score >= 6 ? t(language, "bullishNoRed") : data.counts.red ? t(language, "redSignals", { count: data.counts.red }) : t(language, "mixedSignals");
   renderSections(data);
   renderTracker(data);
   renderBriefing(data);
   bindIndicatorTooltips();
+  renderEtfArchive();
 }
 
 async function api(url, options = {}) {
@@ -364,24 +372,17 @@ async function refreshData({ automatic = false } = {}) {
     const result = IS_LOCAL_MAINTENANCE
       ? await api("/api/refresh", { method: "POST" })
       : await refreshPublicDashboard(dashboard);
-    if (!IS_LOCAL_MAINTENANCE) {
-      try {
-        const savedEtf = JSON.parse(localStorage.getItem(ETF_STORAGE_KEY));
-        if (savedEtf?.rows) {
-          currentEtfDataset = savedEtf;
-          applyEtfDatasetToDashboard(result.data, savedEtf);
-          const etfCard = result.data.cards.find((item) => item.id === 1);
-          etfCard.refreshStatus = "snapshot";
-          etfCard.refreshMessage = `${t(language, "browserOnlyShort")} · ${savedEtf.marketDate}`;
-        }
-      } catch {
-        localStorage.removeItem(ETF_STORAGE_KEY);
-      }
-    }
-    if (!IS_LOCAL_MAINTENANCE && (localStorage.getItem(POSITIONING_STORAGE_KEY) || localStorage.getItem(ETF_STORAGE_KEY))) {
+    if (result.etfDataset) publishedEtfDataset = cloneValue(result.etfDataset);
+    if (!IS_LOCAL_MAINTENANCE && localStorage.getItem(POSITIONING_STORAGE_KEY)) {
       result.data.dataMode = result.warnings.length ? "本地维护 + 混合数据" : "本地维护 + 实时数据";
     }
     dashboard = mergeRefreshView(dashboard, started, result.data);
+    if (!IS_LOCAL_MAINTENANCE && publishedEtfDataset) composeBrowserEtf({ keepFailure: !result.etfDataset });
+    if (IS_LOCAL_MAINTENANCE) {
+      try { currentEtfDataset = (await api("/api/etf-flows")).dataset; }
+      catch { /* Keep the last successfully loaded editor history. */ }
+    }
+    if ($("#etfDialog").open) renderEtfHistory(currentEtfDataset);
     render();
     const retainedNote = result.retained?.length
       ? (language === "en" ? ` Changes saved during refresh were retained: ${result.retained.map((name) => translateText(name, language)).join(", ")}.` : `；已保留刷新期间保存的值：${result.retained.join("、")}`)
@@ -455,6 +456,7 @@ function selectEtfRecord(date, { focus = true } = {}) {
   editingEtfDate = row.date;
   $("#etfDate").value = row.date;
   $("#etfFlow").value = String(row.flowUsdMillions);
+  if (row.sourceKey) $("#etfSource").value = row.sourceKey;
   syncEtfEditorState();
   renderEtfHistory(currentEtfDataset);
   if (focus) {
@@ -464,13 +466,61 @@ function selectEtfRecord(date, { focus = true } = {}) {
   return true;
 }
 
-function applyBrowserEtfDataset(dataset) {
-  currentEtfDataset = dataset;
-  applyEtfDatasetToDashboard(dashboard, dataset);
+function composeBrowserEtf({ keepFailure = false } = {}) {
+  if (!publishedEtfDataset) return;
+  let edits;
+  try { edits = readEtfEdits(localStorage); }
+  catch { edits = emptyEtfEdits(); }
   const target = dashboard.cards.find((item) => item.id === 1);
-  target.refreshStatus = "snapshot";
-  target.refreshMessage = `${t(language, "browserOnlyShort")} · ${dataset.marketDate}`;
-  dashboard.dataMode = dashboard.dataMode.includes("实时") ? "本地维护 + 实时数据" : "本地维护 + 公开快照";
+  const failed = keepFailure && target.refreshStatus === "failed";
+  const message = target.refreshMessage;
+  currentEtfDataset = mergeEtfEdits(publishedEtfDataset, edits);
+  applyEtfDatasetToDashboard(dashboard, currentEtfDataset);
+  target.browserEditCount = edits.edits.length;
+  if (edits.edits.length) target.source.label += " + 本浏览器覆盖";
+  if (failed) { target.refreshStatus = "failed"; target.refreshMessage = message; }
+  if (edits.edits.length) dashboard.dataMode = dashboard.dataMode.includes("实时") ? "本地维护 + 实时数据" : "本地维护 + 公开快照";
+}
+
+function renderEtfArchive() {
+  const panel = $("#etfLegacy");
+  const notice = $("#etfCacheNotice");
+  panel.hidden = true;
+  notice.hidden = true;
+  if (IS_LOCAL_MAINTENANCE) return;
+  try {
+    const edits = readEtfEdits(localStorage);
+    const raw = localStorage.getItem(ETF_LEGACY_KEY);
+    const legacy = raw ? JSON.parse(raw) : null;
+    if (legacy?.rows?.length) {
+      panel.hidden = false;
+      const selected = new Set([...panel.querySelectorAll("input:checked")].map((input) => input.value));
+      $("#etfLegacyRows").innerHTML = legacy.rows.map((row) => `<label class="legacy-row"><input type="checkbox" value="${escapeHtml(row.date)}" ${selected.has(row.date) ? "checked" : ""}><span>${escapeHtml(row.date)} · ${escapeHtml(formatEtfFlow(row.flowUsdMillions))}</span></label>`).join("");
+      if (!edits.legacyReviewed) {
+        notice.hidden = false;
+        notice.textContent = t(language, "etfMigrationNotice");
+      }
+    }
+    $("#etfConflictNote").textContent = currentEtfDataset?.browserConflicts?.length
+      ? t(language, "etfConflicts", { dates: currentEtfDataset.browserConflicts.join(", ") }) : "";
+  } catch {
+    notice.hidden = false;
+    notice.textContent = t(language, "etfCacheError");
+  }
+}
+
+function migrateEtfLegacy({ skip = false } = {}) {
+  try {
+    const dates = skip ? [] : [...$("#etfLegacyRows").querySelectorAll("input:checked")].map((input) => input.value);
+    if (!skip && !dates.length) throw new Error(t(language, "etfSelectDates"));
+    const legacy = JSON.parse(localStorage.getItem(ETF_LEGACY_KEY));
+    const next = migrateEtfSelection(readEtfEdits(localStorage), publishedEtfDataset, legacy, dates);
+    localStorage.setItem(ETF_STORAGE_KEY, JSON.stringify(next));
+    composeBrowserEtf({ keepFailure: true });
+    render();
+    renderEtfHistory(currentEtfDataset);
+    showToast(t(language, "etfMigrationSaved"), "success");
+  } catch (error) { showToast(`${t(language, "saveFailed")}：${error.message}`, "error"); }
 }
 
 async function openEtfMaintenance() {
@@ -488,7 +538,8 @@ async function openEtfMaintenance() {
       currentEtfDataset = result.dataset;
       suggestedNextDate = result.suggestedNextDate;
     } else if (!currentEtfDataset) {
-      currentEtfDataset = await api(`./etf-flows.json?v=${Date.now()}`);
+      publishedEtfDataset = await api(`./etf-flows.json?v=${Date.now()}`);
+      composeBrowserEtf();
     }
     suggestedNextDate ||= nextEtfTradingDate(currentEtfDataset?.marketDate);
     const initialDate = suggestedNextDate || currentEtfDataset?.marketDate || "";
@@ -529,10 +580,11 @@ async function saveEtfMaintenance(event) {
       const messageKey = action === "updated" ? "etfUpdated" : "etfSaved";
       showToast(`${t(language, messageKey)} · ${result.publishFiles.join(" + ")}`, "success", 7000);
     } else {
-      const result = upsertManualEtfFlow(currentEtfDataset || publishedEtfDataset, input);
-      action = result.action;
-      localStorage.setItem(ETF_STORAGE_KEY, JSON.stringify(result.dataset));
-      applyBrowserEtfDataset(result.dataset);
+      if (!publishedEtfDataset) throw new Error(t(language, "etfLoadFailed"));
+      action = findEtfRecord(input.date) ? "updated" : "added";
+      const next = saveEtfEdit(readEtfEdits(localStorage), publishedEtfDataset, input);
+      localStorage.setItem(ETF_STORAGE_KEY, JSON.stringify(next));
+      composeBrowserEtf({ keepFailure: true });
       showToast(t(language, action === "updated" ? "etfUpdatedBrowser" : "etfSavedBrowser"), "success", 6000);
     }
     editingEtfDate = "";
@@ -547,9 +599,12 @@ async function saveEtfMaintenance(event) {
 
 function resetEtfMaintenance() {
   if (IS_LOCAL_MAINTENANCE || !publishedEtfDataset) return;
-  localStorage.removeItem(ETF_STORAGE_KEY);
-  currentEtfDataset = cloneValue(publishedEtfDataset);
-  applyEtfDatasetToDashboard(dashboard, currentEtfDataset);
+  try {
+    const raw = localStorage.getItem(ETF_STORAGE_KEY);
+    if (raw) localStorage.setItem(`${ETF_STORAGE_KEY}:backup:${Date.now()}`, raw);
+    localStorage.setItem(ETF_STORAGE_KEY, JSON.stringify({ ...emptyEtfEdits(), legacyReviewed: true }));
+  } catch (error) { showToast(`${t(language, "saveFailed")}：${error.message}`, "error"); return; }
+  composeBrowserEtf({ keepFailure: true });
   dashboard.dataMode = localStorage.getItem(POSITIONING_STORAGE_KEY)
     ? dashboard.dataMode.includes("实时") ? "本地维护 + 实时数据" : "本地维护 + 公开快照"
     : dashboard.refreshChecks?.some((item) => item.status === "failed") ? "公开混合数据" : "公开实时数据";
@@ -635,7 +690,7 @@ function buildReport() {
   const data = localizeDashboard(deriveDashboard(dashboard), language);
   const trueMean = trueMarketMeanView(data);
   const trueMeanLine = trueMean ? `True Market Mean ${formatMoney(trueMean.analysis.value, 0)} | ${trueMean.insight} | ${t(language, "trueMarketMeanAsOf", { date: trueMean.asOf })}` : "";
-  const cards = data.cards.map((card) => `${STATUS[card.status].emoji} ${String(card.id).padStart(2, "0")} ${card.title} — ${card.headline}\n→ ${card.detail}\n来源：${card.source.label}`).join("\n\n");
+  const cards = data.cards.map((card) => `${STATUS[card.status].emoji} ${String(card.id).padStart(2, "0")} ${card.title} — ${card.headline}\n${t(language, card.quality.eligible ? "qualityFresh" : card.quality.state === "stale" ? "qualityStale" : "qualityUnknown")}\n→ ${card.detail}\n来源：${card.source.label}`).join("\n\n");
   const tracking = data.cards.map((card) => `• #: ${String(card.id).padStart(2, "0")} | 信号: ${card.shortName} | 状态: ${STATUS[card.status].emoji} | 变动: ${card.change}`).join("\n");
   if (language === "en") {
     return `${data.date} | BTC ${formatMoney(data.market.btcPrice, 0)} ${data.market.btcChange24h >= 0 ? "↑" : "↓"}${Math.abs(data.market.btcChange24h).toFixed(2)}% | F&G ${data.market.fng} ${data.heat.label} | 200WMA ${data.market.wmaRatio.toFixed(2)}x\n${trueMeanLine}\n\n${cards.replaceAll("来源：", "Source: ")}\n\nSignal tracker:\n${tracking.replaceAll("信号:", "Signal:").replaceAll("状态:", "Status:").replaceAll("变动:", "Change:")}\n\n${data.score}/9 active | ${data.counts.yellow} watch | ${data.counts.red} risk | ${data.counts.off} inactive\n\nRisk alerts:\n${data.risks.map((item) => `• ${item}`).join("\n")}\n\nSummary: ${data.summary}\n\nFor research only; not financial advice.`;
@@ -664,20 +719,17 @@ async function saveSnapshot() {
 async function init() {
   try {
     dashboard = await api(IS_LOCAL_MAINTENANCE ? "/api/dashboard" : `./dashboard.json?v=${Date.now()}`);
-    const etfResult = IS_LOCAL_MAINTENANCE
-      ? await api("/api/etf-flows")
-      : { dataset: await api(`./etf-flows.json?v=${Date.now()}`) };
-    publishedEtfDataset = cloneValue(etfResult.dataset);
-    currentEtfDataset = cloneValue(publishedEtfDataset);
+    try {
+      const etfResult = IS_LOCAL_MAINTENANCE
+        ? await api("/api/etf-flows")
+        : { dataset: await api(`./etf-flows.json?v=${Date.now()}`) };
+      publishedEtfDataset = cloneValue(etfResult.dataset);
+      currentEtfDataset = cloneValue(publishedEtfDataset);
+    } catch { /* A failed ETF request must not hide the rest of the dashboard. */ }
     publishedPositioningCard = cloneValue(dashboard.cards.find((item) => item.id === 9));
     publishedDataMode = dashboard.dataMode;
     if (!IS_LOCAL_MAINTENANCE) {
-      try {
-        const savedEtf = JSON.parse(localStorage.getItem(ETF_STORAGE_KEY));
-        if (savedEtf?.rows) applyBrowserEtfDataset(savedEtf);
-      } catch {
-        localStorage.removeItem(ETF_STORAGE_KEY);
-      }
+      composeBrowserEtf();
       try {
         const saved = JSON.parse(localStorage.getItem(POSITIONING_STORAGE_KEY));
         if (saved) applyPositioning(saved.accountRatio, saved.positionRatio, saved.savedAt);
@@ -719,6 +771,8 @@ $("#etfDate").addEventListener("change", () => {
   renderEtfHistory(currentEtfDataset);
 });
 $("#resetEtf").addEventListener("click", resetEtfMaintenance);
+$("#migrateEtf").addEventListener("click", () => migrateEtfLegacy());
+$("#skipEtfLegacy").addEventListener("click", () => migrateEtfLegacy({ skip: true }));
 $("#closeEtf").addEventListener("click", () => $("#etfDialog").close());
 $("#cancelEtf").addEventListener("click", () => $("#etfDialog").close());
 $("#etfDialog").addEventListener("click", (event) => {

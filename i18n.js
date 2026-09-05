@@ -1,9 +1,18 @@
-import { buildCurrentChanges } from "./model.js?v=20260905-1";
+import { buildCurrentChanges } from "./model.js?v=20260905-2";
 
 export const LANGUAGE_STORAGE_KEY = "crypto-signal-tracker:language-v1";
 
 const MESSAGES = {
   zh: {
+    qualityFresh: "时效内 · 参与当期确认", qualityStale: "数据过期 · 仅供历史参考", qualityUnknown: "日期待核验 · 不计入当期确认", qualityPending: "未计入当期", qualityIncomplete: "覆盖不完整 · 不作全局确认",
+    qualityCoverage: "有效覆盖 {count}/{total} · 待更新/核验 {pending} 项",
+    qualityRules: "ETF/mNAV 行情 2 个工作日；稳定币/DXY/黄金 3 天；多空比 24 小时；Fed 45 天。缺日期不计入当期；工作日暂按周一至周五，不含交易所假期校正。",
+    etfEditsCount: "本浏览器覆盖 {count} 个日期", etfLegacyTitle: "旧版 ETF 缓存存档（可选择迁移）",
+    etfLegacyNote: "旧副本永久保留在本浏览器。系统无法识别哪些日期曾被修改，请仅勾选要保留的日期；所选日期以个人值为准，其他日期跟随发布数据。关闭窗口不会迁移。",
+    etfMigrate: "保留所选日期", etfSkipLegacy: "使用发布值，保留存档", etfSelectDates: "请先选择要保留的日期",
+    etfMigrationNotice: "发现旧版 ETF 手工缓存，原副本已保留。目前使用发布数据；请在 ETF 手动维护中选择需要保留的旧记录。",
+    etfMigrationSaved: "迁移选择已保存；旧副本仍保留", etfCacheError: "ETF 浏览器缓存无法解析，未删除原文，暂用发布数据。可在手动维护中恢复发布值并备份旧缓存。",
+    etfConflicts: "发布数据也修改了这些日期：{dates}。当前保留你的个人值；恢复发布值可取消个人覆盖。",
     brand: "加密看板追踪器", backTop: "回到顶部", switchLanguage: "Switch to English", languageButton: "EN",
     heroTitle: "先看信号，<br><em>再做决定。</em>", heroCopy: "将资金、宏观、链上估值与仓位结构压缩成一张每日决策面板。",
     refresh: "刷新最新数据", refreshTitle: "更新 ETF、mNAV、BTC、F&G、稳定币、Fed、True Market Mean、DXY、黄金与 200WMA", copy: "复制全文",
@@ -29,6 +38,15 @@ const MESSAGES = {
     statusGreen: "触发", statusYellow: "观察", statusRed: "风险", statusOff: "未触发"
   },
   en: {
+    qualityFresh: "Within freshness window · Included", qualityStale: "Stale · Historical reference only", qualityUnknown: "Date unverified · Not counted", qualityPending: "Not counted", qualityIncomplete: "Incomplete coverage · No overall confirmation",
+    qualityCoverage: "Valid coverage {count}/{total} · {pending} pending update/verification",
+    qualityRules: "ETF/mNAV quotes: 2 weekdays; stablecoins/DXY/gold: 3 days; positioning: 24 hours; Fed: 45 days. Undated data is excluded. Weekdays currently mean Mon–Fri, without exchange-holiday adjustments.",
+    etfEditsCount: "Browser overrides on {count} date(s)", etfLegacyTitle: "Legacy ETF cache archive (select records to migrate)",
+    etfLegacyNote: "The original copy stays in this browser. We cannot infer which dates you edited. Select only records you want to keep; other dates follow published data. Closing this window does not migrate anything.",
+    etfMigrate: "Keep selected dates", etfSkipLegacy: "Use published data; keep archive", etfSelectDates: "Select the dates to keep first",
+    etfMigrationNotice: "Legacy ETF cache found and preserved. Published data is shown for now. Open ETF maintenance to select old records you want to keep.",
+    etfMigrationSaved: "Migration choice saved; original archive retained", etfCacheError: "ETF browser cache could not be read. Its original text is preserved; published data is shown. Reset in ETF maintenance to back up and replace the invalid cache.",
+    etfConflicts: "Published data also changed these dates: {dates}. Your personal values take precedence. Reset to published data to remove your overrides.",
     brand: "Crypto Signal Tracker", backTop: "Back to top", switchLanguage: "切换到中文", languageButton: "中文",
     heroTitle: "Read the signals.<br><em>Then decide.</em>", heroCopy: "A daily decision dashboard spanning capital flows, macro liquidity, on-chain valuation and positioning.",
     refresh: "Refresh latest data", refreshTitle: "Update ETF flows, mNAV, BTC, F&G, stablecoins, Fed, True Market Mean, DXY, gold and 200WMA", copy: "Copy report",
@@ -232,7 +250,7 @@ const EXACT_EN = new Map([
   ["CLARITY 法案进度 → 关注监管确定性", "CLARITY Act progress → watch regulatory certainty"],
   ["Puell 仍在观察区，矿工端压力尚未完全解除", "Puell remains in the watch zone; miner-side pressure has not fully eased."],
   ["Strategy mNAV 低于 1.0，市场价格低于 Net BPS 参考线", "Strategy mNAV is below 1.0, so the market price is below the Net BPS reference."],
-  ["访客手工维护", "Visitor-maintained"], ["ECB 推导", "ECB-derived"], ["黄金", "Gold"], ["稳定币", "Stablecoins"], ["多空比", "L/S Ratio"], ["SOPR强", "SOPR strong"]
+  ["本浏览器覆盖", "Browser overrides"], ["访客手工维护", "Visitor-maintained"], ["ECB 推导", "ECB-derived"], ["黄金", "Gold"], ["稳定币", "Stablecoins"], ["多空比", "L/S Ratio"], ["SOPR强", "SOPR strong"]
   , ["极度贪婪", "Extreme greed"], ["贪婪", "Greed"], ["中性", "Neutral"], ["恐惧", "Fear"], ["极度恐惧", "Extreme fear"]
 ]);
 
@@ -255,6 +273,7 @@ export function translateText(value, language) {
   const source = String(value);
   if (EXACT_EN.has(source)) return EXACT_EN.get(source);
   let text = source
+    .replace(/本浏览器覆盖/g, "Browser overrides")
     .replace(/涨跌基准暂不可用/g, "Comparison baseline unavailable")
     .replace(/较前收/g, "vs previous close")
     .replace(/较上个日终/g, "vs prior daily reference")
@@ -326,15 +345,15 @@ export function translateText(value, language) {
 
 function englishSummary(data) {
   const counts = data.counts;
-  const capital = data.cards.filter((item) => item.section === "capital");
+  const capital = data.cards.filter((item) => item.section === "capital" && item.quality?.eligible);
   const capitalGreen = capital.filter((item) => item.status === "green").length;
-  const positioning = data.cards.find((item) => item.id === 9);
+  const positioning = data.cards.find((item) => item.id === 9 && item.quality?.eligible);
   const direction = counts.red === 0 && counts.green >= 5 ? "a bullish bias" : counts.red >= 3 ? "a risk-dominant regime" : "a mixed regime";
   const mood = data.market.fng >= 70 ? "hot, reducing the reward-to-risk of chasing strength" : "not yet at an extreme";
-  const structure = positioning?.status === "green"
+  const structure = !positioning ? "Positioning awaits an update or verification; no structural conclusion is made." : positioning.status === "green"
     ? `Derivatives positioning is bullish (${translateText(positioning.headline, "en")}), while concentrated leverage can amplify reversals.`
     : "Derivatives positioning has not formed a clear directional signal.";
-  return `The dashboard has ${counts.green}/${data.total} active signals and ${counts.red} red flags, indicating ${direction}. Capital indicators have ${capitalGreen}/${capital.length} active signals; assess ETF flows, stablecoin supply and mNAV separately. Sentiment is ${mood}. ${structure}`;
+  return `The dashboard currently confirms ${counts.green}/${data.total} active signals; valid coverage ${data.coverage}/${data.total}, ${data.pending} pending update or verification. ${data.pending ? "Coverage is incomplete; no overall direction is confirmed." : `${counts.red} current red flags indicate ${direction}.`} Capital indicators have ${capitalGreen}/${capital.length} active signals among eligible readings; assess ETF flows, stablecoin supply and mNAV separately. Sentiment is ${mood}. ${structure}`;
 }
 
 export function localizeDashboard(data, language) {

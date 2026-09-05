@@ -2,7 +2,7 @@ import { calculateDxyFromRates } from "./model.js";
 import { applyFedDatasetToDashboard } from "./fed-signals.js?v=20260829-1";
 import { applyTrueMarketMeanDataset } from "./true-market-mean.js?v=20260829-1";
 import { updateMnavFromSnapshot } from "./mnav-source.js?v=20260904-2";
-import { applyMacroQuote } from "./macro-quote.js?v=20260905-1";
+import { applyMacroQuote } from "./macro-quote.js?v=20260905-2";
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -100,9 +100,11 @@ export function applyEtfDatasetToDashboard(data, dataset, { now = new Date() } =
     : target.refreshStatus === "snapshot" ? `ETF 发布快照 / ${target.source.label}` : `ETF / ${target.source.label}`;
 }
 
-async function updateEtf(data, fetchImpl) {
+async function updateEtf(data, fetchImpl, onDataset) {
   const dataset = await fetchJson(`./etf-flows.json?v=${Date.now()}`, fetchImpl);
-  return applyEtfDatasetToDashboard(data, dataset);
+  const message = applyEtfDatasetToDashboard(data, dataset);
+  onDataset(dataset);
+  return message;
 }
 
 async function updateFed(data, fetchImpl) {
@@ -287,7 +289,7 @@ async function openErDxy(fetchImpl) {
     price: calculateDxyFromRates(payload.rates),
     change: null,
     instrument: "DXY-FX-ESTIMATE",
-    fetchedLabel: payload.time_last_update_utc || new Date().toISOString()
+    fetchedLabel: payload.time_last_update_utc || null
   };
 }
 
@@ -354,8 +356,9 @@ async function updateWma(data, fetchImpl) {
 
 export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fetch } = {}) {
   const data = cloneDashboard(input);
+  let etfDataset;
   const tasks = [
-    ["ETF", () => updateEtf(data, fetchImpl)],
+    ["ETF", () => updateEtf(data, fetchImpl, (value) => { etfDataset = value; })],
     ["mNAV", () => updateMnavFromSnapshot(data, fetchImpl)],
     ["BTC", () => updateBtc(data, fetchImpl)],
     ["F&G", () => updateFearGreed(data, fetchImpl)],
@@ -414,5 +417,5 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
   data.dataMode = warnings.length ? "公开混合数据" : "公开实时数据";
   data.refreshChecks = checks;
 
-  return { data, updated, warnings, checkedAt };
+  return { data, updated, warnings, checkedAt, etfDataset };
 }

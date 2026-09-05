@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20260828-1">
+  <link rel="stylesheet" href="./styles.css?v=20260905-2">
 </head>
 <body>
   <div class="ambient ambient-one"></div>
@@ -39,6 +39,7 @@
   </header>
 
   <main id="top" class="shell">
+    <p id="etfCacheNotice" class="cache-notice" role="status" hidden></p>
     <section class="hero" aria-labelledby="pageTitle">
       <div>
         <p class="eyebrow">DAILY MARKET PULSE</p>
@@ -82,6 +83,7 @@
             <div><strong id="scoreValue">—</strong><span>/ 9</span></div>
           </div>
           <p id="scoreVerdict" class="score-verdict">正在计算信号…</p>
+          <p id="qualityCoverage" class="quality-note"></p>
           <div id="statusLegend" class="status-legend"></div>
           <div id="trackerList" class="tracker-list"></div>
         </section>
@@ -151,6 +153,16 @@
         <div id="etfHistory" class="etf-history"></div>
       </section>
       <p id="etfSavePolicy" class="publish-hint"></p>
+      <p id="etfConflictNote" class="quality-note needs-review"></p>
+      <details id="etfLegacy" hidden>
+        <summary id="etfLegacyTitle"></summary>
+        <p id="etfLegacyNote" class="maintenance-note"></p>
+        <div id="etfLegacyRows"></div>
+        <div class="dialog-actions">
+          <button id="skipEtfLegacy" class="button button-ghost" type="button"></button>
+          <button id="migrateEtf" class="button button-primary" type="button"></button>
+        </div>
+      </details>
       <div class="dialog-actions">
         <button class="button button-ghost reset-button" type="button" id="resetEtf">恢复发布值</button>
         <button class="button button-ghost" value="cancel" type="button" id="cancelEtf">取消</button>
@@ -185,6 +197,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="./app.js?v=20260905-1"></script>
+  <script type="module" src="./app.js?v=20260905-2"></script>
 </body>
 </html>

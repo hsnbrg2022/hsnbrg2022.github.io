@@ -7,10 +7,10 @@ export function applyMacroQuote(target, quote, { id, prefix = "", now = new Date
   const changeText = hasChange
     ? `${quote.changeBasis === "previous-close" ? "较前收" : "较上个日终"} ${change >= 0 ? "+" : ""}${change.toFixed(2)}%`
     : "涨跌基准暂不可用";
-  const asOf = quote.fetchedLabel || now.toISOString();
+  const asOf = quote.fetchedLabel || null;
   target.marketQuote = {
     price, changePct: change, instrument: quote.instrument,
-    asOf, comparison: hasChange ? { kind: quote.changeBasis, asOf: quote.comparisonAsOf || null } : null
+    asOf, fetchedAt: now.toISOString(), comparison: hasChange ? { kind: quote.changeBasis, asOf: quote.comparisonAsOf || null } : null
   };
   target.headline = `${prefix}${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · ${changeText}`;
   target.change = changeText;

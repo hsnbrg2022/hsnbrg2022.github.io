@@ -1,3 +1,5 @@
+import { assessCards } from "./data-quality.js?v=20260905-2";
+
 export const STATUS = {
   green: { icon: "✓", emoji: "✅", label: "触发", score: 1 },
   yellow: { icon: "!", emoji: "🟡", label: "观察", score: 0 },
@@ -92,18 +94,19 @@ export function buildRisks(data) {
 }
 
 export function buildSummary(data) {
-  const counts = statusCounts(data.cards);
+  const eligible = data.cards.filter((card) => card.quality?.eligible !== false);
+  const counts = statusCounts(eligible);
   const total = data.cards.length;
-  const capital = data.cards.filter((card) => card.section === "capital");
+  const capital = eligible.filter((card) => card.section === "capital");
   const capitalGreen = capital.filter((card) => card.status === "green").length;
-  const positioning = data.cards.find((card) => card.id === 9);
+  const positioning = eligible.find((card) => card.id === 9);
   const direction = counts.red === 0 && counts.green >= 5 ? "偏多主导" : counts.red >= 3 ? "风险主导" : "多空拉锯";
-  const basic = `看板 ${counts.green}/${total} 项触发，${counts.red} 项红灯，整体维持${direction}。`;
-  const money = `资金面有 ${capitalGreen}/${capital.length} 项触发，需结合 ETF 净流量、稳定币供给与 mNAV 分别判断。`;
+  const basic = `看板当期确认 ${counts.green}/${total} 项触发，有效覆盖 ${eligible.length}/${total}，${total - eligible.length} 项待更新或核验。${eligible.length < total ? "覆盖不完整，不作全局方向确认。" : `当期 ${counts.red} 项红灯，整体维持${direction}。`}`;
+  const money = `资金面当期 ${capitalGreen}/3 项触发（有效覆盖 ${capital.length}/3），需结合 ETF 净流量、稳定币供给与 mNAV 分别判断。`;
   const mood = data.market.fng >= 70
     ? `情绪面处于${marketHeat(data.market.fng).label}，需留意追高风险。`
     : `情绪面处于${marketHeat(data.market.fng).label}，尚未进入极端拥挤区。`;
-  const structure = positioning?.status === "green"
+  const structure = !positioning ? "多空比待更新或核验，暂不作结构判断。" : positioning.status === "green"
     ? `衍生品结构偏多（${positioning.headline}），但需防范杠杆集中后的反向波动。`
     : `衍生品结构尚未形成一致方向。`;
   return [basic, money, mood, structure].join("");
@@ -154,17 +157,20 @@ export function mergeMaintenanceView(current, saved, id) {
   };
 }
 
-export function deriveDashboard(data) {
-  const counts = statusCounts(data.cards);
+export function deriveDashboard(data, now = new Date()) {
+  const { cards, coverage } = assessCards(data.cards, now);
+  const counts = statusCounts(cards.filter((card) => card.quality.eligible));
+  const assessed = { ...data, cards };
   return {
     ...data,
+    cards, coverage, pending: cards.length - coverage,
     previous: { ...data.previous, changes: buildCurrentChanges(data) },
     counts,
     score: counts.green,
     total: data.cards.length,
     heat: marketHeat(data.market.fng),
-    risks: buildRisks(data),
-    summary: buildSummary(data)
+    risks: buildRisks({ ...data, cards: cards.filter((card) => card.quality.eligible) }),
+    summary: buildSummary(assessed)
   };
 }
 
