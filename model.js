@@ -1,4 +1,4 @@
-import { assessCards } from "./data-quality.js?v=20260906-3";
+import { assessCards } from "./data-quality.js?v=20260906-4";
 
 export const STATUS = {
   green: { icon: "✓", emoji: "✅", label: "触发", score: 1 },
@@ -159,6 +159,8 @@ export function mergeMaintenanceView(current, saved, id) {
 
 export function deriveDashboard(data, now = new Date()) {
   const { cards, coverage } = assessCards(data.cards, now);
+  const mnav = cards.find(card => card.id === 2);
+  if (mnav?.quality.reason) mnav.detail = "保留上次读数供历史参考；资本基准或转换分类未通过当前校验，停止估算，不计入当期确认。";
   const counts = statusCounts(cards.filter((card) => card.quality.eligible));
   const assessed = { ...data, cards };
   return {

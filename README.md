@@ -4,9 +4,9 @@
 
 访问地址：<https://hsnbrg2022.github.io/>
 
-公开访客可通过页面右上角的“刷新最新数据”按钮获取 ETF、Strategy mNAV、BTC、F&G、稳定币、Fed、True Market Mean、DXY、黄金和 200WMA。Strategy mNAV 使用 2026-07-23 起的最新官方定义：`MSTR 股价 ÷ Net Bitcoin Per Share ($)`，不再沿用旧 EV mNAV。页面读取仓库根目录的 `strategy-mnav.json` 自动快照；任务优先读取 Strategy 官方页面更新资本结构，官方页面受反爬限制时保留最近有效的官方资本结构，并用 Nasdaq（备用 mNAV.com / Yahoo Finance）与 DefiLlama（备用 Coinbase / Kraken）的行情重新计算。公式、日期或合理区间校验失败时不会覆盖上一次有效值。MVRV、Puell 与多空比继续使用发布时的手工口径。
+公开访客可通过页面右上角的“刷新最新数据”按钮获取 ETF、Strategy mNAV、BTC、F&G、稳定币、Fed、True Market Mean、DXY、黄金和 200WMA。Strategy mNAV 使用 2026-07-23 起的最新官方定义：`MSTR 股价 ÷ Net Bitcoin Per Share ($)`，不再沿用旧 EV mNAV。页面读取 `strategy-mnav.json`；任务读取 Strategy 官方直接披露的 mNAV / Net BPS，资本基准不得超过 7 个日历日。当前聚合资本结构缺少逐工具转换分类证据，暂停用新行情套算旧资本结构。官方读数不可用时保留旧值；旧估算值不再计入当期确认。MVRV、Puell 与多空比继续使用发布时的手工口径。
 
-Strategy mNAV 快照由 `.github/workflows/update-strategy-mnav.yml` 在美股交易日收盘后运行 `scripts/update-strategy-mnav.mjs` 生成。卡片会同时标注行情日期与资本结构基准日；当官方资本结构暂时无法重新读取时，它属于“最新官方口径估算”，不是 Strategy 官方页面的逐字转录值。
+Strategy mNAV 快照由 `.github/workflows/update-strategy-mnav.yml` 在美股交易日收盘后运行 `scripts/update-strategy-mnav.mjs` 生成。卡片同时标注行情日期与资本结构基准日；资本基准缺失、未来或超过 7 天，以及行情超过 2 个交易日时，不参与当期确认。7 天按 UTC+8 日期差计算，第 7 天可用，第 8 天停用。官方直接读数仍须通过公式及日期校验；不会把聚合债务余额、股价偏差或自填分类文字视为逐工具核验。
 
 Fed 卡片读取同源 `fed-signals.json`。`.github/workflows/update-fed-signals.yml` 每小时检查 Federal Reserve 官方货币政策 RSS、公告原文、主席讲话与 FOMC 会议日历；只有官方事件发生变化时才提交新数据。状态灯只由 FOMC 集体行动决定（降息绿、维持黄、加息红），主席讲话仅作偏鹰/偏鸽/中性的辅助语气，不覆盖实际利率决策。抓取或解析失败时任务不会覆盖最后有效快照。
 
@@ -62,7 +62,7 @@ security add-generic-password -U -a hsnbrg2022 -s crypto-dashboard-github -w
 
 九张卡的原值、原灯色仍保留，但总分只统计时效内的“当期确认”。页面同时显示有效覆盖和待更新/核验数量，覆盖不完整不作全局方向确认。一次请求失败不会自动取消仍在有效期内的观测；成功获取旧快照也不会重置它的业务日期。
 
-经维护者确认的时效：ETF 与 mNAV 行情 2 个工作日；稳定币、DXY、黄金 3 天；多空比 24 小时；Fed 最新官方事件 45 天。ETF/mNAV 暂以周一至周五计工作日，尚未接入交易所节假日历。没有可核实来源日期的 MVRV/Puell 保留展示、标为待核验；这两项将来补日期时仍需明确独立有效期。mNAV 本批只校验行情时效，不代表资本结构已经重新核验。
+经维护者确认的时效：ETF 与 mNAV 行情 2 个交易日（已核验 2026–2028 NYSE 休市安排）；稳定币、DXY、黄金 3 天；多空比 24 小时；Fed 最新官方事件 45 天。没有可核实来源日期的 MVRV/Puell 保留展示、标为待核验；这两项将来补日期时仍需明确独立有效期。mNAV 同时校验资本基准 7 天上限和官方直接读数模式。
 
 ETF 公开版使用 `crypto-signal-tracker:etf-edits-v2` 保存用户实际修改的交易日及原发布基准。每次刷新合并最新发布数据与个人日期覆盖，卡片和最近记录共用合成结果；同一日期发布值也变化时，在维护窗口提示冲突，个人值暂时优先。个人维护不写回 GitHub。
 
@@ -80,4 +80,4 @@ ETF 本地、公开刷新和定时采集共用 `etf-core.js`。相同重复日�
 
 `.github/workflows/update-weekly-mean.yml` 在 UTC 周一 01:30、07:30、13:30、19:30 尝试更新并提供手工触发入口；未拿到新完整周时保留旧文件，结果无变化不重复提交。更新器只修改专项文件，不写 ETF 等手工记录。本地发布器也保护该快照不被旧文件回退。此定时任务仅更新周均线，不代表 ETF 自动采集故障已修复。
 
-mNAV 资本基准 7 天上限及转换工具分类缺失时停止估算的方案，尚待维护者明确确认，本批没有修改 mNAV 算法或相应阈值。
+2026-09-06 第四批：维护者确认 mNAV 7 天资本基准上限及分类未核验停算规则。当前没有可靠逐工具分类适配器，自行估算暂停；旧快照不删除、旧数值不覆盖。官方读数及公式、行情和资本基准均通过后，才恢复参与当期确认。

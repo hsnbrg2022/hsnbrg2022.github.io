@@ -58,7 +58,7 @@ export function parseOfficialBasis(html) {
     usdAssetsUsd: numeric(row.cash, "USD Reserve") + numeric(row.operating_cash, "Operating Cash"),
     seniorClaimsUsd: numeric(row.debt, "Debt") + numeric(row.pref, "Preferred"),
     fullyDilutedShares: basicShares + options + awards,
-    classification: "Official latest disclosure; out-of-the-money claims remain senior claims"
+    classification: "Unverified: aggregate balances do not identify convertible instruments"
   };
 }
 
@@ -100,142 +100,15 @@ async function fetchText(url, { fetchImpl = globalThis.fetch, timeoutMs = 10_000
   return text;
 }
 
-async function fetchJson(url, options = {}) {
-  return JSON.parse(await fetchText(url, { ...options, headers: { accept: "application/json", ...(options.headers || {}) } }));
-}
-
-async function firstProvider(providers, validate) {
-  const errors = [];
-  for (const provider of providers) {
-    try {
-      const value = await provider.load();
-      if (!validate(value)) throw new Error("返回数据无效");
-      return { ...value, source: provider.name, sourceUrl: provider.url };
-    } catch (error) {
-      errors.push(`${provider.name}: ${error.message}`);
-    }
-  }
-  throw new Error(errors.join("；") || "全部来源不可用");
-}
-
-async function fetchMstrQuote(fetchImpl) {
-  return firstProvider([
-    {
-      name: "Nasdaq",
-      url: "https://www.nasdaq.com/market-activity/stocks/mstr",
-      load: async () => {
-        const payload = await fetchJson("https://api.nasdaq.com/api/quote/MSTR/info?assetclass=stocks", {
-          fetchImpl,
-          headers: { referer: "https://www.nasdaq.com/" }
-        });
-        const quote = payload.data?.primaryData;
-        return { price: numeric(quote?.lastSalePrice, "Nasdaq MSTR"), marketDate: isoDate(quote?.lastTradeTimestamp) };
-      }
-    },
-    {
-      name: "mNAV.com",
-      url: "https://www.mnav.com/dashboard/strategy",
-      load: async () => {
-        const html = await fetchText("https://www.mnav.com/dashboard/strategy", { fetchImpl });
-        const price = numeric(html.match(/\\?"latest\\?":\{\\?"sharePrice\\?":([\d.]+)/)?.[1], "mNAV.com MSTR");
-        const preparedAt = html.match(/\\?"preparedAt\\?":\\?"([^"\\]+)"/)?.[1];
-        return { price, marketDate: isoDate(preparedAt) };
-      }
-    },
-    {
-      name: "Yahoo Finance",
-      url: "https://finance.yahoo.com/quote/MSTR/",
-      load: async () => {
-        const payload = await fetchJson("https://query1.finance.yahoo.com/v8/finance/chart/MSTR?range=5d&interval=1d", { fetchImpl });
-        const meta = payload.chart?.result?.[0]?.meta;
-        return { price: Number(meta?.regularMarketPrice), marketDate: isoDate(Number(meta?.regularMarketTime) * 1000) };
-      }
-    }
-  ], (value) => Number.isFinite(value.price) && value.price > 1 && /^\d{4}-\d{2}-\d{2}$/.test(value.marketDate || ""));
-}
-
-async function fetchBtcQuote(fetchImpl) {
-  return firstProvider([
-    {
-      name: "DefiLlama",
-      url: "https://defillama.com/",
-      load: async () => {
-        const row = (await fetchJson("https://coins.llama.fi/prices/current/coingecko:bitcoin", { fetchImpl })).coins?.["coingecko:bitcoin"];
-        return { price: Number(row?.price), fetchedAt: new Date(Number(row?.timestamp) * 1000).toISOString() };
-      }
-    },
-    {
-      name: "Coinbase",
-      url: "https://www.coinbase.com/price/bitcoin",
-      load: async () => {
-        const row = await fetchJson("https://api.exchange.coinbase.com/products/BTC-USD/ticker", { fetchImpl });
-        return { price: Number(row.price), fetchedAt: row.time };
-      }
-    },
-    {
-      name: "Kraken",
-      url: "https://www.kraken.com/prices/bitcoin",
-      load: async () => {
-        const payload = await fetchJson("https://api.kraken.com/0/public/Ticker?pair=XBTUSD", { fetchImpl });
-        return { price: Number(Object.values(payload.result || {})[0]?.c?.[0]), fetchedAt: new Date().toISOString() };
-      }
-    }
-  ], (value) => Number.isFinite(value.price) && value.price > 1_000 && Number.isFinite(Date.parse(value.fetchedAt)));
-}
-
 function rounded(value, digits = 2) {
   return Number(Number(value).toFixed(digits));
 }
 
-export function calculateStrategyMnav({ basis, mstrQuote, btcQuote, now = new Date() }) {
-  const classificationPrice = Number(basis.classificationPriceUsd);
-  const maxDeviation = Number(basis.maxClassificationPriceDeviationPct || 0.2);
-  if (Number.isFinite(classificationPrice)
-    && Math.abs((mstrQuote.price / classificationPrice) - 1) > maxDeviation) {
-    throw new Error("MSTR 股价已超出最近一次官方工具分类的安全校验范围，需重新读取官方 Net BPS");
-  }
-  const netReserveUsd = (basis.btcHoldings * btcQuote.price) + basis.usdAssetsUsd - basis.seniorClaimsUsd;
-  if (netReserveUsd <= 0) throw new Error("Strategy Net Reserve 不为正数");
-  const netBtcPerShareUsd = netReserveUsd / basis.fullyDilutedShares;
-  const mnav = mstrQuote.price / netBtcPerShareUsd;
-  return {
-    schemaVersion: 1,
-    status: "active",
-    generatedAt: now.toISOString(),
-    marketAsOf: mstrQuote.marketDate,
-    basisAsOf: basis.asOf,
-    mnav: rounded(mnav),
-    formula: STRATEGY_MNAV_FORMULA,
-    methodologyEffectiveDate: STRATEGY_MNAV_METHODOLOGY_EFFECTIVE_DATE,
-    calculation: {
-      mode: "official-methodology-estimate",
-      note: "Latest market prices applied to Strategy's latest disclosed capital-structure basis"
-    },
-    inputs: {
-      mstrPriceUsd: rounded(mstrQuote.price),
-      btcPriceUsd: rounded(btcQuote.price),
-      netBtcPerShareUsd: rounded(netBtcPerShareUsd),
-      netBtc: rounded(netReserveUsd / btcQuote.price),
-      btcHoldings: basis.btcHoldings,
-      usdAssetsUsd: basis.usdAssetsUsd,
-      seniorClaimsUsd: basis.seniorClaimsUsd,
-      fullyDilutedShares: basis.fullyDilutedShares
-    },
-    validation: { activation: "active", formulaChecked: true, basisClassification: basis.classification },
-    source: {
-      label: "Strategy official methodology",
-      url: OFFICIAL_URL,
-      methodologyUrl: "https://www.strategy.com/notes"
-    },
-    marketSources: {
-      mstr: { label: mstrQuote.source, url: mstrQuote.sourceUrl },
-      btc: { label: btcQuote.source, url: btcQuote.sourceUrl, fetchedAt: btcQuote.fetchedAt }
-    },
-    basis: { ...basis }
-  };
+export function calculateStrategyMnav() {
+  throw new Error("Strategy mNAV: mnavClassificationUnknown; convertible instruments are not verified; previous value retained");
 }
 
-function officialDataset({ quote, basis, now }) {
+export function officialDataset({ quote, basis, now }) {
   return {
     schemaVersion: 1,
     status: "active",
@@ -288,19 +161,13 @@ export async function updateStrategyMnav({ fetchImpl = globalThis.fetch, now = n
     try {
       const quote = parseOfficialLiveQuote(officialHtml);
       try { basis = parseOfficialBasis(officialHtml); } catch {}
-      basis = {
-        ...basis,
-        classificationPriceUsd: quote.mstrPriceUsd,
-        classificationVerifiedAt: quote.marketAsOf,
-        maxClassificationPriceDeviationPct: 0.2
-      };
       candidate = officialDataset({ quote, basis, now });
     } catch {}
   }
   if (!basis?.asOf) throw new Error("缺少最后有效的 Strategy 官方资本结构基准");
   if (!candidate) {
-    const [mstrQuote, btcQuote] = await Promise.all([fetchMstrQuote(fetchImpl), fetchBtcQuote(fetchImpl)]);
-    candidate = calculateStrategyMnav({ basis, mstrQuote, btcQuote, now });
+    // The aggregate basis has no per-instrument conversion evidence.
+    calculateStrategyMnav();
   }
   if (previous?.mnav && Math.abs((candidate.mnav / previous.mnav) - 1) > 0.3) {
     throw new Error("Strategy mNAV 较上一快照跳变超过 30%");

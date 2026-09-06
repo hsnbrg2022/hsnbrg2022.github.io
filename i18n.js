@@ -1,13 +1,14 @@
-import { buildCurrentChanges } from "./model.js?v=20260906-3";
+import { buildCurrentChanges } from "./model.js?v=20260906-4";
 
 export const LANGUAGE_STORAGE_KEY = "crypto-signal-tracker:language-v1";
 
 const MESSAGES = {
   zh: {
     wmaVerified: "200 个完整周 · UTC 周一边界", wmaRetained: "更新失败 · 保留上次完整周值", wmaUnverified: "保留旧值 · 周样本口径待核验",
+    mnavBasisUnknown: "资本基准日期待核验 · 保留旧值，不计入当期", mnavBasisStale: "资本基准超过 7 天 · 保留旧值，不计入当期", mnavClassificationUnknown: "转换分类未核验 · 停止估算，旧值不计入当期",
     qualityFresh: "时效内 · 参与当期确认", qualityStale: "数据过期 · 仅供历史参考", qualityUnknown: "日期待核验 · 不计入当期确认", qualityPending: "未计入当期", qualityIncomplete: "覆盖不完整 · 不作全局确认",
     qualityCoverage: "有效覆盖 {count}/{total} · 待更新/核验 {pending} 项",
-    qualityRules: "ETF/mNAV 行情 2 个交易日；稳定币/DXY/黄金 3 天；多空比 24 小时；Fed 45 天。缺日期不计入当期；交易日历已核对 2026–2028 年 NYSE 休市安排。",
+    qualityRules: "ETF/mNAV 行情 2 个交易日；mNAV 资本基准 7 个日历日，仅接收官方直接读数；稳定币/DXY/黄金 3 天；多空比 24 小时；Fed 45 天。缺日期不计入当期；交易日历已核对 2026–2028 年 NYSE 休市安排。",
     etfEditsCount: "本浏览器覆盖 {count} 个日期", etfLegacyTitle: "旧版 ETF 缓存存档（可选择迁移）",
     etfLegacyNote: "旧副本永久保留在本浏览器。系统无法识别哪些日期曾被修改，请仅勾选要保留的日期；所选日期以个人值为准，其他日期跟随发布数据。关闭窗口不会迁移。",
     etfMigrate: "保留所选日期", etfSkipLegacy: "使用发布值，保留存档", etfSelectDates: "请先选择要保留的日期",
@@ -40,9 +41,10 @@ const MESSAGES = {
   },
   en: {
     wmaVerified: "200 completed weeks · UTC Monday", wmaRetained: "Update failed · Previous weekly value retained", wmaUnverified: "Previous value · Weekly basis unverified",
+    mnavBasisUnknown: "Capital basis date unverified · Previous value, not counted", mnavBasisStale: "Capital basis older than 7 days · Previous value, not counted", mnavClassificationUnknown: "Conversion classification unverified · Estimates stopped; previous value not counted",
     qualityFresh: "Within freshness window · Included", qualityStale: "Stale · Historical reference only", qualityUnknown: "Date unverified · Not counted", qualityPending: "Not counted", qualityIncomplete: "Incomplete coverage · No overall confirmation",
     qualityCoverage: "Valid coverage {count}/{total} · {pending} pending update/verification",
-    qualityRules: "ETF/mNAV quotes: 2 trading days; stablecoins/DXY/gold: 3 days; positioning: 24 hours; Fed: 45 days. Undated data is excluded. NYSE full-day closures are verified for 2026–2028.",
+    qualityRules: "ETF/mNAV quotes: 2 trading days; mNAV basis: 7 calendar days, official direct readings only; stablecoins/DXY/gold: 3 days; positioning: 24 hours; Fed: 45 days. Undated data is excluded. NYSE full-day closures are verified for 2026–2028.",
     etfEditsCount: "Browser overrides on {count} date(s)", etfLegacyTitle: "Legacy ETF cache archive (select records to migrate)",
     etfLegacyNote: "The original copy stays in this browser. We cannot infer which dates you edited. Select only records you want to keep; other dates follow published data. Closing this window does not migrate anything.",
     etfMigrate: "Keep selected dates", etfSkipLegacy: "Use published data; keep archive", etfSelectDates: "Select the dates to keep first",
@@ -85,7 +87,7 @@ const INDICATOR_HELP = {
     strategyMnav: {
       title: "Strategy mNAV（最新口径）",
       summary: "衡量 MSTR 股价相对每股净比特币美元价值的溢价或折价。Strategy 自 2026-07-23 起采用此口径。",
-      points: ["计算方式：MSTR 股价 ÷ Net Bitcoin Per Share ($)。", "Net BPS 会扣除债务与优先股等高级索偿，并计入 USD Assets，再除以完全摊薄股数。", "1.0x 以上表示股价高于 Net BPS，1.0x 以下表示折价；本卡的市场价格自动更新，资本结构采用最新官方披露基准。"]
+      points: ["计算方式：MSTR 股价 ÷ Net Bitcoin Per Share ($)。", "Net BPS 会扣除债务与优先股等高级索偿，并计入 USD Assets，再除以完全摊薄股数。", "1.0x 以上表示股价高于 Net BPS，1.0x 以下表示折价；资本基准超过 7 天或转换分类无法核验时停止估算；旧值保留但不计入当期。"]
     },
     fedOfficialStance: {
       title: "Fed 官方立场",
@@ -144,7 +146,7 @@ const INDICATOR_HELP = {
     strategyMnav: {
       title: "Strategy mNAV (current methodology)",
       summary: "Measures the premium or discount of MSTR's share price to its net Bitcoin value per share. Strategy has used this definition since July 23, 2026.",
-      points: ["Formula: MSTR share price ÷ Net Bitcoin Per Share ($).", "Net BPS deducts senior debt and preferred claims, adds USD Assets, then divides by fully diluted shares.", "Above 1.0x means the shares trade above Net BPS; below 1.0x means a discount. Market prices update automatically while the capital structure follows the latest official disclosure basis."]
+      points: ["Formula: MSTR share price ÷ Net Bitcoin Per Share ($).", "Net BPS deducts senior debt and preferred claims, adds USD Assets, then divides by fully diluted shares.", "Above 1.0x means a premium; below means a discount. Estimates stop if the capital basis is older than 7 calendar days or conversion classification cannot be verified. Previous values remain visible but are not counted."]
     },
     fedOfficialStance: {
       title: "Official Fed Stance",
@@ -252,6 +254,7 @@ const EXACT_EN = new Map([
   ["CLARITY 法案进度 → 关注监管确定性", "CLARITY Act progress → watch regulatory certainty"],
   ["Puell 仍在观察区，矿工端压力尚未完全解除", "Puell remains in the watch zone; miner-side pressure has not fully eased."],
   ["Strategy mNAV 低于 1.0，市场价格低于 Net BPS 参考线", "Strategy mNAV is below 1.0, so the market price is below the Net BPS reference."],
+  ["保留上次读数供历史参考；资本基准或转换分类未通过当前校验，停止估算，不计入当期确认。", "Previous reading retained for historical reference. The capital basis or conversion classification has not passed current checks; estimates are stopped and the value is not counted."],
   ["本浏览器覆盖", "Browser overrides"], ["访客手工维护", "Visitor-maintained"], ["ECB 推导", "ECB-derived"], ["黄金", "Gold"], ["稳定币", "Stablecoins"], ["多空比", "L/S Ratio"], ["SOPR强", "SOPR strong"]
   , ["极度贪婪", "Extreme greed"], ["贪婪", "Greed"], ["中性", "Neutral"], ["恐惧", "Fear"], ["极度恐惧", "Extreme fear"]
 ]);

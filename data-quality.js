@@ -1,4 +1,5 @@
 import { tradingDaysSince } from "./trading-calendar.js";
+import { mnavBasisQuality } from "./mnav-source.js?v=20260906-4";
 const DAY = 86400000;
 
 export function weekdaysSince(date, now = new Date()) {
@@ -27,6 +28,10 @@ function timestamp(raw) {
 
 export function cardQuality(card, now = new Date()) {
   const asOf = card.dataAsOf || card.marketQuote?.asOf || card.marketFetchedAt;
+  if (card.id === 2) {
+    const basis = mnavBasisQuality(card.basisAsOf, card.mnavMode, now);
+    if (!basis.eligible) return { ...basis, asOf: asOf || null };
+  }
   const observed = timestamp(asOf);
   if (!Number.isFinite(observed)) return { state: "unknown", eligible: false, asOf: null };
   if (observed > now.getTime()) return { state: "unknown", eligible: false, asOf };

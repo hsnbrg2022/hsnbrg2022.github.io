@@ -4,7 +4,7 @@ import { tradingDaysSince } from "./trading-calendar.js";
 import { updateWeeklyMean } from "./weekly-mean.js?v=20260905-3";
 import { applyFedDatasetToDashboard } from "./fed-signals.js?v=20260829-1";
 import { applyTrueMarketMeanDataset } from "./true-market-mean.js?v=20260829-1";
-import { updateMnavFromSnapshot } from "./mnav-source.js?v=20260904-2";
+import { updateMnavFromSnapshot } from "./mnav-source.js?v=20260906-4";
 import { applyMacroQuote } from "./macro-quote.js?v=20260905-2";
 
 const REQUEST_TIMEOUT_MS = 10_000;

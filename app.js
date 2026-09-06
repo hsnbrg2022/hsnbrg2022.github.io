@@ -1,8 +1,8 @@
-import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260906-3";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260906-3";
-import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-3";
-import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-3";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260906-3";
+import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260906-4";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260906-4";
+import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-4";
+import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-4";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260906-4";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -204,7 +204,7 @@ function renderCard(card) {
         return `<span>${escapeHtml(fact)}${factHelpKey ? renderIndicatorHelp(factHelpKey, `card-${card.id}-fact-${index}`) : ""}</span>`;
       }).join("")}</div>
       <p>${escapeHtml(card.detail)}</p>
-      <p class="quality-note ${card.quality?.eligible ? "" : "needs-review"}">${t(language, card.quality?.eligible ? "qualityFresh" : card.quality?.state === "stale" ? "qualityStale" : "qualityUnknown")}${card.browserEditCount ? ` · ${t(language, "etfEditsCount", { count: card.browserEditCount })}` : ""}</p>
+      <p class="quality-note ${card.quality?.eligible ? "" : "needs-review"}">${t(language, card.quality?.reason || (card.quality?.eligible ? "qualityFresh" : card.quality?.state === "stale" ? "qualityStale" : "qualityUnknown"))}${card.browserEditCount ? ` · ${t(language, "etfEditsCount", { count: card.browserEditCount })}` : ""}</p>
       <div class="signal-footer">
         <span title="${escapeHtml(card.refreshMessage || "")}">${refreshLabel}</span>
         ${source}
@@ -692,7 +692,7 @@ function buildReport() {
   const data = localizeDashboard(deriveDashboard(dashboard), language);
   const trueMean = trueMarketMeanView(data);
   const trueMeanLine = trueMean ? `True Market Mean ${formatMoney(trueMean.analysis.value, 0)} | ${trueMean.insight} | ${t(language, "trueMarketMeanAsOf", { date: trueMean.asOf })}` : "";
-  const cards = data.cards.map((card) => `${STATUS[card.status].emoji} ${String(card.id).padStart(2, "0")} ${card.title} — ${card.headline}\n${t(language, card.quality.eligible ? "qualityFresh" : card.quality.state === "stale" ? "qualityStale" : "qualityUnknown")}\n→ ${card.detail}\n来源：${card.source.label}`).join("\n\n");
+  const cards = data.cards.map((card) => `${STATUS[card.status].emoji} ${String(card.id).padStart(2, "0")} ${card.title} — ${card.headline}\n${t(language, card.quality.reason || (card.quality.eligible ? "qualityFresh" : card.quality.state === "stale" ? "qualityStale" : "qualityUnknown"))}\n→ ${card.detail}\n来源：${card.source.label}`).join("\n\n");
   const tracking = data.cards.map((card) => `• #: ${String(card.id).padStart(2, "0")} | 信号: ${card.shortName} | 状态: ${STATUS[card.status].emoji} | 变动: ${card.change}`).join("\n");
   if (language === "en") {
     return `${data.date} | BTC ${formatMoney(data.market.btcPrice, 0)} ${data.market.btcChange24h >= 0 ? "↑" : "↓"}${Math.abs(data.market.btcChange24h).toFixed(2)}% | F&G ${data.market.fng} ${data.heat.label} | 200WMA ${data.market.wmaRatio.toFixed(2)}x\n${trueMeanLine}\n\n${cards.replaceAll("来源：", "Source: ")}\n\nSignal tracker:\n${tracking.replaceAll("信号:", "Signal:").replaceAll("状态:", "Status:").replaceAll("变动:", "Change:")}\n\n${data.score}/9 active | ${data.counts.yellow} watch | ${data.counts.red} risk | ${data.counts.off} inactive\n\nRisk alerts:\n${data.risks.map((item) => `• ${item}`).join("\n")}\n\nSummary: ${data.summary}\n\nFor research only; not financial advice.`;
