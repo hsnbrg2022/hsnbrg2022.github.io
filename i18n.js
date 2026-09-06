@@ -1,12 +1,13 @@
-import { buildCurrentChanges } from "./model.js?v=20260905-2";
+import { buildCurrentChanges } from "./model.js?v=20260906-3";
 
 export const LANGUAGE_STORAGE_KEY = "crypto-signal-tracker:language-v1";
 
 const MESSAGES = {
   zh: {
+    wmaVerified: "200 个完整周 · UTC 周一边界", wmaRetained: "更新失败 · 保留上次完整周值", wmaUnverified: "保留旧值 · 周样本口径待核验",
     qualityFresh: "时效内 · 参与当期确认", qualityStale: "数据过期 · 仅供历史参考", qualityUnknown: "日期待核验 · 不计入当期确认", qualityPending: "未计入当期", qualityIncomplete: "覆盖不完整 · 不作全局确认",
     qualityCoverage: "有效覆盖 {count}/{total} · 待更新/核验 {pending} 项",
-    qualityRules: "ETF/mNAV 行情 2 个工作日；稳定币/DXY/黄金 3 天；多空比 24 小时；Fed 45 天。缺日期不计入当期；工作日暂按周一至周五，不含交易所假期校正。",
+    qualityRules: "ETF/mNAV 行情 2 个交易日；稳定币/DXY/黄金 3 天；多空比 24 小时；Fed 45 天。缺日期不计入当期；交易日历已核对 2026–2028 年 NYSE 休市安排。",
     etfEditsCount: "本浏览器覆盖 {count} 个日期", etfLegacyTitle: "旧版 ETF 缓存存档（可选择迁移）",
     etfLegacyNote: "旧副本永久保留在本浏览器。系统无法识别哪些日期曾被修改，请仅勾选要保留的日期；所选日期以个人值为准，其他日期跟随发布数据。关闭窗口不会迁移。",
     etfMigrate: "保留所选日期", etfSkipLegacy: "使用发布值，保留存档", etfSelectDates: "请先选择要保留的日期",
@@ -38,9 +39,10 @@ const MESSAGES = {
     statusGreen: "触发", statusYellow: "观察", statusRed: "风险", statusOff: "未触发"
   },
   en: {
+    wmaVerified: "200 completed weeks · UTC Monday", wmaRetained: "Update failed · Previous weekly value retained", wmaUnverified: "Previous value · Weekly basis unverified",
     qualityFresh: "Within freshness window · Included", qualityStale: "Stale · Historical reference only", qualityUnknown: "Date unverified · Not counted", qualityPending: "Not counted", qualityIncomplete: "Incomplete coverage · No overall confirmation",
     qualityCoverage: "Valid coverage {count}/{total} · {pending} pending update/verification",
-    qualityRules: "ETF/mNAV quotes: 2 weekdays; stablecoins/DXY/gold: 3 days; positioning: 24 hours; Fed: 45 days. Undated data is excluded. Weekdays currently mean Mon–Fri, without exchange-holiday adjustments.",
+    qualityRules: "ETF/mNAV quotes: 2 trading days; stablecoins/DXY/gold: 3 days; positioning: 24 hours; Fed: 45 days. Undated data is excluded. NYSE full-day closures are verified for 2026–2028.",
     etfEditsCount: "Browser overrides on {count} date(s)", etfLegacyTitle: "Legacy ETF cache archive (select records to migrate)",
     etfLegacyNote: "The original copy stays in this browser. We cannot infer which dates you edited. Select only records you want to keep; other dates follow published data. Closing this window does not migrate anything.",
     etfMigrate: "Keep selected dates", etfSkipLegacy: "Use published data; keep archive", etfSelectDates: "Select the dates to keep first",
@@ -98,7 +100,7 @@ const INDICATOR_HELP = {
     wma200: {
       title: "200 周均线（200 WMA）",
       summary: "比特币的长期成本锚。历史上持续跌破该均线的情况很少。",
-      points: ["价格接近 200 WMA 时，通常进入深度价值观察区。", "页面显示的倍数 = BTC 价格 ÷ 200 WMA；越接近 1.0x，价格越靠近均线。"]
+      points: ["取最近 200 个完整周的 BTC/USD 收盘价，算术平均；UTC 周一 00:00 为周边界，不含当前周。", "缺周、时间不对齐或源不可用时保留旧值并标记，不用 190 周冒充 200 周。", "页面显示的倍数 = BTC 价格 ÷ 200 WMA；越接近 1.0x，价格越靠近均线。"]
     },
     mvrv: {
       title: "MVRV Z-Score",
@@ -157,7 +159,7 @@ const INDICATOR_HELP = {
     wma200: {
       title: "200-Week Moving Average (200 WMA)",
       summary: "Bitcoin’s long-term cost anchor. Sustained trades below it have historically been rare.",
-      points: ["When price approaches the 200 WMA, it often enters a deep-value watch zone.", "The displayed multiple equals BTC price ÷ 200 WMA; the closer it is to 1.0x, the closer price is to the average."]
+      points: ["Arithmetic mean of the latest 200 completed BTC/USD weekly closes, bounded by Monday 00:00 UTC. The current week is excluded.", "Missing or misaligned weeks and unavailable sources retain the prior value with a warning; 190 weeks never substitute for 200.", "The displayed multiple equals BTC price ÷ 200 WMA; the closer it is to 1.0x, the closer price is to the average."]
     },
     mvrv: {
       title: "MVRV Z-Score",
@@ -273,6 +275,11 @@ export function translateText(value, language) {
   const source = String(value);
   if (EXACT_EN.has(source)) return EXACT_EN.get(source);
   let text = source
+    .replace(/ETF 资金连续净流入，机构配置需求保持支撑。/g, "ETF net inflows support institutional allocation demand. ")
+    .replace(/ETF 资金连续净流出，机构配置需求转弱。/g, "ETF net outflows indicate weaker institutional allocation demand. ")
+    .replace(/最新交易日 ETF 资金净流量持平。/g, "ETF net flow was flat on the latest trading day. ")
+    .replace(/交易日历待核验，连续性未确认。/g, "Trading calendar unverified; continuity is not confirmed. ")
+    .replace(/检测到缺少交易日记录，连续天数仅统计缺口之后。/g, "Trading-day records are missing; the streak counts only dates after the gap. ")
     .replace(/本浏览器覆盖/g, "Browser overrides")
     .replace(/涨跌基准暂不可用/g, "Comparison baseline unavailable")
     .replace(/较前收/g, "vs previous close")

@@ -1,3 +1,4 @@
+import { tradingDaysSince } from "./trading-calendar.js";
 const DAY = 86400000;
 
 export function weekdaysSince(date, now = new Date()) {
@@ -31,7 +32,7 @@ export function cardQuality(card, now = new Date()) {
   if (observed > now.getTime()) return { state: "unknown", eligible: false, asOf };
   const ageDays = (now.getTime() - observed) / DAY;
   let stale;
-  if ([1, 2].includes(card.id)) stale = weekdaysSince(asOf.slice(0, 10), now) > 2;
+  if ([1, 2].includes(card.id)) stale = tradingDaysSince(asOf.slice(0, 10), now) > 2;
   else if (card.id === 4) stale = ageDays > 45;
   else if (card.id === 9) stale = ageDays > 1;
   else if ([3, 5, 6].includes(card.id)) stale = ageDays > 3;

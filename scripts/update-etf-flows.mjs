@@ -1,4 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { etfSignal, normalizeEtfRows } from "../etf-core.js";
+import { validTradingDate } from "../trading-calendar.js";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -11,13 +13,13 @@ const FARSIDE_URL = "https://farside.co.uk/btc/";
 
 function isoDate(timestamp) {
   const value = Number(timestamp);
-  if (!Number.isFinite(value)) return null;
+  if (timestamp === null || timestamp === undefined || !Number.isFinite(value)) return null;
   const milliseconds = value < 10_000_000_000 ? value * 1000 : value;
   return new Date(milliseconds).toISOString().slice(0, 10);
 }
 
 function validDate(value) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value || "");
+  return validTradingDate(value);
 }
 
 export function normalizeEtfPayload(payload, source = {}) {
@@ -32,13 +34,14 @@ export function normalizeEtfPayload(payload, source = {}) {
           : [];
   const rows = inputRows.map((row) => {
     const date = validDate(row.date) ? row.date : isoDate(row.timestamp);
-    const directMillions = Number(row.flowUsdMillions ?? row.flow_usd_millions);
-    const rawUsd = Number(row.flow_usd ?? row.flowUsd ?? row.net_flow_usd ?? row.netFlowUsd);
+    const millionsValue = row.flowUsdMillions ?? row.flow_usd_millions;
+    const usdValue = row.flow_usd ?? row.flowUsd ?? row.net_flow_usd ?? row.netFlowUsd;
+    const directMillions = millionsValue === null || millionsValue === undefined || millionsValue === "" ? NaN : Number(millionsValue);
+    const rawUsd = usdValue === null || usdValue === undefined || usdValue === "" ? NaN : Number(usdValue);
     const flowUsdMillions = Number.isFinite(directMillions) ? directMillions : rawUsd / 1_000_000;
     return { date, flowUsdMillions };
-  }).filter((row) => validDate(row.date) && Number.isFinite(row.flowUsdMillions));
-  const unique = new Map(rows.map((row) => [row.date, row]));
-  const normalized = [...unique.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-90);
+  });
+  const normalized = normalizeEtfRows(rows).slice(-90);
   if (!normalized.length) throw new Error("ETF 数据源没有返回有效交易日记录");
   return {
     schemaVersion: 1,
@@ -57,60 +60,16 @@ export function normalizeEtfPayload(payload, source = {}) {
   };
 }
 
-function signedMillions(value) {
-  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
-  return `${sign}$${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}M`;
-}
-
-function cumulativeLabel(value) {
-  const sign = value < 0 ? "−" : "";
-  const absolute = Math.abs(value);
-  if (absolute >= 1000) return `${sign}$${(absolute / 1000).toFixed(1)}B`;
-  return `${sign}$${absolute.toFixed(1)}M`;
-}
-
-export function summarizeEtfFlows(rows) {
-  const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date));
-  if (!sorted.length) return null;
-  const latest = sorted.at(-1);
-  const direction = latest.flowUsdMillions > 0 ? "inflow" : latest.flowUsdMillions < 0 ? "outflow" : "flat";
-  let streak = 0;
-  let cumulative = 0;
-  for (let index = sorted.length - 1; index >= 0; index -= 1) {
-    const value = Number(sorted[index].flowUsdMillions);
-    if ((direction === "inflow" && value <= 0) || (direction === "outflow" && value >= 0) || direction === "flat") break;
-    streak += 1;
-    cumulative += value;
-  }
-  return { latest, direction, streak, cumulative, recent: sorted.slice(-4) };
-}
+export { summarizeEtfFlows } from "../etf-core.js";
 
 export function applyEtfDataset(dashboard, dataset) {
-  const summary = summarizeEtfFlows(dataset.rows);
   const target = dashboard.cards.find((item) => item.id === 1);
-  if (!summary || !target) throw new Error("看板缺少 BTC ETF 卡片或有效 ETF 数据");
-  const directionText = summary.direction === "inflow" ? "净流入" : summary.direction === "outflow" ? "净流出" : "净流量持平";
-  target.headline = summary.direction === "flat"
-    ? `最新交易日净流量持平`
-    : `连续 ${summary.streak} 日${directionText} · 累计 ${cumulativeLabel(summary.cumulative)}`;
-  target.facts = summary.recent.map((row) => {
-    const [, month, day] = row.date.split("-");
-    return `${Number(month)}/${Number(day)} ${signedMillions(row.flowUsdMillions)}`;
-  });
-  target.detail = summary.direction === "inflow"
-    ? `ETF 资金连续净流入，机构配置需求保持支撑。`
-    : summary.direction === "outflow"
-      ? `ETF 资金连续净流出，机构配置需求转弱。`
-      : `最新交易日 ETF 资金净流量持平。`;
-  target.status = summary.direction === "inflow" && summary.streak >= 2
-    ? "green"
-    : summary.direction === "outflow" && summary.streak >= 3 ? "red" : "yellow";
-  target.change = summary.direction === "flat" ? "最新交易日持平" : `连续${summary.streak}日${directionText}`;
+  if (!target) throw new Error("看板缺少 BTC ETF 卡片");
+  Object.assign(target, etfSignal(dataset));
   target.source = { label: dataset.source.label, url: dataset.source.url };
   target.refresh = "auto";
   target.refreshStatus = "ok";
-  target.refreshMessage = `ETF / ${dataset.source.label} · 截至 ${dataset.marketDate}`;
-  target.dataAsOf = dataset.marketDate;
+  target.refreshMessage = `ETF / ${dataset.source.label} · 截至 ${target.dataAsOf}`;
   target.marketFetchedAt = dataset.generatedAt;
   target.manualEntry = dataset.source?.method === "manual-entry";
   return dashboard;

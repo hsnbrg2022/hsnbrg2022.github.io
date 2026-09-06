@@ -1,4 +1,4 @@
-import { upsertManualEtfFlow } from "./scripts/manual-etf-flow.mjs";
+import { upsertManualEtfFlow } from "./scripts/manual-etf-flow.mjs?v=20260906-3";
 
 export const ETF_STORAGE_KEY = "crypto-signal-tracker:etf-edits-v2";
 export const ETF_LEGACY_KEY = "crypto-signal-tracker:etf-flows-v1";

@@ -1,3 +1,5 @@
+import { isTradingDay, nextTradingDay } from "../trading-calendar.js";
+
 export const ETF_MANUAL_SOURCES = {
   sosovalue: {
     label: "SoSoValue",
@@ -26,6 +28,8 @@ function shanghaiDate(now = new Date()) {
 
 export function nextEtfTradingDate(latestDate, now = new Date()) {
   if (!validCalendarDate(latestDate)) return shanghaiDate(now);
+  const verifiedNext = nextTradingDay(latestDate);
+  if (verifiedNext) return verifiedNext <= shanghaiDate(now) ? verifiedNext : latestDate;
   const next = new Date(`${latestDate}T00:00:00Z`);
   do next.setUTCDate(next.getUTCDate() + 1);
   while (next.getUTCDay() === 0 || next.getUTCDay() === 6);
@@ -41,6 +45,7 @@ export function upsertManualEtfFlow(current, input, now = new Date()) {
   if (!validCalendarDate(date)) throw new Error("ETF 交易日期无效");
   const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
   if (weekday === 0 || weekday === 6) throw new Error("ETF 交易日期不能是周末");
+  if (isTradingDay(date) === false) throw new Error("ETF 交易日期为交易所休市日");
   if (date > shanghaiDate(now)) throw new Error("ETF 交易日期不能晚于当前日期");
   if (rawFlow === "" || rawFlow === null || rawFlow === undefined || !Number.isFinite(flowUsdMillions) || Math.abs(flowUsdMillions) > 10_000) {
     throw new Error("ETF 净流量必须是 -10000 至 10000 之间的数字（百万美元）");

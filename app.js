@@ -1,8 +1,8 @@
-import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260905-2";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260905-2";
-import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260828-1";
-import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260905-2";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260905-2";
+import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260906-3";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260906-3";
+import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-3";
+import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-3";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260906-3";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -328,7 +328,9 @@ function render() {
   $("#wmaSource").textContent = data.market.wmaSource ? `· ${data.market.wmaSource}` : "· 最近缓存";
   $("#wmaSource").title = data.market.wmaFetchedAt ? `计算时间 ${data.market.wmaFetchedAt}` : "尚未完成实时刷新";
   $("#wmaValue").textContent = formatMoney(data.market.wma200, 0);
-  $("#wmaInsight").textContent = data.market.wmaRatio >= 1 ? t(language, "aboveWma") : t(language, "belowWma");
+  $("#wmaInsight").textContent = data.market.wmaObservation?.rule === "200-completed-weeks-UTC-Monday-v1"
+    ? `${t(language, data.market.wmaRefreshStatus === "failed" ? "wmaRetained" : "wmaVerified")} · ${data.market.wmaObservation.asOf.slice(0, 10)}`
+    : t(language, "wmaUnverified");
   $("#scoreValue").textContent = data.score;
   $("#qualityCoverage").textContent = t(language, "qualityCoverage", { count: data.coverage, total: data.total, pending: data.pending });
   $("#scoreRing").style.setProperty("--score-angle", `${data.score / data.total * 360}deg`);

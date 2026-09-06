@@ -1,0 +1,30 @@
+name: Update 200-week mean
+on:
+  workflow_dispatch:
+  schedule:
+    # Retries throughout Monday in case the new completed weekly bar is delayed.
+    - cron: '30 1,7,13,19 * * 1'
+permissions:
+  contents: write
+concurrency:
+  group: update-200-week-mean
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/update-weekly-mean.mjs
+      - name: Commit validated weekly snapshot
+        run: |
+          if git diff --quiet -- weekly-mean.json; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add weekly-mean.json
+          git commit -m 'data: update completed UTC Monday 200WMA'
+          git pull --rebase origin main
+          git push
