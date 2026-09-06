@@ -4,7 +4,8 @@ import { tradingDaysSince } from "./trading-calendar.js";
 import { updateWeeklyMean } from "./weekly-mean.js?v=20260905-3";
 import { applyFedDatasetToDashboard } from "./fed-signals.js?v=20260829-1";
 import { applyTrueMarketMeanDataset } from "./true-market-mean.js?v=20260829-1";
-import { updateMnavFromSnapshot } from "./mnav-source.js?v=20260906-4";
+import { updateMnavFromSnapshot } from "./mnav-source.js?v=20260906-5";
+import { updateOnchainFromSnapshot } from "./onchain-source.js?v=20260906-5";
 import { applyMacroQuote } from "./macro-quote.js?v=20260905-2";
 
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -271,6 +272,8 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
   const tasks = [
     ["ETF", () => updateEtf(data, fetchImpl, (value) => { etfDataset = value; })],
     ["mNAV", () => updateMnavFromSnapshot(data, fetchImpl)],
+    ["MVRV", () => updateOnchainFromSnapshot(data, 7, fetchImpl)],
+    ["Puell", () => updateOnchainFromSnapshot(data, 8, fetchImpl)],
     ["BTC", () => updateBtc(data, fetchImpl)],
     ["F&G", () => updateFearGreed(data, fetchImpl)],
     ["稳定币", () => updateStablecoins(data, fetchImpl)],
@@ -284,7 +287,7 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
   const updated = [];
   const warnings = [];
   const checkedAt = new Date().toISOString();
-  const cardByTask = { ETF: 1, mNAV: 2, "稳定币": 3, Fed: 4, DXY: 5, "黄金": 6 };
+  const cardByTask = { ETF: 1, mNAV: 2, MVRV: 7, Puell: 8, "稳定币": 3, Fed: 4, DXY: 5, "黄金": 6 };
   const checks = [];
 
   results.forEach((result, index) => {
@@ -297,7 +300,7 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
       if (target) Object.assign(target, {
         refreshStatus: ["ETF", "Fed"].includes(name) ? target.refreshStatus : "ok",
         refreshMessage: result.value,
-        refreshMethod: "public-manual",
+        refreshMethod: ["MVRV", "Puell"].includes(name) ? "scheduled-snapshot" : "public-manual",
         lastRefreshAt: checkedAt
       });
       if (metricTarget) Object.assign(metricTarget, { refreshStatus: "ok", lastRefreshAt: checkedAt });

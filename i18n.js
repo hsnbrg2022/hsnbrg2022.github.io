@@ -1,4 +1,4 @@
-import { buildCurrentChanges } from "./model.js?v=20260906-4";
+import { buildCurrentChanges } from "./model.js?v=20260906-5";
 
 export const LANGUAGE_STORAGE_KEY = "crypto-signal-tracker:language-v1";
 
@@ -8,7 +8,7 @@ const MESSAGES = {
     mnavBasisUnknown: "资本基准日期待核验 · 保留旧值，不计入当期", mnavBasisStale: "资本基准超过 7 天 · 保留旧值，不计入当期", mnavClassificationUnknown: "转换分类未核验 · 停止估算，旧值不计入当期",
     qualityFresh: "时效内 · 参与当期确认", qualityStale: "数据过期 · 仅供历史参考", qualityUnknown: "日期待核验 · 不计入当期确认", qualityPending: "未计入当期", qualityIncomplete: "覆盖不完整 · 不作全局确认",
     qualityCoverage: "有效覆盖 {count}/{total} · 待更新/核验 {pending} 项",
-    qualityRules: "ETF/mNAV 行情 2 个交易日；mNAV 资本基准 7 个日历日，仅接收官方直接读数；稳定币/DXY/黄金 3 天；多空比 24 小时；Fed 45 天。缺日期不计入当期；交易日历已核对 2026–2028 年 NYSE 休市安排。",
+    qualityRules: "ETF/mNAV 行情 2 个交易日；mNAV 资本基准 7 个日历日，仅接收官方直接读数；稳定币/DXY/黄金 3 天；MVRV/Puell 最近完整 UTC 日值 3 天；多空比 24 小时；Fed 45 天。缺日期不计入当期；交易日历已核对 2026–2028 年 NYSE 休市安排。",
     etfEditsCount: "本浏览器覆盖 {count} 个日期", etfLegacyTitle: "旧版 ETF 缓存存档（可选择迁移）",
     etfLegacyNote: "旧副本永久保留在本浏览器。系统无法识别哪些日期曾被修改，请仅勾选要保留的日期；所选日期以个人值为准，其他日期跟随发布数据。关闭窗口不会迁移。",
     etfMigrate: "保留所选日期", etfSkipLegacy: "使用发布值，保留存档", etfSelectDates: "请先选择要保留的日期",
@@ -17,12 +17,13 @@ const MESSAGES = {
     etfConflicts: "发布数据也修改了这些日期：{dates}。当前保留你的个人值；恢复发布值可取消个人覆盖。",
     brand: "加密看板追踪器", backTop: "回到顶部", switchLanguage: "Switch to English", languageButton: "EN",
     heroTitle: "先看信号，<br><em>再做决定。</em>", heroCopy: "将资金、宏观、链上估值与仓位结构压缩成一张每日决策面板。",
-    refresh: "刷新最新数据", refreshTitle: "更新 ETF、mNAV、BTC、F&G、稳定币、Fed、True Market Mean、DXY、黄金与 200WMA", copy: "复制全文",
+    refresh: "刷新最新数据", refreshTitle: "更新 ETF、mNAV、BTC、F&G、稳定币、Fed、True Market Mean、DXY、黄金、MVRV、Puell 与 200WMA", copy: "复制全文",
     todayStatus: "今日状态", calculating: "正在计算信号…", briefing: "今日研判", summary: "摘要", changes: "基线对比与当前信号", risks: "风险提示", watch: "宏观观察",
     footer: "公开访客可刷新实时公开数据；手工维护仅保存在当前浏览器。仅供研究与信息整理，不构成投资建议。", footerLocal: "本地维护会同步生成公开版数据文件。仅供研究与信息整理，不构成投资建议。",
     lastUpdated: "最后更新 {time}（UTC+8）", syncing: "正在同步最新数据…", cached: "最近缓存",
     aboveWma: "价格位于长期成本线上方", belowWma: "价格位于长期成本线下方",
     bullishNoRed: "偏多主导 · 无红灯", redSignals: "出现 {count} 项风险信号", mixedSignals: "信号分化 · 保持观察",
+    onchainDirect: "官方日值 · 自动查询", onchainSnapshot: "日频自动快照", onchainPending: "等待自动数据",
     maintain: "手动维护", manual: "手动口径", publishedRefresh: "发布时已刷新", visitorRefresh: "访客刚刚刷新", refreshFailed: "刷新失败 · 保留最近值", mnavAuto: "交易日自动更新",
     positioningTitle: "手动维护多空比", positioningNote: "只需填写账户比与仓位比；仓帐比、信号等级和解读将自动计算。数据仅保存在当前浏览器，不会影响其他访客。",
     positioningLocalNote: "只需填写账户比与仓位比；仓帐比、信号等级和解读将自动计算。保存会同步更新 GitHub Pages 发布快照。",
@@ -44,7 +45,7 @@ const MESSAGES = {
     mnavBasisUnknown: "Capital basis date unverified · Previous value, not counted", mnavBasisStale: "Capital basis older than 7 days · Previous value, not counted", mnavClassificationUnknown: "Conversion classification unverified · Estimates stopped; previous value not counted",
     qualityFresh: "Within freshness window · Included", qualityStale: "Stale · Historical reference only", qualityUnknown: "Date unverified · Not counted", qualityPending: "Not counted", qualityIncomplete: "Incomplete coverage · No overall confirmation",
     qualityCoverage: "Valid coverage {count}/{total} · {pending} pending update/verification",
-    qualityRules: "ETF/mNAV quotes: 2 trading days; mNAV basis: 7 calendar days, official direct readings only; stablecoins/DXY/gold: 3 days; positioning: 24 hours; Fed: 45 days. Undated data is excluded. NYSE full-day closures are verified for 2026–2028.",
+    qualityRules: "ETF/mNAV quotes: 2 trading days; mNAV basis: 7 calendar days, official direct readings only; stablecoins/DXY/gold: 3 days; MVRV/Puell: latest completed UTC day within 3 days; positioning: 24 hours; Fed: 45 days. Undated data is excluded. NYSE full-day closures are verified for 2026–2028.",
     etfEditsCount: "Browser overrides on {count} date(s)", etfLegacyTitle: "Legacy ETF cache archive (select records to migrate)",
     etfLegacyNote: "The original copy stays in this browser. We cannot infer which dates you edited. Select only records you want to keep; other dates follow published data. Closing this window does not migrate anything.",
     etfMigrate: "Keep selected dates", etfSkipLegacy: "Use published data; keep archive", etfSelectDates: "Select the dates to keep first",
@@ -53,12 +54,13 @@ const MESSAGES = {
     etfConflicts: "Published data also changed these dates: {dates}. Your personal values take precedence. Reset to published data to remove your overrides.",
     brand: "Crypto Signal Tracker", backTop: "Back to top", switchLanguage: "切换到中文", languageButton: "中文",
     heroTitle: "Read the signals.<br><em>Then decide.</em>", heroCopy: "A daily decision dashboard spanning capital flows, macro liquidity, on-chain valuation and positioning.",
-    refresh: "Refresh latest data", refreshTitle: "Update ETF flows, mNAV, BTC, F&G, stablecoins, Fed, True Market Mean, DXY, gold and 200WMA", copy: "Copy report",
+    refresh: "Refresh latest data", refreshTitle: "Update ETF flows, mNAV, BTC, F&G, stablecoins, Fed, True Market Mean, DXY, gold, MVRV, Puell and 200WMA", copy: "Copy report",
     todayStatus: "Today's status", calculating: "Calculating signals…", briefing: "Daily view", summary: "Summary", changes: "Baseline comparison & current signals", risks: "Risk alerts", watch: "Macro watch",
     footer: "Visitors can refresh public data. Manual changes are stored only in this browser. For research only; not financial advice.", footerLocal: "Local maintenance generates the public data files for publishing. For research only; not financial advice.",
     lastUpdated: "Last updated {time} (UTC+8)", syncing: "Syncing latest data…", cached: "cached",
     aboveWma: "Price is above the long-term cost basis", belowWma: "Price is below the long-term cost basis",
     bullishNoRed: "Bullish bias · No red flags", redSignals: "{count} risk signal(s)", mixedSignals: "Mixed signals · Stay selective",
+    onchainDirect: "Official daily data · Auto query", onchainSnapshot: "Automatic daily snapshot", onchainPending: "Awaiting automatic data",
     maintain: "Maintain", manual: "Manual", publishedRefresh: "Refreshed at publish", visitorRefresh: "Just refreshed", refreshFailed: "Refresh failed · Using last value", mnavAuto: "Updated automatically each trading day",
     positioningTitle: "Maintain long/short ratios", positioningNote: "Enter the account ratio and position ratio. The position/account ratio, signal tier and interpretation are calculated automatically. Values are stored only in this browser.",
     positioningLocalNote: "Enter the account and position ratios. The derived ratio and signal are calculated automatically, then synced to the GitHub Pages snapshot.",
@@ -106,7 +108,7 @@ const INDICATOR_HELP = {
     },
     mvrv: {
       title: "MVRV Z-Score",
-      summary: "对 MVRV 做统计标准化，以减弱极端波动干扰，用于判断周期估值位置。",
+      summary: "（市值 − 已实现市值）÷ 市值自起始至今的标准差，用于观察周期估值位置；不是对 MVRV 比值直接标准化。",
       points: ["Z-Score <0：历史级低估区；>7：历史泡沫高位区。", "MVRV = 市值 ÷ 已实现市值。<1 通常表示多数持币者处于亏损；>3.5 表示整体盈利丰厚、估值偏热。"],
       confluence: "MVRV <1、Puell <0.5、恐惧指数处于极度恐惧且价格接近 200 WMA 时，四项共振才构成历史级抄底窗口。"
     },
@@ -165,7 +167,7 @@ const INDICATOR_HELP = {
     },
     mvrv: {
       title: "MVRV Z-Score",
-      summary: "A statistically standardized version of MVRV that reduces the effect of extreme volatility and helps locate cycle valuation.",
+      summary: "(Market cap − realized cap) ÷ the cumulative standard deviation of market cap. This is not a direct standardization of the MVRV ratio.",
       points: ["Z-Score <0: historically undervalued; >7: historical bubble territory.", "MVRV = market cap ÷ realized cap. Below 1 usually means most holders are underwater; above 3.5 suggests broad profits and overheated valuation."],
       confluence: "A historical accumulation window requires four-way confirmation: MVRV <1, Puell <0.5, Extreme Fear, and price near the 200 WMA."
     },
@@ -253,6 +255,14 @@ const EXACT_EN = new Map([
   ["财政部回购安排 → 关注对市场流动性的边际影响", "Treasury buybacks → watch the marginal liquidity impact"],
   ["CLARITY 法案进度 → 关注监管确定性", "CLARITY Act progress → watch regulatory certainty"],
   ["Puell 仍在观察区，矿工端压力尚未完全解除", "Puell remains in the watch zone; miner-side pressure has not fully eased."],
+  ["Puell 低于 0.5，矿工发行收入相对年均值承压", "Puell is below 0.5; miner issuance revenue is low relative to its annual average."],
+  ["辅助指标暂无同日数据", "No same-day auxiliary data available"],
+  ["Z-Score 低于 0，处于历史低估参考区；不代表价格已见底。", "Z-Score is below 0, a historical undervaluation reference zone; this does not confirm a price bottom."],
+  ["Z-Score 高于 7，估值偏热，需注意周期风险。", "Z-Score is above 7; valuations are elevated and cycle risk warrants attention."],
+  ["Z-Score 处于中间区间，未触及历史低估或过热阈值。", "Z-Score is in the middle range, outside the historical undervaluation and overheating thresholds."],
+  ["Puell 低于 0.5，矿工发行收入相对年均值承压；不代表价格已见底。", "Puell is below 0.5; miner issuance revenue is low relative to its annual average. This does not confirm a price bottom."],
+  ["Puell 高于 4，矿工发行收入相对年均值偏高，注意周期风险。", "Puell is above 4; miner issuance revenue is high relative to its annual average. Watch cycle risk."],
+  ["Puell 处于 0.5 至 4 区间，未触及极端阈值。", "Puell is between 0.5 and 4, outside the extreme thresholds."],
   ["Strategy mNAV 低于 1.0，市场价格低于 Net BPS 参考线", "Strategy mNAV is below 1.0, so the market price is below the Net BPS reference."],
   ["保留上次读数供历史参考；资本基准或转换分类未通过当前校验，停止估算，不计入当期确认。", "Previous reading retained for historical reference. The capital basis or conversion classification has not passed current checks; estimates are stopped and the value is not counted."],
   ["本浏览器覆盖", "Browser overrides"], ["访客手工维护", "Visitor-maintained"], ["ECB 推导", "ECB-derived"], ["黄金", "Gold"], ["稳定币", "Stablecoins"], ["多空比", "L/S Ratio"], ["SOPR强", "SOPR strong"]
@@ -318,6 +328,7 @@ export function translateText(value, language) {
     .replace(/Strategy 官方口径/g, "Strategy official methodology")
     .replace(/行情截至/g, "Market as of")
     .replace(/资本结构截至/g, "Capital structure as of")
+    .replace(/数据日期 (\d{4}-\d{2}-\d{2}) · UTC 日频/g, "Data as of $1 · UTC daily")
     .replace(/净 BTC/g, "Net BTC")
     .replace(/最新口径/g, "Current methodology")
     .replace(/累计/g, "total")

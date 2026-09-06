@@ -1,8 +1,8 @@
-import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260906-4";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260906-4";
-import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-4";
-import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-4";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260906-4";
+import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260906-5";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260906-5";
+import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
+import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260906-5";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -176,6 +176,12 @@ function renderCard(card) {
       ? card.refreshStatus === "failed"
         ? `<i class="stale-dot"></i> ${t(language, "refreshFailed")}`
         : t(language, "mnavAuto")
+    : [7, 8].includes(card.id)
+      ? card.refreshStatus === "failed"
+        ? `<i class="stale-dot"></i> ${t(language, "refreshFailed")}`
+        : card.refresh === "auto"
+          ? `<i class="live-dot"></i> ${t(language, card.refreshMethod === "official-daily" ? "onchainDirect" : "onchainSnapshot")}`
+          : t(language, "onchainPending")
     : card.refresh === "auto"
     ? card.refreshStatus === "failed"
       ? `<i class="stale-dot"></i> ${t(language, "refreshFailed")}`

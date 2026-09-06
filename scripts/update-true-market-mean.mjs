@@ -28,10 +28,12 @@ export function parseMetricRows(payload) {
   if (!block) throw new Error("Glassnode MCP 没有返回指标文本");
   const parsed = JSON.parse(block);
   const rows = parsed.raw_data || parsed.data || [];
-  return rows.map((row) => ({
-    timestamp: Number(row.t ?? row.timestamp),
-    value: Number(row.v ?? row.value)
-  })).filter((row) => Number.isFinite(row.timestamp) && Number.isFinite(row.value));
+  if (!Array.isArray(rows)) throw new Error("Glassnode metric rows are not an array");
+  return rows.map(row => {
+    const rawTime = row.t ?? row.timestamp, rawValue = row.v ?? row.value;
+    if (![rawTime, rawValue].every(value => (typeof value === "number" || typeof value === "string" && value.trim() !== "") && Number.isFinite(Number(value)))) throw new Error("Glassnode metric contains a missing or invalid value");
+    return { timestamp: Number(rawTime), value: Number(rawValue) };
+  });
 }
 
 async function mcpRequest(fetchImpl, body, sessionId = "") {

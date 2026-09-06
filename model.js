@@ -1,4 +1,4 @@
-import { assessCards } from "./data-quality.js?v=20260906-4";
+import { assessCards } from "./data-quality.js?v=20260906-5";
 
 export const STATUS = {
   green: { icon: "✓", emoji: "✅", label: "触发", score: 1 },
@@ -87,7 +87,7 @@ export function buildRisks(data) {
     risks.push(`${card.title}亮红灯：${card.detail}`);
   }
   const puell = cards.find((item) => item.id === 8);
-  if (puell?.status === "yellow") risks.push(`Puell 仍在观察区，矿工端压力尚未完全解除`);
+  if (puell?.onchain?.value < 0.5) risks.push(`Puell 低于 0.5，矿工发行收入相对年均值承压`);
   const mnav = cards.find((item) => item.id === 2);
   if (mnav?.status === "yellow") risks.push(`Strategy mNAV 低于 1.0，市场价格低于 Net BPS 参考线`);
   return risks.slice(0, 5);

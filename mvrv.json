@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "status": "active",
+  "asset": "BTC",
+  "interval": "24h",
+  "metric": "mvrv_z_score",
+  "asOf": "2026-09-05",
+  "generatedAt": "2026-09-06T07:29:37.756Z",
+  "value": 0.9048604582514619,
+  "observation": {
+    "timestamp": 1788566400,
+    "value": 0.9048604582514619
+  },
+  "auxiliary": {
+    "timestamp": 1788566400,
+    "value": 1.501424921024228,
+    "metric": "mvrv"
+  },
+  "source": {
+    "label": "Glassnode Public MCP",
+    "endpoint": "/v1/metrics/market/mvrv_z_score",
+    "url": "https://studio.glassnode.com/charts/market.MvrvZScore?a=BTC"
+  }
+}

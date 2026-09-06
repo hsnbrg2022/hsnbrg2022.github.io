@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "status": "active",
+  "asset": "BTC",
+  "interval": "24h",
+  "metric": "puell_multiple",
+  "asOf": "2026-09-05",
+  "generatedAt": "2026-09-06T07:29:43.837Z",
+  "value": 1.0012830349454938,
+  "observation": {
+    "timestamp": 1788566400,
+    "value": 1.0012830349454938
+  },
+  "auxiliary": {
+    "timestamp": 1788566400,
+    "value": 1.0070476812265425,
+    "metric": "sopr"
+  },
+  "source": {
+    "label": "Glassnode Public MCP",
+    "endpoint": "/v1/metrics/indicators/puell_multiple",
+    "url": "https://studio.glassnode.com/charts/indicators.PuellMultiple?a=BTC"
+  }
+}

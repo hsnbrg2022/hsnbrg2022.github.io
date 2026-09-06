@@ -1,0 +1,38 @@
+name: Update on-chain valuation
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/update-onchain.yml", "onchain-source.js", "scripts/update-onchain.mjs"]
+  schedule:
+    - cron: "17 */4 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: update-onchain-valuation
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fetch independent daily metrics
+        id: refresh
+        continue-on-error: true
+        run: node scripts/update-onchain.mjs
+      - name: Commit valid changed snapshots
+        run: |
+          if git diff --quiet -- mvrv.json puell.json; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add mvrv.json puell.json
+          git commit -m 'data: update validated on-chain daily metrics'
+          git pull --rebase origin main
+          git push
+      - name: Report source failures
+        if: steps.refresh.outcome == 'failure'
+        run: exit 1

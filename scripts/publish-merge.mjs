@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import { applyEtfDataset } from "./update-etf-flows.mjs";
 
 export const PROTECTED_DATA_FILES = new Set([
-  "dashboard.json", "etf-flows.json", "fed-signals.json", "true-market-mean.json", "strategy-mnav.json", "weekly-mean.json"
+  "dashboard.json", "etf-flows.json", "fed-signals.json", "true-market-mean.json", "strategy-mnav.json", "weekly-mean.json", "mvrv.json", "puell.json"
 ]);
 
 export function gitBlobSha(content) {

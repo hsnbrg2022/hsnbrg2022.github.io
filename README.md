@@ -1,10 +1,22 @@
 # 加密看板追踪器
 
+## MVRV / Puell 自动更新
+
+页面首次载入、浏览器重新载入和“刷新最新数据”均检查两项最新已发布日值。本地服务直接查询 Glassnode Public MCP；公开版由于 MCP 会话响应头不可被浏览器读取，使用 GitHub `main` 分支的 `mvrv.json` / `puell.json`（raw.githubusercontent.com），同源文件作为备用。读取公开分支可避免快照提交后 Pages 尚未重建而停留在旧日值；无需向访客暴露 token。两个快照均为同一官方数据源的分发备援，不宣称独立数据来源。
+
+`.github/workflows/update-onchain.yml` 每 4 小时检查官方日值，独立验证、独立保存；一项失败不阻止另一项有效快照提交，任务仍报告失败。调度可能延迟、上游可能限流，因此不承诺秒级实时性。只有完整 UTC 日值可用，前三天有效，第四天起保留旧值但退出当期确认；页面明确显示观测日期，不用刷新检查时间改写日期。
+
+MVRV Z-Score 对应 `/v1/metrics/market/mvrv_z_score`，Puell 对应 `/v1/metrics/indicators/puell_multiple`。同日 MVRV Ratio / SOPR 可作为辅助值；缺失或日期不匹配时不混入旧数据。旧价/BP、PSIP、算力、ahr999 不再与自动主指标混排，原发布记录未删除。拒绝空值、冲突重复、身份/日期不匹配、过期及回退快照，失败保留已显示值。
+
+来源定义：[Glassnode MVRV Z-Score](https://docs.glassnode.com/basic-api/endpoints/market)、[Puell Multiple](https://docs.glassnode.com/basic-api/endpoints/indicators)。Z-Score 使用（市值 − 已实现市值）/ 市值的累计标准差；Puell 是每日发行美元价值 / 365 日均值。状态阈值沿用指标说明：Z <0 绿、>7 红，Puell <0.5 绿、>4 红，其余观察；不由辅助指标代替主指标设灯。
+
+请通过 HTTPS 公开网址或 `http://127.0.0.1:4173/` 访问；直接打开 `file://.../index.html` 会受浏览器模块和本地文件读取限制，不是受支持的预览方式。
+
 公开只读版加密市场看板，发布于 GitHub Pages。
 
 访问地址：<https://hsnbrg2022.github.io/>
 
-公开访客可通过页面右上角的“刷新最新数据”按钮获取 ETF、Strategy mNAV、BTC、F&G、稳定币、Fed、True Market Mean、DXY、黄金和 200WMA。Strategy mNAV 使用 2026-07-23 起的最新官方定义：`MSTR 股价 ÷ Net Bitcoin Per Share ($)`，不再沿用旧 EV mNAV。页面读取 `strategy-mnav.json`；任务读取 Strategy 官方直接披露的 mNAV / Net BPS，资本基准不得超过 7 个日历日。当前聚合资本结构缺少逐工具转换分类证据，暂停用新行情套算旧资本结构。官方读数不可用时保留旧值；旧估算值不再计入当期确认。MVRV、Puell 与多空比继续使用发布时的手工口径。
+公开访客可通过页面右上角的“刷新最新数据”按钮获取 ETF、Strategy mNAV、BTC、F&G、稳定币、Fed、True Market Mean、DXY、黄金和 200WMA。Strategy mNAV 使用 2026-07-23 起的最新官方定义：`MSTR 股价 ÷ Net Bitcoin Per Share ($)`，不再沿用旧 EV mNAV。页面读取 `strategy-mnav.json`；任务读取 Strategy 官方直接披露的 mNAV / Net BPS，资本基准不得超过 7 个日历日。当前聚合资本结构缺少逐工具转换分类证据，暂停用新行情套算旧资本结构。官方读数不可用时保留旧值；旧估算值不再计入当期确认。MVRV 与 Puell 已接入自动日值，多空比仍由用户手工维护。
 
 Strategy mNAV 快照由 `.github/workflows/update-strategy-mnav.yml` 在美股交易日收盘后运行 `scripts/update-strategy-mnav.mjs` 生成。卡片同时标注行情日期与资本结构基准日；资本基准缺失、未来或超过 7 天，以及行情超过 2 个交易日时，不参与当期确认。7 天按 UTC+8 日期差计算，第 7 天可用，第 8 天停用。官方直接读数仍须通过公式及日期校验；不会把聚合债务余额、股价偏差或自填分类文字视为逐工具核验。
 
@@ -62,7 +74,7 @@ security add-generic-password -U -a hsnbrg2022 -s crypto-dashboard-github -w
 
 九张卡的原值、原灯色仍保留，但总分只统计时效内的“当期确认”。页面同时显示有效覆盖和待更新/核验数量，覆盖不完整不作全局方向确认。一次请求失败不会自动取消仍在有效期内的观测；成功获取旧快照也不会重置它的业务日期。
 
-经维护者确认的时效：ETF 与 mNAV 行情 2 个交易日（已核验 2026–2028 NYSE 休市安排）；稳定币、DXY、黄金 3 天；多空比 24 小时；Fed 最新官方事件 45 天。没有可核实来源日期的 MVRV/Puell 保留展示、标为待核验；这两项将来补日期时仍需明确独立有效期。mNAV 同时校验资本基准 7 天上限和官方直接读数模式。
+经维护者确认的时效：ETF 与 mNAV 行情 2 个交易日（已核验 2026–2028 NYSE 休市安排）；稳定币、DXY、黄金 3 天；多空比 24 小时；Fed 最新官方事件 45 天。MVRV/Puell 使用最近完整 UTC 日值，日期差超过 3 天不计入确认；未经自动核验的旧手工值仍待核验。mNAV 同时校验资本基准 7 天上限和官方直接读数模式。
 
 ETF 公开版使用 `crypto-signal-tracker:etf-edits-v2` 保存用户实际修改的交易日及原发布基准。每次刷新合并最新发布数据与个人日期覆盖，卡片和最近记录共用合成结果；同一日期发布值也变化时，在维护窗口提示冲突，个人值暂时优先。个人维护不写回 GitHub。
 

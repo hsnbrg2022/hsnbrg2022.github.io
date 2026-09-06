@@ -1,5 +1,6 @@
 import { tradingDaysSince } from "./trading-calendar.js";
 import { mnavBasisQuality } from "./mnav-source.js?v=20260906-4";
+import { ONCHAIN, onchainAgeDays } from "./onchain-source.js?v=20260906-5";
 const DAY = 86400000;
 
 export function weekdaysSince(date, now = new Date()) {
@@ -37,11 +38,16 @@ export function cardQuality(card, now = new Date()) {
   if (observed > now.getTime()) return { state: "unknown", eligible: false, asOf };
   const ageDays = (now.getTime() - observed) / DAY;
   let stale;
-  if ([1, 2].includes(card.id)) stale = tradingDaysSince(asOf.slice(0, 10), now) > 2;
+  if ([7, 8].includes(card.id)) {
+    const row = card.onchain;
+    if (row?.metric !== ONCHAIN[card.id].metric || !Number.isSafeInteger(row.timestamp) || row.timestamp % 86400 !== 0 || row.timestamp * 1000 !== observed || !Number.isFinite(row.value) || onchainAgeDays(row.timestamp, now) < 1) return { state: "unknown", eligible: false, asOf };
+    stale = onchainAgeDays(row.timestamp, now) > 3;
+  }
+  else if ([1, 2].includes(card.id)) stale = tradingDaysSince(asOf.slice(0, 10), now) > 2;
   else if (card.id === 4) stale = ageDays > 45;
   else if (card.id === 9) stale = ageDays > 1;
   else if ([3, 5, 6].includes(card.id)) stale = ageDays > 3;
-  // No approved lifetime for manual on-chain readings yet; require verification.
+  // Legacy manual readings without a validated metric observation stay unverified.
   else return { state: "unknown", eligible: false, asOf };
   return { state: stale ? "stale" : "fresh", eligible: !stale, asOf, ageDays };
 }
