@@ -3,7 +3,7 @@
 set -euo pipefail
 
 PROJECT_DIR="${0:A:h}"
-RUNTIME_NODE="/Users/zksun/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
+RUNTIME_NODE="${HOME}/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
 
 cd "$PROJECT_DIR"
 
