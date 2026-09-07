@@ -1,20 +1,16 @@
 {
   "schemaVersion": 1,
   "rule": "200-completed-weeks-UTC-Monday-v1",
-  "generatedAt": "2026-09-06T02:18:29.221Z",
-  "value": 64570.26952148438,
+  "generatedAt": "2026-09-07T06:33:23.900Z",
+  "value": 64864.75642578125,
   "sampleCount": 200,
-  "firstWeek": "2022-10-31T00:00:00.000Z",
-  "asOf": "2026-08-30T23:59:59.999Z",
+  "firstWeek": "2022-11-07T00:00:00.000Z",
+  "asOf": "2026-09-06T23:59:59.999Z",
   "source": {
     "label": "Yahoo Finance",
     "url": "https://finance.yahoo.com/quote/BTC-USD/history/"
   },
   "rows": [
-    {
-      "timestamp": 1667174400,
-      "close": 20926.486328125
-    },
     {
       "timestamp": 1667779200,
       "close": 16353.365234375
@@ -810,6 +806,10 @@
     {
       "timestamp": 1787529600,
       "close": 77667.5703125
+    },
+    {
+      "timestamp": 1788134400,
+      "close": 79823.8671875
     }
   ]
 }
