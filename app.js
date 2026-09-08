@@ -1,8 +1,8 @@
-import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260906-5";
+import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260908-1";
 import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260906-5";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260906-5";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260908-1";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -222,6 +222,7 @@ function trueMarketMeanView(data) {
   const metric = data.trueMarketMean;
   const analysis = analyzeTrueMarketMean(data.market.btcPrice, metric);
   if (!analysis) return null;
+  if (!data.marketQuality.btc.eligible) analysis.relation = "pending";
   const distance = Math.abs(analysis.deviationPct).toFixed(1);
   const insightKey = analysis.relation === "support"
     ? "trueMarketMeanSupport"
@@ -232,7 +233,7 @@ function trueMarketMeanView(data) {
   }).format(new Date(`${metric.asOf}T00:00:00+08:00`));
   return {
     metric, analysis, asOf,
-    insight: t(language, insightKey, { distance }),
+    insight: data.marketQuality.btc.eligible ? t(language, insightKey, { distance }) : t(language, "pricePending"),
     freshnessLabel: t(language, freshnessKey)
   };
 }
@@ -308,6 +309,16 @@ function renderBriefing(data) {
   $("#macroList").innerHTML = data.macroNotes.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
 }
 
+function renderMarketSource(selector, source, quality) {
+  const label = t(language, { fresh: "marketFresh", stale: "marketStale", unknown: "marketUnknown" }[quality.state]);
+  $(selector).textContent = `· ${source || t(language, "cached")} · ${label}`;
+  $(selector).title = quality.asOf ? t(language, "marketTime", {
+    time: new Intl.DateTimeFormat(language === "en" ? "en-GB" : "zh-CN", {
+      year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Shanghai"
+    }).format(new Date(quality.asOf))
+  }) : t(language, "marketTimeUnknown");
+}
+
 function render() {
   activeIndicatorTooltip = null;
   applyStaticTranslations();
@@ -318,23 +329,21 @@ function render() {
   $("#modePill").textContent = translateMode(dashboard.dataMode, language);
   $("#modePill").classList.toggle("is-live", data.dataMode.includes("实时"));
   $("#btcPrice").textContent = formatMoney(data.market.btcPrice, 0);
-  $("#btcSource").textContent = data.market.btcSource ? `· ${data.market.btcSource}` : "· 最近缓存";
-  $("#btcSource").title = data.market.btcFetchedAt
-    ? `行情时间 ${new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Shanghai" }).format(new Date(data.market.btcFetchedAt))}`
-    : "尚未完成实时行情刷新";
-  $("#btcChange").textContent = `${data.market.btcChange24h >= 0 ? "↑" : "↓"} ${Math.abs(data.market.btcChange24h).toFixed(2)}%`;
-  $("#btcChange").className = `change-pill ${data.market.btcChange24h >= 0 ? "positive" : "negative"}`;
+  renderMarketSource("#btcSource", data.market.btcSource, data.marketQuality.btc);
+  $("#btcChange").textContent = data.marketQuality.btc.eligible
+    ? `${data.market.btcChange24h >= 0 ? "↑" : "↓"} ${Math.abs(data.market.btcChange24h).toFixed(2)}%`
+    : t(language, "marketPending");
+  $("#btcChange").className = `change-pill ${data.marketQuality.btc.eligible ? data.market.btcChange24h >= 0 ? "positive" : "negative" : ""}`;
   $("#fngValue").textContent = data.market.fng;
-  $("#fngSource").textContent = data.market.fngSource ? `· ${data.market.fngSource}` : "· 最近缓存";
-  $("#fngSource").title = data.market.fngFetchedAt ? `指标时间 ${data.market.fngFetchedAt}` : "尚未完成实时刷新";
+  renderMarketSource("#fngSource", data.market.fngSource, data.marketQuality.fng);
   $("#fngLabel").textContent = data.heat.label;
   $("#heatFill").style.width = `${data.market.fng}%`;
   $("#heatMarker").style.left = `${data.market.fng}%`;
-  $("#wmaRatio").textContent = `${data.market.wmaRatio.toFixed(2)}x`;
+  $("#wmaRatio").textContent = data.marketQuality.btc.eligible ? `${data.market.wmaRatio.toFixed(2)}x` : "—";
   $("#wmaSource").textContent = data.market.wmaSource ? `· ${data.market.wmaSource}` : "· 最近缓存";
   $("#wmaSource").title = data.market.wmaFetchedAt ? `计算时间 ${data.market.wmaFetchedAt}` : "尚未完成实时刷新";
   $("#wmaValue").textContent = formatMoney(data.market.wma200, 0);
-  $("#wmaInsight").textContent = data.market.wmaObservation?.rule === "200-completed-weeks-UTC-Monday-v1"
+  $("#wmaInsight").textContent = !data.marketQuality.btc.eligible ? t(language, "pricePending") : data.market.wmaObservation?.rule === "200-completed-weeks-UTC-Monday-v1"
     ? `${t(language, data.market.wmaRefreshStatus === "failed" ? "wmaRetained" : "wmaVerified")} · ${data.market.wmaObservation.asOf.slice(0, 10)}`
     : t(language, "wmaUnverified");
   $("#scoreValue").textContent = data.score;
@@ -696,14 +705,17 @@ function resetPositioningMaintenance() {
 
 function buildReport() {
   const data = localizeDashboard(deriveDashboard(dashboard), language);
+  const btcChange = data.marketQuality.btc.eligible ? `${data.market.btcChange24h >= 0 ? "↑" : "↓"}${Math.abs(data.market.btcChange24h).toFixed(2)}%` : t(language, "marketPending");
+  const wmaRatio = data.marketQuality.btc.eligible ? `${data.market.wmaRatio.toFixed(2)}x` : "—";
+  const headline = `${data.date} | BTC ${formatMoney(data.market.btcPrice, 0)} ${btcChange} | F&G ${data.market.fng} ${data.heat.label} | 200WMA ${wmaRatio}`;
   const trueMean = trueMarketMeanView(data);
   const trueMeanLine = trueMean ? `True Market Mean ${formatMoney(trueMean.analysis.value, 0)} | ${trueMean.insight} | ${t(language, "trueMarketMeanAsOf", { date: trueMean.asOf })}` : "";
   const cards = data.cards.map((card) => `${STATUS[card.status].emoji} ${String(card.id).padStart(2, "0")} ${card.title} — ${card.headline}\n${t(language, card.quality.reason || (card.quality.eligible ? "qualityFresh" : card.quality.state === "stale" ? "qualityStale" : "qualityUnknown"))}\n→ ${card.detail}\n来源：${card.source.label}`).join("\n\n");
   const tracking = data.cards.map((card) => `• #: ${String(card.id).padStart(2, "0")} | 信号: ${card.shortName} | 状态: ${STATUS[card.status].emoji} | 变动: ${card.change}`).join("\n");
   if (language === "en") {
-    return `${data.date} | BTC ${formatMoney(data.market.btcPrice, 0)} ${data.market.btcChange24h >= 0 ? "↑" : "↓"}${Math.abs(data.market.btcChange24h).toFixed(2)}% | F&G ${data.market.fng} ${data.heat.label} | 200WMA ${data.market.wmaRatio.toFixed(2)}x\n${trueMeanLine}\n\n${cards.replaceAll("来源：", "Source: ")}\n\nSignal tracker:\n${tracking.replaceAll("信号:", "Signal:").replaceAll("状态:", "Status:").replaceAll("变动:", "Change:")}\n\n${data.score}/9 active | ${data.counts.yellow} watch | ${data.counts.red} risk | ${data.counts.off} inactive\n\nRisk alerts:\n${data.risks.map((item) => `• ${item}`).join("\n")}\n\nSummary: ${data.summary}\n\nFor research only; not financial advice.`;
+    return `${headline}\n${trueMeanLine}\n\n${cards.replaceAll("来源：", "Source: ")}\n\nSignal tracker:\n${tracking.replaceAll("信号:", "Signal:").replaceAll("状态:", "Status:").replaceAll("变动:", "Change:")}\n\n${data.score}/9 active | ${data.counts.yellow} watch | ${data.counts.red} risk | ${data.counts.off} inactive\n\nRisk alerts:\n${data.risks.map((item) => `• ${item}`).join("\n")}\n\nSummary: ${data.summary}\n\nFor research only; not financial advice.`;
   }
-  return `${data.date} | BTC ${formatMoney(data.market.btcPrice, 0)} ${data.market.btcChange24h >= 0 ? "↑" : "↓"}${Math.abs(data.market.btcChange24h).toFixed(2)}% | F&G ${data.market.fng} ${data.heat.label} | 200WMA ${data.market.wmaRatio.toFixed(2)}x\n${trueMeanLine}\n\n${cards}\n\n状态跟踪：\n${tracking}\n\n${data.score}/9 ✅ | ${data.counts.yellow} 🟡 | ${data.counts.red} 🔴 | ${data.counts.off} ❌\n\n⚠️ 风险提示：\n${data.risks.map((item) => `• ${item}`).join("\n")}\n\n总结：${data.summary}\n\n仅供研究，不构成投资建议。`;
+  return `${headline}\n${trueMeanLine}\n\n${cards}\n\n状态跟踪：\n${tracking}\n\n${data.score}/9 ✅ | ${data.counts.yellow} 🟡 | ${data.counts.red} 🔴 | ${data.counts.off} ❌\n\n⚠️ 风险提示：\n${data.risks.map((item) => `• ${item}`).join("\n")}\n\n总结：${data.summary}\n\n仅供研究，不构成投资建议。`;
 }
 
 async function copyReport() {

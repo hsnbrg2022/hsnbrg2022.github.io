@@ -3,6 +3,20 @@ import { mnavBasisQuality } from "./mnav-source.js?v=20260906-4";
 import { ONCHAIN, onchainAgeDays } from "./onchain-source.js?v=20260906-5";
 const DAY = 86400000;
 
+// Header readings are independent of the nine signal-card scoring rules.
+export function assessMarket(market = {}, now = new Date()) {
+  return Object.fromEntries([
+    ["btc", market.btcPrice, market.btcFetchedAt, 15 * 60_000],
+    ["fng", market.fng, market.fngFetchedAt, 36 * 3_600_000]
+  ].map(([key, value, asOf, maxAge]) => {
+    const observed = timestamp(asOf);
+    const age = now.getTime() - observed;
+    const valid = Number.isFinite(value) && (key === "btc" ? value > 0 : value >= 0 && value <= 100);
+    const state = !valid || !Number.isFinite(age) || age < 0 ? "unknown" : age > maxAge ? "stale" : "fresh";
+    return [key, { state, eligible: state === "fresh", asOf: Number.isFinite(observed) ? asOf : null }];
+  }));
+}
+
 export function weekdaysSince(date, now = new Date()) {
   const start = new Date(`${date}T00:00:00Z`);
   if (!Number.isFinite(start.getTime())) return Infinity;

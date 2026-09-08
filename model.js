@@ -1,4 +1,4 @@
-import { assessCards } from "./data-quality.js?v=20260906-5";
+import { assessCards, assessMarket } from "./data-quality.js?v=20260908-1";
 
 export const STATUS = {
   green: { icon: "✓", emoji: "✅", label: "触发", score: 1 },
@@ -81,8 +81,8 @@ export function analyzeTrueMarketMean(btcPrice, metric, now = new Date()) {
 export function buildRisks(data) {
   const risks = [];
   const { market, cards } = data;
-  if (market.fng >= 70) risks.push(`F&G ${market.fng} ${marketHeat(market.fng).label}——情绪进入偏热区，注意追高风险`);
-  if (market.btcChange24h >= 6) risks.push(`BTC 24h 上涨 ${market.btcChange24h.toFixed(2)}%，短线波动放大，需留意获利盘承接`);
+  if (data.marketQuality?.fng.eligible && market.fng >= 70) risks.push(`F&G ${market.fng} ${marketHeat(market.fng).label}——情绪进入偏热区，注意追高风险`);
+  if (data.marketQuality?.btc.eligible && market.btcChange24h >= 6) risks.push(`BTC 24h 上涨 ${market.btcChange24h.toFixed(2)}%，短线波动放大，需留意获利盘承接`);
   for (const card of cards.filter((item) => item.status === "red")) {
     risks.push(`${card.title}亮红灯：${card.detail}`);
   }
@@ -103,7 +103,7 @@ export function buildSummary(data) {
   const direction = counts.red === 0 && counts.green >= 5 ? "偏多主导" : counts.red >= 3 ? "风险主导" : "多空拉锯";
   const basic = `看板当期确认 ${counts.green}/${total} 项触发，有效覆盖 ${eligible.length}/${total}，${total - eligible.length} 项待更新或核验。${eligible.length < total ? "覆盖不完整，不作全局方向确认。" : `当期 ${counts.red} 项红灯，整体维持${direction}。`}`;
   const money = `资金面当期 ${capitalGreen}/3 项触发（有效覆盖 ${capital.length}/3），需结合 ETF 净流量、稳定币供给与 mNAV 分别判断。`;
-  const mood = data.market.fng >= 70
+  const mood = !data.marketQuality?.fng.eligible ? "情绪数据待更新或核验，暂不作当前情绪判断。" : data.market.fng >= 70
     ? `情绪面处于${marketHeat(data.market.fng).label}，需留意追高风险。`
     : `情绪面处于${marketHeat(data.market.fng).label}，尚未进入极端拥挤区。`;
   const structure = !positioning ? "多空比待更新或核验，暂不作结构判断。" : positioning.status === "green"
@@ -117,14 +117,17 @@ export function buildCurrentChanges(data, language = "zh") {
   const lines = [];
   const previous = Number(data.previous?.btcPrice);
   const current = Number(data.market?.btcPrice);
-  if (Number.isFinite(previous) && previous > 0 && Number.isFinite(current) && current > 0) {
+  if (!data.marketQuality?.btc.eligible) {
+    lines.push(en ? "BTC awaits an update or verification; no current price comparison." : "BTC 待更新或核验，暂停当前价格对比。");
+  } else if (Number.isFinite(previous) && previous > 0 && Number.isFinite(current) && current > 0) {
     const delta = ((current / previous) - 1) * 100;
     lines.push(`BTC ${formatMoney(previous, 0)} → ${formatMoney(current, 0)} (${delta >= 0 ? "+" : ""}${delta.toFixed(2)}%)`);
   } else if (Number.isFinite(current) && current > 0) {
     lines.push(`BTC ${formatMoney(current, 0)}`);
   }
   const fng = data.market?.fng;
-  if (Number.isFinite(fng)) lines.push(`F&G ${Number.isFinite(data.previous?.fng) ? `${data.previous.fng} → ` : ""}${fng}`);
+  if (!data.marketQuality?.fng.eligible) lines.push(en ? "F&G awaits an update or verification; no current sentiment comparison." : "F&G 待更新或核验，暂停当前情绪对比。");
+  else if (Number.isFinite(fng)) lines.push(`F&G ${Number.isFinite(data.previous?.fng) ? `${data.previous.fng} → ` : ""}${fng}`);
   for (const id of [1, 2, 3, 6, 9]) {
     const item = data.cards.find((card) => card.id === id);
     if (item) lines.push(`${String(id).padStart(2, "0")} ${item.title} ${en ? "currently" : "当前"}：${item.headline}`);
@@ -162,16 +165,17 @@ export function deriveDashboard(data, now = new Date()) {
   const mnav = cards.find(card => card.id === 2);
   if (mnav?.quality.reason) mnav.detail = "保留上次读数供历史参考；资本基准或转换分类未通过当前校验，停止估算，不计入当期确认。";
   const counts = statusCounts(cards.filter((card) => card.quality.eligible));
-  const assessed = { ...data, cards };
+  const marketQuality = assessMarket(data.market, now);
+  const assessed = { ...data, cards, marketQuality };
   return {
-    ...data,
+    ...assessed,
     cards, coverage, pending: cards.length - coverage,
-    previous: { ...data.previous, changes: buildCurrentChanges(data) },
+    previous: { ...data.previous, changes: buildCurrentChanges(assessed) },
     counts,
     score: counts.green,
     total: data.cards.length,
-    heat: marketHeat(data.market.fng),
-    risks: buildRisks({ ...data, cards: cards.filter((card) => card.quality.eligible) }),
+    heat: marketQuality.fng.eligible ? marketHeat(data.market.fng) : { label: "待更新/核验", tone: "neutral" },
+    risks: buildRisks({ ...assessed, cards: cards.filter((card) => card.quality.eligible) }),
     summary: buildSummary(assessed)
   };
 }

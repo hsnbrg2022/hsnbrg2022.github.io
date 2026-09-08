@@ -1,9 +1,10 @@
-import { buildCurrentChanges } from "./model.js?v=20260906-5";
+import { buildCurrentChanges } from "./model.js?v=20260908-1";
 
 export const LANGUAGE_STORAGE_KEY = "crypto-signal-tracker:language-v1";
 
 const MESSAGES = {
   zh: {
+    marketFresh: "时效内", marketStale: "旧值", marketUnknown: "待核验", marketTime: "读数/获取时间 {time}（UTC+8）；BTC 15 分钟、F&G 36 小时有效，刷新失败不会重置此时间。", marketTimeUnknown: "读数时间待核验", marketPending: "待更新/核验", pricePending: "BTC 报价待更新或核验，暂停当前偏离判断。",
     wmaVerified: "200 个完整周 · UTC 周一边界", wmaRetained: "更新失败 · 保留上次完整周值", wmaUnverified: "保留旧值 · 周样本口径待核验",
     mnavBasisUnknown: "资本基准日期待核验 · 保留旧值，不计入当期", mnavBasisStale: "资本基准超过 7 天 · 保留旧值，不计入当期", mnavClassificationUnknown: "转换分类未核验 · 停止估算，旧值不计入当期",
     qualityFresh: "时效内 · 参与当期确认", qualityStale: "数据过期 · 仅供历史参考", qualityUnknown: "日期待核验 · 不计入当期确认", qualityPending: "未计入当期", qualityIncomplete: "覆盖不完整 · 不作全局确认",
@@ -20,7 +21,7 @@ const MESSAGES = {
     refresh: "刷新最新数据", refreshTitle: "更新 ETF、mNAV、BTC、F&G、稳定币、Fed、True Market Mean、DXY、黄金、MVRV、Puell 与 200WMA", copy: "复制全文",
     todayStatus: "今日状态", calculating: "正在计算信号…", briefing: "今日研判", summary: "摘要", changes: "基线对比与当前信号", risks: "风险提示", watch: "宏观观察",
     footer: "公开访客可刷新实时公开数据；手工维护仅保存在当前浏览器。仅供研究与信息整理，不构成投资建议。", footerLocal: "本地维护会同步生成公开版数据文件。仅供研究与信息整理，不构成投资建议。",
-    lastUpdated: "最后更新 {time}（UTC+8）", syncing: "正在同步最新数据…", cached: "最近缓存",
+    lastUpdated: "快照时间 {time}（UTC+8）", syncing: "正在同步最新数据…", cached: "最近缓存",
     aboveWma: "价格位于长期成本线上方", belowWma: "价格位于长期成本线下方",
     bullishNoRed: "偏多主导 · 无红灯", redSignals: "出现 {count} 项风险信号", mixedSignals: "信号分化 · 保持观察",
     onchainDirect: "官方日值 · 自动查询", onchainSnapshot: "日频自动快照", onchainPending: "等待自动数据",
@@ -41,6 +42,7 @@ const MESSAGES = {
     statusGreen: "触发", statusYellow: "观察", statusRed: "风险", statusOff: "未触发"
   },
   en: {
+    marketFresh: "Current", marketStale: "Historical", marketUnknown: "Unverified", marketTime: "Reading/retrieval time {time} (UTC+8); valid for 15 minutes (BTC) / 36 hours (F&G). Failed refreshes do not reset this time.", marketTimeUnknown: "Reading time unverified", marketPending: "Update/verification needed", pricePending: "BTC awaits an update or verification; current deviation analysis is paused.",
     wmaVerified: "200 completed weeks · UTC Monday", wmaRetained: "Update failed · Previous weekly value retained", wmaUnverified: "Previous value · Weekly basis unverified",
     mnavBasisUnknown: "Capital basis date unverified · Previous value, not counted", mnavBasisStale: "Capital basis older than 7 days · Previous value, not counted", mnavClassificationUnknown: "Conversion classification unverified · Estimates stopped; previous value not counted",
     qualityFresh: "Within freshness window · Included", qualityStale: "Stale · Historical reference only", qualityUnknown: "Date unverified · Not counted", qualityPending: "Not counted", qualityIncomplete: "Incomplete coverage · No overall confirmation",
@@ -57,7 +59,7 @@ const MESSAGES = {
     refresh: "Refresh latest data", refreshTitle: "Update ETF flows, mNAV, BTC, F&G, stablecoins, Fed, True Market Mean, DXY, gold, MVRV, Puell and 200WMA", copy: "Copy report",
     todayStatus: "Today's status", calculating: "Calculating signals…", briefing: "Daily view", summary: "Summary", changes: "Baseline comparison & current signals", risks: "Risk alerts", watch: "Macro watch",
     footer: "Visitors can refresh public data. Manual changes are stored only in this browser. For research only; not financial advice.", footerLocal: "Local maintenance generates the public data files for publishing. For research only; not financial advice.",
-    lastUpdated: "Last updated {time} (UTC+8)", syncing: "Syncing latest data…", cached: "cached",
+    lastUpdated: "Snapshot time {time} (UTC+8)", syncing: "Syncing latest data…", cached: "cached",
     aboveWma: "Price is above the long-term cost basis", belowWma: "Price is below the long-term cost basis",
     bullishNoRed: "Bullish bias · No red flags", redSignals: "{count} risk signal(s)", mixedSignals: "Mixed signals · Stay selective",
     onchainDirect: "Official daily data · Auto query", onchainSnapshot: "Automatic daily snapshot", onchainPending: "Awaiting automatic data",
@@ -370,7 +372,7 @@ function englishSummary(data) {
   const capitalGreen = capital.filter((item) => item.status === "green").length;
   const positioning = data.cards.find((item) => item.id === 9 && item.quality?.eligible);
   const direction = counts.red === 0 && counts.green >= 5 ? "a bullish bias" : counts.red >= 3 ? "a risk-dominant regime" : "a mixed regime";
-  const mood = data.market.fng >= 70 ? "hot, reducing the reward-to-risk of chasing strength" : "not yet at an extreme";
+  const mood = !data.marketQuality?.fng.eligible ? "awaiting an update or verification; no current sentiment conclusion is made" : data.market.fng >= 70 ? "hot, reducing the reward-to-risk of chasing strength" : "not yet at an extreme";
   const structure = !positioning ? "Positioning awaits an update or verification; no structural conclusion is made." : positioning.status === "green"
     ? `Derivatives positioning is bullish (${translateText(positioning.headline, "en")}), while concentrated leverage can amplify reversals.`
     : "Derivatives positioning has not formed a clear directional signal.";
@@ -387,7 +389,7 @@ export function localizeDashboard(data, language) {
     detail: translateText(card.detail, language), change: translateText(card.change, language),
     source: { ...card.source, label: translateText(card.source?.label, language) }
   }));
-  const localized = { ...data, cards, dataMode: translateMode(data.dataMode, language), heat: { ...data.heat, label: translateText(data.heat.label, language) } };
+  const localized = { ...data, cards, dataMode: translateMode(data.dataMode, language), heat: { ...data.heat, label: data.marketQuality?.fng.eligible ? translateText(data.heat.label, language) : t(language, "marketPending") } };
   localized.summary = englishSummary({ ...localized, cards });
   localized.risks = data.risks.map((item) => translateText(item, language));
   localized.macroNotes = data.macroNotes.map((item) => translateText(item, language));
