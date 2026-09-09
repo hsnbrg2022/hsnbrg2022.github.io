@@ -1,4 +1,4 @@
-import { assessCards, assessMarket } from "./data-quality.js?v=20260908-1";
+import { assessCards, assessMarket } from "./data-quality.js?v=20260909-1";
 
 export const STATUS = {
   green: { icon: "✓", emoji: "✅", label: "触发", score: 1 },

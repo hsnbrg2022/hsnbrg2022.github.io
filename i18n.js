@@ -1,9 +1,11 @@
-import { buildCurrentChanges } from "./model.js?v=20260908-1";
+import { buildCurrentChanges } from "./model.js?v=20260909-1";
 
 export const LANGUAGE_STORAGE_KEY = "crypto-signal-tracker:language-v1";
 
 const MESSAGES = {
   zh: {
+    stablecoinUnverified: "七日口径待核验 · 旧值不计入当期", stablecoinAux: "辅助观察 · CoinGecko 24h {change} · 总市值 {total} · 数据时间 {date}。样本与七日主源不同，不参与评分。",
+    stablecoinSevenDayFailed: "七日源更新失败 · 保留主读数",
     marketFresh: "时效内", marketStale: "旧值", marketUnknown: "待核验", marketTime: "读数/获取时间 {time}（UTC+8）；BTC 15 分钟、F&G 36 小时有效，刷新失败不会重置此时间。", marketTimeUnknown: "读数时间待核验", marketPending: "待更新/核验", pricePending: "BTC 报价待更新或核验，暂停当前偏离判断。",
     wmaVerified: "200 个完整周 · UTC 周一边界", wmaRetained: "更新失败 · 保留上次完整周值", wmaUnverified: "保留旧值 · 周样本口径待核验",
     mnavBasisUnknown: "资本基准日期待核验 · 保留旧值，不计入当期", mnavBasisStale: "资本基准超过 7 天 · 保留旧值，不计入当期", mnavClassificationUnknown: "转换分类未核验 · 停止估算，旧值不计入当期",
@@ -42,6 +44,8 @@ const MESSAGES = {
     statusGreen: "触发", statusYellow: "观察", statusRed: "风险", statusOff: "未触发"
   },
   en: {
+    stablecoinUnverified: "Seven-day basis unverified · Historical value excluded", stablecoinAux: "Context only · CoinGecko 24h {change} · Market cap {total} · As of {date}. Different universe from the seven-day source; excluded from scoring.",
+    stablecoinSevenDayFailed: "Seven-day update failed · Main reading retained",
     marketFresh: "Current", marketStale: "Historical", marketUnknown: "Unverified", marketTime: "Reading/retrieval time {time} (UTC+8); valid for 15 minutes (BTC) / 36 hours (F&G). Failed refreshes do not reset this time.", marketTimeUnknown: "Reading time unverified", marketPending: "Update/verification needed", pricePending: "BTC awaits an update or verification; current deviation analysis is paused.",
     wmaVerified: "200 completed weeks · UTC Monday", wmaRetained: "Update failed · Previous weekly value retained", wmaUnverified: "Previous value · Weekly basis unverified",
     mnavBasisUnknown: "Capital basis date unverified · Previous value, not counted", mnavBasisStale: "Capital basis older than 7 days · Previous value, not counted", mnavClassificationUnknown: "Conversion classification unverified · Estimates stopped; previous value not counted",
@@ -234,6 +238,7 @@ const EXACT_EN = new Map([
   ["采用 Strategy 2026-07-23 起最新口径：MSTR 股价 ÷ Net BTC Per Share ($)；数值来自官方看板。", "Uses Strategy's current methodology effective July 23, 2026: MSTR share price ÷ Net BTC Per Share ($). Values come directly from the official dashboard."],
   ["距 1.0 触发仅 2%，BTC 拉升带动回升，现金跑道健康。", "Only 2% below the 1.0 trigger; BTC strength is lifting mNAV and the cash runway remains healthy."],
   ["稳定币供给扩张", "Stablecoin supply expanding"], ["稳定币供给收缩", "Stablecoin supply contracting"],
+  ["USD 锚定样本 · 同源七日比较", "USD-pegged universe · Same-source seven-day comparison"],
   ["稳定币供给保持扩张，链上可用流动性改善。", "Stablecoin supply is expanding, improving deployable on-chain liquidity."],
   ["稳定币供给出现收缩，需关注链上流动性压力。", "Stablecoin supply is contracting; monitor on-chain liquidity pressure."],
   ["降息预期升温 · 宽松预期延续", "Rate-cut expectations rising · Easing outlook intact"],

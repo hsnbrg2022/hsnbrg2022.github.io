@@ -1,4 +1,5 @@
 import { calculateDxyFromRates } from "./model.js";
+import { updateStablecoins as refreshStablecoins } from "./stablecoin-source.js?v=20260909-1";
 import { etfSignal } from "./etf-core.js?v=20260905-3";
 import { tradingDaysSince } from "./trading-calendar.js";
 import { updateWeeklyMean } from "./weekly-mean.js?v=20260905-3";
@@ -12,11 +13,6 @@ const REQUEST_TIMEOUT_MS = 10_000;
 
 function card(data, id) {
   return data.cards.find((item) => item.id === id);
-}
-
-function signed(value, digits = 2) {
-  const number = Number(value);
-  return `${number >= 0 ? "+" : ""}${number.toFixed(digits)}%`;
 }
 
 function cloneDashboard(data) {
@@ -174,42 +170,7 @@ async function updateFearGreed(data, fetchImpl) {
 }
 
 async function updateStablecoins(data, fetchImpl) {
-  const quote = await firstProvider([
-    {
-      name: "DefiLlama",
-      url: "https://defillama.com/stablecoins",
-      load: async () => {
-        const rows = await fetchJson("https://stablecoins.llama.fi/stablecoincharts/all", fetchImpl);
-        const valid = rows.filter((row) => Number(row.totalCirculatingUSD?.peggedUSD) > 0);
-        const latest = valid.at(-1);
-        const weekAgo = valid.at(-8) || valid.at(0);
-        const total = Number(latest?.totalCirculatingUSD?.peggedUSD);
-        const previous = Number(weekAgo?.totalCirculatingUSD?.peggedUSD);
-        return { total, change: ((total / previous) - 1) * 100, period: "7d", date: Number(latest?.date) * 1000 };
-      }
-    },
-    {
-      name: "CoinGecko",
-      url: "https://www.coingecko.com/en/categories/stablecoins",
-      load: async () => {
-        const rows = await fetchJson("https://api.coingecko.com/api/v3/coins/categories", fetchImpl);
-        const stablecoins = rows.find((row) => row.id === "stablecoins");
-        return { total: Number(stablecoins?.market_cap), change: Number(stablecoins?.market_cap_change_24h), period: "24h", date: Date.now() };
-      }
-    }
-  ], (value) => Number.isFinite(value.total) && value.total > 0 && Number.isFinite(value.change));
-
-  const target = card(data, 3);
-  target.headline = `$${(quote.total / 1e8).toLocaleString("zh-CN", { maximumFractionDigits: 1 })} 亿 · ${quote.period} ${signed(quote.change)}`;
-  target.facts = [quote.change >= 0 ? "稳定币供给扩张" : "稳定币供给收缩", `最近数据 ${new Date(quote.date).toLocaleDateString("zh-CN")}`];
-  target.detail = quote.change >= 0
-    ? "稳定币供给保持扩张，链上可用流动性改善。"
-    : "稳定币供给出现收缩，需关注链上流动性压力。";
-  target.status = quote.change > 0 ? "green" : quote.change > -0.3 ? "yellow" : "red";
-  target.change = `${quote.period} ${signed(quote.change)}`;
-  target.source = { label: quote.source, url: quote.sourceUrl };
-  target.marketFetchedAt = new Date(quote.date).toISOString();
-  return `稳定币 / ${quote.source}`;
+  return refreshStablecoins(data, url => fetchJson(url, fetchImpl));
 }
 
 async function frankfurterDxy(fetchImpl) {

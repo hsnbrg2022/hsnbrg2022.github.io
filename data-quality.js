@@ -1,6 +1,7 @@
 import { tradingDaysSince } from "./trading-calendar.js";
 import { mnavBasisQuality } from "./mnav-source.js?v=20260906-4";
 import { ONCHAIN, onchainAgeDays } from "./onchain-source.js?v=20260906-5";
+import { stablecoinQuality } from "./stablecoin-source.js?v=20260909-1";
 const DAY = 86400000;
 
 // Header readings are independent of the nine signal-card scoring rules.
@@ -42,6 +43,7 @@ function timestamp(raw) {
 }
 
 export function cardQuality(card, now = new Date()) {
+  if (card.id === 3) return stablecoinQuality(card.stablecoin, now);
   const asOf = card.dataAsOf || card.marketQuote?.asOf || card.marketFetchedAt;
   if (card.id === 2) {
     const basis = mnavBasisQuality(card.basisAsOf, card.mnavMode, now);

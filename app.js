@@ -1,8 +1,8 @@
-import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260908-1";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260906-5";
+import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260909-1";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260909-1";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260908-1";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260909-1";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -164,7 +164,9 @@ function renderCard(card) {
     ? `<a href="${escapeHtml(card.source.url)}" target="_blank" rel="noreferrer"${fetchedAt}>${escapeHtml(card.source.label)} ↗</a>`
     : `<span>${escapeHtml(card.source?.label || "未填写")}</span>`;
   const dataAsOf = card.dataAsOf ? card.dataAsOf.replaceAll("-", "/") : "—";
-  const refreshLabel = card.id === 1 && card.dataAsOf
+  const refreshLabel = card.id === 3 && card.refreshStatus === "failed"
+    ? `<i class="stale-dot"></i> ${t(language, "stablecoinSevenDayFailed")}`
+    : card.id === 1 && card.dataAsOf
     ? card.refreshStatus === "failed"
       ? `<i class="stale-dot"></i> ${t(language, "etfFailedAsOf", { date: dataAsOf })}`
       : card.refreshStatus === "stale"
@@ -210,6 +212,9 @@ function renderCard(card) {
         return `<span>${escapeHtml(fact)}${factHelpKey ? renderIndicatorHelp(factHelpKey, `card-${card.id}-fact-${index}`) : ""}</span>`;
       }).join("")}</div>
       <p>${escapeHtml(card.detail)}</p>
+      ${card.id === 3 && card.stablecoinAux ? `<p class="quality-note">${escapeHtml(t(language, "stablecoinAux", {
+        change: `${card.stablecoinAux.change >= 0 ? "+" : ""}${card.stablecoinAux.change.toFixed(2)}%`, total: formatMoney(card.stablecoinAux.total, 0), date: card.stablecoinAux.asOf || t(language, "marketTimeUnknown")
+      }))}</p>` : ""}
       <p class="quality-note ${card.quality?.eligible ? "" : "needs-review"}">${t(language, card.quality?.reason || (card.quality?.eligible ? "qualityFresh" : card.quality?.state === "stale" ? "qualityStale" : "qualityUnknown"))}${card.browserEditCount ? ` · ${t(language, "etfEditsCount", { count: card.browserEditCount })}` : ""}</p>
       <div class="signal-footer">
         <span title="${escapeHtml(card.refreshMessage || "")}">${refreshLabel}</span>
