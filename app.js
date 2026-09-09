@@ -1,8 +1,8 @@
-import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260909-1";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260909-1";
+import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260909-2";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260909-2";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText } from "./i18n.js?v=20260909-1";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation } from "./i18n.js?v=20260909-2";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -335,10 +335,9 @@ function render() {
   $("#modePill").classList.toggle("is-live", data.dataMode.includes("实时"));
   $("#btcPrice").textContent = formatMoney(data.market.btcPrice, 0);
   renderMarketSource("#btcSource", data.market.btcSource, data.marketQuality.btc);
-  $("#btcChange").textContent = data.marketQuality.btc.eligible
-    ? `${data.market.btcChange24h >= 0 ? "↑" : "↓"} ${Math.abs(data.market.btcChange24h).toFixed(2)}%`
-    : t(language, "marketPending");
-  $("#btcChange").className = `change-pill ${data.marketQuality.btc.eligible ? data.market.btcChange24h >= 0 ? "positive" : "negative" : ""}`;
+  const btcChange = btcChangePresentation(data, language);
+  $("#btcChange").textContent = btcChange.text;
+  $("#btcChange").className = `change-pill ${btcChange.tone}`;
   $("#fngValue").textContent = data.market.fng;
   renderMarketSource("#fngSource", data.market.fngSource, data.marketQuality.fng);
   $("#fngLabel").textContent = data.heat.label;
@@ -710,7 +709,7 @@ function resetPositioningMaintenance() {
 
 function buildReport() {
   const data = localizeDashboard(deriveDashboard(dashboard), language);
-  const btcChange = data.marketQuality.btc.eligible ? `${data.market.btcChange24h >= 0 ? "↑" : "↓"}${Math.abs(data.market.btcChange24h).toFixed(2)}%` : t(language, "marketPending");
+  const { text: btcChange } = btcChangePresentation(data, language);
   const wmaRatio = data.marketQuality.btc.eligible ? `${data.market.wmaRatio.toFixed(2)}x` : "—";
   const headline = `${data.date} | BTC ${formatMoney(data.market.btcPrice, 0)} ${btcChange} | F&G ${data.market.fng} ${data.heat.label} | 200WMA ${wmaRatio}`;
   const trueMean = trueMarketMeanView(data);

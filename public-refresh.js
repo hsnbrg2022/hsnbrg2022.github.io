@@ -1,4 +1,4 @@
-import { calculateDxyFromRates } from "./model.js";
+import { calculateDxyFromRates, applyBtcChange } from "./model.js?v=20260909-2";
 import { updateStablecoins as refreshStablecoins } from "./stablecoin-source.js?v=20260909-1";
 import { etfSignal } from "./etf-core.js?v=20260905-3";
 import { tradingDaysSince } from "./trading-calendar.js";
@@ -100,7 +100,8 @@ async function updateBtc(data, fetchImpl) {
         const previous = previousPayload.coins?.[asset];
         const price = Number(current?.price);
         const previousPrice = Number(previous?.price);
-        return { price, change: ((price / previousPrice) - 1) * 100, timestamp: Number(current?.timestamp) * 1000 };
+        return { price, change: ((price / previousPrice) - 1) * 100, timestamp: Number(current?.timestamp) * 1000,
+          changeBasis: Number(current?.timestamp) - Number(previous?.timestamp) === 86400 ? "rolling24h" : "historical" };
       }
     },
     {
@@ -108,7 +109,7 @@ async function updateBtc(data, fetchImpl) {
       url: "https://www.coingecko.com/en/coins/bitcoin",
       load: async () => {
         const payload = await fetchJson("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true", fetchImpl);
-        return { price: Number(payload.bitcoin?.usd), change: Number(payload.bitcoin?.usd_24h_change) };
+        return { price: Number(payload.bitcoin?.usd), change: typeof payload.bitcoin?.usd_24h_change === "number" ? payload.bitcoin.usd_24h_change : NaN, changeBasis: "rolling24h" };
       }
     },
     {
@@ -121,7 +122,8 @@ async function updateBtc(data, fetchImpl) {
         ]);
         const price = Number(ticker.price);
         const open = Number(stats.open);
-        return { price, change: ((price / open) - 1) * 100 };
+        const last = Number(stats.last);
+        return { price, change: Number.isFinite(last) && last > 0 && Number.isFinite(open) && open > 0 ? ((last / open) - 1) * 100 : NaN, changeBasis: "rolling24h" };
       }
     },
     {
@@ -132,13 +134,13 @@ async function updateBtc(data, fetchImpl) {
         const ticker = Object.values(payload.result || {})[0];
         const price = Number(ticker?.c?.[0]);
         const open = Number(ticker?.o);
-        return { price, change: ((price / open) - 1) * 100 };
+        return { price, change: ((price / open) - 1) * 100, changeBasis: "utc-open" };
       }
     }
   ], (value) => Number.isFinite(value.price) && value.price > 0 && Number.isFinite(value.change));
 
   data.market.btcPrice = quote.price;
-  data.market.btcChange24h = quote.change;
+  applyBtcChange(data.market, quote);
   data.market.btcSource = quote.source;
   data.market.btcFetchedAt = new Date(Number.isFinite(quote.timestamp) ? quote.timestamp : Date.now()).toISOString();
   return `BTC / ${quote.source}`;

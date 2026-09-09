@@ -61,6 +61,20 @@ export function marketHeat(fng = 0) {
   return { label: "极度恐惧", tone: "blue" };
 }
 
+const BTC_CHANGE_BASES = new Set(["rolling24h", "utc-open", "previous-close", "historical"]);
+
+export function applyBtcChange(market, quote) {
+  const valid = Number.isFinite(quote.change) && BTC_CHANGE_BASES.has(quote.changeBasis);
+  market.btcChange = { value: valid ? quote.change : null, basis: valid ? quote.changeBasis : "unknown", source: quote.source };
+  // Never leave an earlier provider's 24h value attached to a new non-24h quote.
+  market.btcChange24h = valid && quote.changeBasis === "rolling24h" ? quote.change : null;
+}
+
+export function btcChangeReading(market) {
+  const change = market?.btcChange;
+  return change && Number.isFinite(change.value) && BTC_CHANGE_BASES.has(change.basis) && typeof change.source === "string" && change.source.length > 0 && change.source === market.btcSource ? change : null;
+}
+
 export function analyzeTrueMarketMean(btcPrice, metric, now = new Date()) {
   const price = Number(btcPrice);
   const value = Number(metric?.value);
@@ -82,7 +96,8 @@ export function buildRisks(data) {
   const risks = [];
   const { market, cards } = data;
   if (data.marketQuality?.fng.eligible && market.fng >= 70) risks.push(`F&G ${market.fng} ${marketHeat(market.fng).label}——情绪进入偏热区，注意追高风险`);
-  if (data.marketQuality?.btc.eligible && market.btcChange24h >= 6) risks.push(`BTC 24h 上涨 ${market.btcChange24h.toFixed(2)}%，短线波动放大，需留意获利盘承接`);
+  const btcChange = btcChangeReading(market);
+  if (data.marketQuality?.btc.eligible && btcChange?.basis === "rolling24h" && btcChange.value >= 6) risks.push(`BTC 24h 上涨 ${btcChange.value.toFixed(2)}%，短线波动放大，需留意获利盘承接`);
   for (const card of cards.filter((item) => item.status === "red")) {
     risks.push(`${card.title}亮红灯：${card.detail}`);
   }

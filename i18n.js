@@ -1,9 +1,10 @@
-import { buildCurrentChanges } from "./model.js?v=20260909-1";
+import { buildCurrentChanges, btcChangeReading } from "./model.js?v=20260909-2";
 
 export const LANGUAGE_STORAGE_KEY = "crypto-signal-tracker:language-v1";
 
 const MESSAGES = {
   zh: {
+    btcChangeRolling: "24h", btcChangeUtcOpen: "较 UTC 开盘", btcChangePreviousClose: "较前收盘", btcChangeHistorical: "历史样本对比", btcChangeUnknown: "涨幅口径待核验",
     stablecoinUnverified: "七日口径待核验 · 旧值不计入当期", stablecoinAux: "辅助观察 · CoinGecko 24h {change} · 总市值 {total} · 数据时间 {date}。样本与七日主源不同，不参与评分。",
     stablecoinSevenDayFailed: "七日源更新失败 · 保留主读数",
     marketFresh: "时效内", marketStale: "旧值", marketUnknown: "待核验", marketTime: "读数/获取时间 {time}（UTC+8）；BTC 15 分钟、F&G 36 小时有效，刷新失败不会重置此时间。", marketTimeUnknown: "读数时间待核验", marketPending: "待更新/核验", pricePending: "BTC 报价待更新或核验，暂停当前偏离判断。",
@@ -44,6 +45,7 @@ const MESSAGES = {
     statusGreen: "触发", statusYellow: "观察", statusRed: "风险", statusOff: "未触发"
   },
   en: {
+    btcChangeRolling: "24h", btcChangeUtcOpen: "vs UTC open", btcChangePreviousClose: "vs previous close", btcChangeHistorical: "vs historical sample", btcChangeUnknown: "Change basis unverified",
     stablecoinUnverified: "Seven-day basis unverified · Historical value excluded", stablecoinAux: "Context only · CoinGecko 24h {change} · Market cap {total} · As of {date}. Different universe from the seven-day source; excluded from scoring.",
     stablecoinSevenDayFailed: "Seven-day update failed · Main reading retained",
     marketFresh: "Current", marketStale: "Historical", marketUnknown: "Unverified", marketTime: "Reading/retrieval time {time} (UTC+8); valid for 15 minutes (BTC) / 36 hours (F&G). Failed refreshes do not reset this time.", marketTimeUnknown: "Reading time unverified", marketPending: "Update/verification needed", pricePending: "BTC awaits an update or verification; current deviation analysis is paused.",
@@ -284,6 +286,14 @@ export function t(language, key, variables = {}) {
   let value = MESSAGES[language]?.[key] ?? MESSAGES.zh[key] ?? key;
   for (const [name, replacement] of Object.entries(variables)) value = value.replaceAll(`{${name}}`, replacement);
   return value;
+}
+
+export function btcChangePresentation(data, language = "zh") {
+  if (!data.marketQuality?.btc.eligible) return { text: t(language, "marketPending"), tone: "" };
+  const reading = btcChangeReading(data.market);
+  if (!reading) return { text: t(language, "btcChangeUnknown"), tone: "" };
+  const key = { rolling24h: "btcChangeRolling", "utc-open": "btcChangeUtcOpen", "previous-close": "btcChangePreviousClose", historical: "btcChangeHistorical" }[reading.basis];
+  return { text: `${t(language, key)} ${reading.value >= 0 ? "↑" : "↓"}${Math.abs(reading.value).toFixed(2)}%`, tone: reading.value >= 0 ? "positive" : "negative" };
 }
 
 export function statusLabel(language, status) {
