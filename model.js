@@ -1,4 +1,4 @@
-import { assessCards, assessMarket } from "./data-quality.js?v=20260909-1";
+import { assessCards, assessMarket } from "./data-quality.js?v=20260910-1";
 
 export const STATUS = {
   green: { icon: "✓", emoji: "✅", label: "触发", score: 1 },
@@ -134,7 +134,7 @@ export function buildCurrentChanges(data, language = "zh") {
   const current = Number(data.market?.btcPrice);
   if (!data.marketQuality?.btc.eligible) {
     lines.push(en ? "BTC awaits an update or verification; no current price comparison." : "BTC 待更新或核验，暂停当前价格对比。");
-  } else if (Number.isFinite(previous) && previous > 0 && Number.isFinite(current) && current > 0) {
+  } else if (data.previous?.btcCurrency === "USD" && Number.isFinite(previous) && previous > 0 && Number.isFinite(current) && current > 0) {
     const delta = ((current / previous) - 1) * 100;
     lines.push(`BTC ${formatMoney(previous, 0)} → ${formatMoney(current, 0)} (${delta >= 0 ? "+" : ""}${delta.toFixed(2)}%)`);
   } else if (Number.isFinite(current) && current > 0) {

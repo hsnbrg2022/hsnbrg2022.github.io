@@ -1,9 +1,10 @@
-import { buildCurrentChanges, btcChangeReading } from "./model.js?v=20260909-2";
+import { buildCurrentChanges, btcChangeReading, formatMoney } from "./model.js?v=20260910-1";
 
 export const LANGUAGE_STORAGE_KEY = "crypto-signal-tracker:language-v1";
 
 const MESSAGES = {
   zh: {
+    btcCurrencyUnknown: "币种待核验",
     btcChangeRolling: "24h", btcChangeUtcOpen: "较 UTC 开盘", btcChangePreviousClose: "较前收盘", btcChangeHistorical: "历史样本对比", btcChangeUnknown: "涨幅口径待核验",
     stablecoinUnverified: "七日口径待核验 · 旧值不计入当期", stablecoinAux: "辅助观察 · CoinGecko 24h {change} · 总市值 {total} · 数据时间 {date}。样本与七日主源不同，不参与评分。",
     stablecoinSevenDayFailed: "七日源更新失败 · 保留主读数",
@@ -45,6 +46,7 @@ const MESSAGES = {
     statusGreen: "触发", statusYellow: "观察", statusRed: "风险", statusOff: "未触发"
   },
   en: {
+    btcCurrencyUnknown: "Currency unverified",
     btcChangeRolling: "24h", btcChangeUtcOpen: "vs UTC open", btcChangePreviousClose: "vs previous close", btcChangeHistorical: "vs historical sample", btcChangeUnknown: "Change basis unverified",
     stablecoinUnverified: "Seven-day basis unverified · Historical value excluded", stablecoinAux: "Context only · CoinGecko 24h {change} · Market cap {total} · As of {date}. Different universe from the seven-day source; excluded from scoring.",
     stablecoinSevenDayFailed: "Seven-day update failed · Main reading retained",
@@ -286,6 +288,13 @@ export function t(language, key, variables = {}) {
   let value = MESSAGES[language]?.[key] ?? MESSAGES.zh[key] ?? key;
   for (const [name, replacement] of Object.entries(variables)) value = value.replaceAll(`{${name}}`, replacement);
   return value;
+}
+
+export function btcPricePresentation(market, language = "zh") {
+  const usd = market.btcCurrency === "USD";
+  const text = !Number.isFinite(market.btcPrice) || market.btcPrice <= 0 ? "—"
+    : usd ? formatMoney(market.btcPrice, 0) : new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(market.btcPrice);
+  return { text, currency: usd ? "USD" : market.btcCurrency === "USDT" ? "USDT" : t(language, "btcCurrencyUnknown") };
 }
 
 export function btcChangePresentation(data, language = "zh") {

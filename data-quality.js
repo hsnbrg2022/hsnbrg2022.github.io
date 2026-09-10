@@ -12,7 +12,7 @@ export function assessMarket(market = {}, now = new Date()) {
   ].map(([key, value, asOf, maxAge]) => {
     const observed = timestamp(asOf);
     const age = now.getTime() - observed;
-    const valid = Number.isFinite(value) && (key === "btc" ? value > 0 : value >= 0 && value <= 100);
+    const valid = Number.isFinite(value) && (key === "btc" ? value > 0 && market.btcCurrency === "USD" : value >= 0 && value <= 100);
     const state = !valid || !Number.isFinite(age) || age < 0 ? "unknown" : age > maxAge ? "stale" : "fresh";
     return [key, { state, eligible: state === "fresh", asOf: Number.isFinite(observed) ? asOf : null }];
   }));
