@@ -3,11 +3,12 @@
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
-import { readdir, readFile, mkdir, writeFile, rename } from "node:fs/promises";
+import { readFile, mkdir, writeFile, rename } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { gitBlobSha, planPublication, PROTECTED_DATA_FILES } from "./publish-merge.mjs";
+import { collectPublicationFiles } from "./publish-files.mjs";
 
 const OWNER = "hsnbrg2022";
 const REPO = "hsnbrg2022.github.io";
@@ -19,10 +20,6 @@ const API_ROOT = `https://api.github.com/repos/${OWNER}/${REPO}`;
 const STATE_DIR = path.resolve(ROOT, "../crypto-dashboard");
 const STATE_FILE = path.join(STATE_DIR, ".publish-state.json");
 const TARGET = `${OWNER}/${REPO}/${BRANCH}`;
-
-const EXCLUDED_DIRECTORIES = new Set([".git", "node_modules"]);
-const EXCLUDED_FILES = new Set([".DS_Store", ".env"]);
-const EXCLUDED_SUFFIXES = [".pem", ".key", ".p12", ".pfx"];
 
 function parseArguments(argv) {
   const options = { dryRun: false, help: false, message: "" };
@@ -50,41 +47,18 @@ function printHelp() {
   console.log(`用法：node scripts/publish-github.mjs [选项]
 
 选项：
-  --dry-run        仅列出候选文件，不连接 GitHub、读取凭据或改动文件
+  --dry-run        校验并列出明确清单，不连接 GitHub、读取凭据或改动文件
   -m, --message    自定义提交说明
   -h, --help       显示帮助
 
 凭据优先读取 GITHUB_TOKEN；未设置时读取 macOS 钥匙串服务：
   ${KEYCHAIN_SERVICE}
 
+仅上传 scripts/publish-files.mjs 明确列出的文件；新增公开资源须先更新该清单。
+清单外文件不读取、不上传；清单内文件缺失或含符号链接时停止。
 正式发布会对照上次同步基线；自动数据冲突或日期回退时停止。
 基线与回收前备份保存在网站目录之外：${STATE_DIR}
 发布前请暂停本地维护服务；发布与手工保存暂不支持跨进程并发。`);
-}
-
-function isSensitiveOrTemporaryFile(name) {
-  if (EXCLUDED_FILES.has(name) || name.startsWith(".env.")) return true;
-  return EXCLUDED_SUFFIXES.some((suffix) => name.toLowerCase().endsWith(suffix));
-}
-
-async function collectFiles(directory = ROOT, prefix = "") {
-  const entries = await readdir(directory, { withFileTypes: true });
-  const files = [];
-
-  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
-    const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
-    const absolutePath = path.join(directory, entry.name);
-
-    if (entry.isDirectory()) {
-      if (!EXCLUDED_DIRECTORIES.has(entry.name)) {
-        files.push(...(await collectFiles(absolutePath, relativePath)));
-      }
-    } else if (entry.isFile() && !isSensitiveOrTemporaryFile(entry.name)) {
-      files.push({ relativePath, absolutePath });
-    }
-  }
-
-  return files;
 }
 
 function readToken() {
@@ -302,7 +276,7 @@ async function main() {
     return;
   }
 
-  const files = await collectFiles();
+  const files = await collectPublicationFiles(ROOT);
   if (options.dryRun) {
     console.log(`发现 ${files.length} 个候选文件；正式发布时会与 GitHub 及本地基线对照：`);
     files.forEach(({ relativePath }) => console.log(relativePath));
