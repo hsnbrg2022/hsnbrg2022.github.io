@@ -84,10 +84,17 @@ async function firstProvider(providers, validate) {
   throw new Error(errors.join("；") || "全部数据源不可用");
 }
 
+// Keep local and browser BTC fallback order identical, regardless of response speed.
+export function selectBtcQuote(providers) {
+  const ordered = ["DefiLlama", "CoinGecko", "Coinbase", "Kraken", "Yahoo Finance"]
+    .map(name => providers.find(provider => provider.name === name)).filter(Boolean);
+  return firstProvider(ordered, value => value.currency === "USD" && Number.isFinite(value.price) && value.price > 0 && Number.isFinite(value.change));
+}
+
 async function updateBtc(data, fetchImpl) {
   const asset = "coingecko:bitcoin";
   const previousTimestamp = Math.floor(Date.now() / 1000) - 86_400;
-  const quote = await firstProvider([
+  const quote = await selectBtcQuote([
     {
       name: "DefiLlama",
       url: "https://defillama.com/",
@@ -137,7 +144,7 @@ async function updateBtc(data, fetchImpl) {
         return { price, currency: "USD", change: ((price / open) - 1) * 100, changeBasis: "utc-open" };
       }
     }
-  ], (value) => value.currency === "USD" && Number.isFinite(value.price) && value.price > 0 && Number.isFinite(value.change));
+  ]);
 
   data.market.btcPrice = quote.price;
   data.market.btcCurrency = quote.currency;
