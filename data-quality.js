@@ -3,14 +3,21 @@ import { mnavBasisQuality } from "./mnav-source.js?v=20260906-4";
 import { ONCHAIN, onchainAgeDays } from "./onchain-source.js?v=20260906-5";
 import { stablecoinQuality } from "./stablecoin-source.js?v=20260909-1";
 const DAY = 86400000;
+export const BTC_MAX_AGE_MS = 15 * 60_000;
+
+export function btcObservationTimestamp(raw) {
+  if (typeof raw !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/.test(raw)) return NaN;
+  const ms = Date.parse(raw);
+  return Number.isFinite(ms) && new Date(ms).toISOString().slice(0, 19) === raw.slice(0, 19) ? ms : NaN;
+}
 
 // Header readings are independent of the nine signal-card scoring rules.
 export function assessMarket(market = {}, now = new Date()) {
   return Object.fromEntries([
-    ["btc", market.btcPrice, market.btcFetchedAt, 15 * 60_000],
+    ["btc", market.btcPrice, market.btcObservedAt, BTC_MAX_AGE_MS],
     ["fng", market.fng, market.fngFetchedAt, 36 * 3_600_000]
   ].map(([key, value, asOf, maxAge]) => {
-    const observed = timestamp(asOf);
+    const observed = key === "btc" ? btcObservationTimestamp(asOf) : timestamp(asOf);
     const age = now.getTime() - observed;
     const valid = Number.isFinite(value) && (key === "btc" ? value > 0 && market.btcCurrency === "USD" : value >= 0 && value <= 100);
     const state = !valid || !Number.isFinite(age) || age < 0 ? "unknown" : age > maxAge ? "stale" : "fresh";
