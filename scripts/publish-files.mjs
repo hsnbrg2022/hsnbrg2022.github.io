@@ -15,7 +15,7 @@ export const PUBLICATION_FILES = Object.freeze([
   "macro-quote.js", "mnav-source.js", "model.js", "mvrv.json", "og.png", "onchain-source.js",
   "package.json", "public-refresh.js", "publish-github.command", "puell.json", "README.md",
   "scripts/manual-etf-flow.mjs", "scripts/publish-files.mjs", "scripts/publish-github.mjs",
-  "scripts/publish-merge.mjs", "scripts/update-etf-flows.mjs", "scripts/update-fed-signals.mjs",
+  "scripts/publish-merge.mjs", "scripts/push-snapshot.mjs", "scripts/update-etf-flows.mjs", "scripts/update-fed-signals.mjs",
   "scripts/update-onchain.mjs", "scripts/update-strategy-mnav.mjs", "scripts/update-true-market-mean.mjs",
   "scripts/update-weekly-mean.mjs", "scripts/write-lock.mjs", "stablecoin-source.js", "strategy-mnav.json", "styles.css",
   "trading-calendar.js", "true-market-mean.js", "true-market-mean.json", "weekly-mean.js", "weekly-mean.json"
