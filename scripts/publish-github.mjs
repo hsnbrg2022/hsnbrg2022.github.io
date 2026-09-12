@@ -9,6 +9,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { gitBlobSha, planPublication, PROTECTED_DATA_FILES } from "./publish-merge.mjs";
 import { collectPublicationFiles } from "./publish-files.mjs";
+import { withWriteLock } from "./write-lock.mjs";
 
 const OWNER = "hsnbrg2022";
 const REPO = "hsnbrg2022.github.io";
@@ -19,6 +20,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const API_ROOT = `https://api.github.com/repos/${OWNER}/${REPO}`;
 const STATE_DIR = path.resolve(ROOT, "../crypto-dashboard");
 const STATE_FILE = path.join(STATE_DIR, ".publish-state.json");
+const LOCK_FILE = path.join(STATE_DIR, ".dashboard-write.lock");
 const TARGET = `${OWNER}/${REPO}/${BRANCH}`;
 
 function parseArguments(argv) {
@@ -58,7 +60,8 @@ function printHelp() {
 清单外文件不读取、不上传；清单内文件缺失或含符号链接时停止。
 正式发布会对照上次同步基线；自动数据冲突或日期回退时停止。
 基线与回收前备份保存在网站目录之外：${STATE_DIR}
-发布前请暂停本地维护服务；发布与手工保存暂不支持跨进程并发。`);
+发布与本地保存共用写入锁；冲突时不写入，请稍后重试。
+异常退出遗留锁时需先核查归属与数据，不自动抢占或按超时删除。`);
 }
 
 function readToken() {
@@ -190,7 +193,7 @@ async function finishSynchronization(plannedFiles, remoteBlobShas, commitSha) {
 }
 
 async function publish(files, token, message) {
-  console.warn("发布期间请勿运行本地手工维护；回收文件与维护保存暂不支持跨进程并发。");
+  console.warn("已获取共享写入锁；发布期间本地保存将提示忙碌，只读预览仍可使用。");
   const baseline = await readBaseline();
   const reference = await githubRequest(token, `/git/ref/heads/${BRANCH}`);
   const parentSha = reference.object.sha;
@@ -284,9 +287,11 @@ async function main() {
   }
 
   if (files.length === 0) throw new Error("没有找到可同步的公开文件。");
-  const token = readToken();
-  if (!token) throw new Error("GitHub 凭据为空，请重新保存到钥匙串。");
-  await publish(files, token, options.message.trim() || defaultCommitMessage());
+  await withWriteLock(LOCK_FILE, async () => {
+    const token = readToken();
+    if (!token) throw new Error("GitHub 凭据为空，请重新保存到钥匙串。");
+    await publish(files, token, options.message.trim() || defaultCommitMessage());
+  });
 }
 
 if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {

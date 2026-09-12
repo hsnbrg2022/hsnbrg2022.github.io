@@ -2,7 +2,7 @@ import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboa
 import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260911-2";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation } from "./i18n.js?v=20260911-2";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation } from "./i18n.js?v=20260912-1";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -369,7 +369,7 @@ async function api(url, options = {}) {
     headers: { "content-type": "application/json", ...(options.headers || {}) }
   });
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error || "请求失败");
+  if (!response.ok) throw new Error(payload.code === "DASHBOARD_WRITE_BUSY" ? t(language, "writeBusy") : payload.error || "请求失败");
   return payload;
 }
 
