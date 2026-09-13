@@ -7,7 +7,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const SITE_DIR = resolve(SCRIPT_DIR, "..");
 const ETF_FILE = resolve(SITE_DIR, "etf-flows.json");
-const DASHBOARD_FILE = resolve(SITE_DIR, "dashboard.json");
 const COINGLASS_ENDPOINT = "https://open-api-v4.coinglass.com/api/etf/bitcoin/flow-history";
 const FARSIDE_URL = "https://farside.co.uk/btc/";
 
@@ -139,14 +138,12 @@ export async function loadProviderDataset({ env = process.env, fetchImpl = globa
 
 async function main() {
   const dataset = await loadProviderDataset();
-  const dashboard = JSON.parse(await readFile(DASHBOARD_FILE, "utf8"));
   const current = JSON.parse(await readFile(ETF_FILE, "utf8"));
   if (validDate(current.marketDate) && dataset.marketDate < current.marketDate) {
     throw new Error(`新数据 ${dataset.marketDate} 早于现有数据 ${current.marketDate}，已拒绝回退`);
   }
-  applyEtfDataset(dashboard, dataset);
+  etfSignal(dataset);
   await writeFile(ETF_FILE, `${JSON.stringify(dataset, null, 2)}\n`);
-  await writeFile(DASHBOARD_FILE, `${JSON.stringify(dashboard, null, 2)}\n`);
   console.log(`ETF 数据已更新至 ${dataset.marketDate}，来源 ${dataset.source.label}。`);
 }
 

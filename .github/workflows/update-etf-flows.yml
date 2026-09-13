@@ -34,12 +34,12 @@ jobs:
         run: node scripts/update-etf-flows.mjs
       - name: Commit updated public data
         run: |
-          if git diff --quiet -- etf-flows.json dashboard.json; then
+          if git diff --quiet -- etf-flows.json; then
             echo "No ETF update available."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add etf-flows.json dashboard.json
+          git add etf-flows.json
           git commit -m "data: update BTC ETF flows"
           node scripts/push-snapshot.mjs

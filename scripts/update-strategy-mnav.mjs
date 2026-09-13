@@ -4,11 +4,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { applyStrategyMnavDataset, STRATEGY_MNAV_FORMULA, STRATEGY_MNAV_METHODOLOGY_EFFECTIVE_DATE } from "../mnav-source.js";
+import { validateStrategyMnavDataset, STRATEGY_MNAV_FORMULA, STRATEGY_MNAV_METHODOLOGY_EFFECTIVE_DATE } from "../mnav-source.js";
 
 const SITE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT_FILE = path.join(SITE_DIR, "strategy-mnav.json");
-const DASHBOARD_FILE = path.join(SITE_DIR, "dashboard.json");
 const OFFICIAL_URL = "https://www.strategy.com/btc";
 
 function unescapeHtml(value) {
@@ -148,10 +147,7 @@ function sameObservation(left, right) {
 }
 
 export async function updateStrategyMnav({ fetchImpl = globalThis.fetch, now = new Date() } = {}) {
-  const [previous, dashboard] = await Promise.all([
-    readFile(OUTPUT_FILE, "utf8").then(JSON.parse),
-    readFile(DASHBOARD_FILE, "utf8").then(JSON.parse)
-  ]);
+  const previous = JSON.parse(await readFile(OUTPUT_FILE, "utf8"));
   let officialHtml = "";
   try { officialHtml = await fetchText(OFFICIAL_URL, { fetchImpl }); } catch {}
 
@@ -174,14 +170,9 @@ export async function updateStrategyMnav({ fetchImpl = globalThis.fetch, now = n
   }
   const observationChanged = !sameObservation(previous, candidate);
   const effectiveDataset = observationChanged ? candidate : previous;
-  const dashboardBefore = JSON.stringify(dashboard);
-  applyStrategyMnavDataset(dashboard, effectiveDataset, { now });
-  const dashboardChanged = JSON.stringify(dashboard) !== dashboardBefore;
-  if (!observationChanged && !dashboardChanged) return { dataset: previous, changed: false };
-  const writes = [];
-  if (observationChanged) writes.push(writeFile(OUTPUT_FILE, `${JSON.stringify(candidate, null, 2)}\n`));
-  if (dashboardChanged) writes.push(writeFile(DASHBOARD_FILE, `${JSON.stringify(dashboard, null, 2)}\n`));
-  await Promise.all(writes);
+  validateStrategyMnavDataset(effectiveDataset, { now });
+  if (!observationChanged) return { dataset: previous, changed: false };
+  await writeFile(OUTPUT_FILE, `${JSON.stringify(candidate, null, 2)}\n`);
   return { dataset: effectiveDataset, changed: true };
 }
 

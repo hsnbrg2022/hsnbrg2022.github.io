@@ -4,11 +4,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { applyFedDatasetToDashboard, validateFedDataset } from "../fed-signals.js";
+import { validateFedDataset } from "../fed-signals.js";
 
 const SITE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FED_FILE = path.join(SITE_DIR, "fed-signals.json");
-const DASHBOARD_FILE = path.join(SITE_DIR, "dashboard.json");
 const PRESS_FEED_URL = "https://www.federalreserve.gov/feeds/press_monetary.xml";
 const SPEECH_FEED_URL = "https://www.federalreserve.gov/feeds/speeches_and_testimony.xml";
 const CALENDAR_URL = "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm";
@@ -239,16 +238,11 @@ export async function updateFedSignals({ now = new Date() } = {}) {
     candidate.generatedAt = previous.generatedAt;
   }
 
-  const dashboard = JSON.parse(await readFile(DASHBOARD_FILE, "utf8"));
-  applyFedDatasetToDashboard(dashboard, candidate, { now });
   const fedJson = `${JSON.stringify(candidate, null, 2)}\n`;
-  const dashboardJson = `${JSON.stringify(dashboard, null, 2)}\n`;
   const previousFedJson = previous ? `${JSON.stringify(previous, null, 2)}\n` : "";
-  const previousDashboardJson = await readFile(DASHBOARD_FILE, "utf8");
 
   if (fedJson !== previousFedJson) await writeFile(FED_FILE, fedJson);
-  if (dashboardJson !== previousDashboardJson) await writeFile(DASHBOARD_FILE, dashboardJson);
-  return { dataset: candidate, changed: fedJson !== previousFedJson || dashboardJson !== previousDashboardJson };
+  return { dataset: candidate, changed: fedJson !== previousFedJson };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
