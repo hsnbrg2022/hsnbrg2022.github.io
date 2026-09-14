@@ -1,4 +1,5 @@
 import { assessCards, assessMarket } from "./data-quality.js?v=20260911-2";
+import { trueMarketMeanDay } from "./true-market-mean.js?v=20260913-1";
 
 export const STATUS = {
   green: { icon: "✓", emoji: "✅", label: "触发", score: 1 },
@@ -79,15 +80,17 @@ export function analyzeTrueMarketMean(btcPrice, metric, now = new Date()) {
   const price = Number(btcPrice);
   const value = Number(metric?.value);
   const asOf = metric?.asOf;
-  if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(value) || value <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(asOf || "")) return null;
+  if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(value) || value <= 0) return null;
   const deviationPct = ((price / value) - 1) * 100;
   const relation = Math.abs(deviationPct) <= 2 ? "testing" : deviationPct > 0 ? "support" : "resistance";
-  const sourceDate = new Date(`${asOf}T00:00:00+08:00`);
-  const dateParts = new Intl.DateTimeFormat("en-CA", {
-    year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Asia/Shanghai"
-  }).formatToParts(now).reduce((parts, part) => ({ ...parts, [part.type]: part.value }), {});
-  const currentDate = new Date(`${dateParts.year}-${dateParts.month}-${dateParts.day}T00:00:00+08:00`);
-  const ageDays = Math.max(0, Math.floor((currentDate - sourceDate) / 86_400_000));
+  let ageDays;
+  try {
+    const day = trueMarketMeanDay(Date.parse(`${asOf}T00:00:00Z`) / 1000, now);
+    if (day.asOf !== asOf || day.ageDays === 0) throw new Error("Incomplete or invalid date");
+    ageDays = day.ageDays;
+  } catch {
+    return { value, deviationPct, relation: "pending", ageDays: null, freshness: "unknown" };
+  }
   const freshness = ageDays <= 3 ? "fresh" : ageDays <= 7 ? "aging" : "stale";
   return { value, deviationPct, relation, ageDays, freshness };
 }

@@ -4,6 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { trueMarketMeanDay } from "../true-market-mean.js";
 
 const SITE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT_FILE = path.join(SITE_DIR, "true-market-mean.json");
@@ -82,17 +83,26 @@ export async function fetchGlassnodeMetricRows(endpoint, { fetchImpl = globalThi
   return parseMetricRows(result.payload);
 }
 
-function utcDay(date) {
-  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+function completedRows(rows, now) {
+  const days = new Map();
+  for (const row of rows) {
+    const day = trueMarketMeanDay(row.timestamp, now);
+    if (day.ageDays === 0) continue;
+    const value = Number(row.value);
+    if (!((typeof row.value === "number" || typeof row.value === "string" && row.value.trim() !== "") && Number.isFinite(value))) throw new Error("True Market Mean 日值无效");
+    if (days.has(day.timestamp) && days.get(day.timestamp) !== value) throw new Error("True Market Mean 同日重复读数冲突");
+    days.set(day.timestamp, value);
+  }
+  return days;
 }
 
 export function calculateTrueMarketMean({ avivRows, priceRows, now = new Date(), publishedMetric, previous = null }) {
-  const prices = new Map(priceRows.map((row) => [Number(row.timestamp), Number(row.value)]));
-  const aligned = avivRows.map((row) => ({
-    timestamp: Number(row.timestamp), aviv: Number(row.value), priceUsdClose: prices.get(Number(row.timestamp))
-  })).filter((row) => Number.isFinite(row.timestamp) && Number.isFinite(row.aviv) && Number.isFinite(row.priceUsdClose))
+  const prices = completedRows(priceRows, now);
+  const aligned = [...completedRows(avivRows, now)].map(([timestamp, aviv]) => ({
+    timestamp, aviv, priceUsdClose: prices.get(timestamp)
+  })).filter((row) => Number.isFinite(row.priceUsdClose))
     .sort((left, right) => left.timestamp - right.timestamp);
-  if (!aligned.length) throw new Error("AVIV 与 BTC 收盘价没有相同 UTC 日期");
+  if (!aligned.length) throw new Error("AVIV 与 BTC 收盘价没有相同 UTC 日期的完整日数据");
 
   const latest = aligned.at(-1);
   if (latest.aviv < 0.2 || latest.aviv > 5) throw new Error("AVIV 超出合理范围");
@@ -101,7 +111,7 @@ export function calculateTrueMarketMean({ avivRows, priceRows, now = new Date(),
   if (value < 1_000 || value > 500_000) throw new Error("True Market Mean 超出合理范围");
 
   const dataDate = new Date(latest.timestamp * 1000);
-  const ageDays = Math.max(0, Math.floor((utcDay(now) - utcDay(dataDate)) / DAY_MS));
+  const { ageDays } = trueMarketMeanDay(latest.timestamp, now);
   if (ageDays > 3) throw new Error(`Glassnode 最新完整日已滞后 ${ageDays} 天`);
   if (previous?.value && Math.abs((value / Number(previous.value)) - 1) > 0.1) {
     throw new Error("True Market Mean 较上一快照跳变超过 10%");

@@ -1,8 +1,8 @@
-import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260911-2";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260911-2";
+import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260913-1";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260913-1";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation } from "./i18n.js?v=20260912-1";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation } from "./i18n.js?v=20260913-1";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -232,13 +232,13 @@ function trueMarketMeanView(data) {
   const insightKey = analysis.relation === "support"
     ? "trueMarketMeanSupport"
     : analysis.relation === "resistance" ? "trueMarketMeanResistance" : "trueMarketMeanTesting";
-  const freshnessKey = { fresh: "freshnessFresh", aging: "freshnessAging", stale: "freshnessStale" }[analysis.freshness];
-  const asOf = new Intl.DateTimeFormat(language === "en" ? "en-GB" : "zh-CN", {
+  const freshnessKey = { fresh: "freshnessFresh", aging: "freshnessAging", stale: "freshnessStale", unknown: "freshnessUnknown" }[analysis.freshness];
+  const asOf = analysis.freshness === "unknown" ? t(language, "freshnessUnknown") : new Intl.DateTimeFormat(language === "en" ? "en-GB" : "zh-CN", {
     year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Asia/Shanghai"
   }).format(new Date(`${metric.asOf}T00:00:00+08:00`));
   return {
     metric, analysis, asOf,
-    insight: data.marketQuality.btc.eligible ? t(language, insightKey, { distance }) : t(language, "pricePending"),
+    insight: !data.marketQuality.btc.eligible ? t(language, "pricePending") : analysis.freshness === "unknown" ? t(language, "trueMarketMeanDatePending") : t(language, insightKey, { distance }),
     freshnessLabel: t(language, freshnessKey)
   };
 }

@@ -1,9 +1,17 @@
 const DAY_MS = 86_400_000;
 const FORMULA = "glassnode_price_usd_close / glassnode_aviv";
 
-function utcDay(value) {
-  const date = new Date(value);
-  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+export function trueMarketMeanDay(rawTimestamp, now = new Date()) {
+  const timestamp = Number(rawTimestamp);
+  const date = new Date(timestamp * 1000);
+  if (!((typeof rawTimestamp === "number" || typeof rawTimestamp === "string" && rawTimestamp.trim() !== "")
+    && Number.isSafeInteger(timestamp) && timestamp > 0 && timestamp % 86400 === 0
+    && Number.isFinite(date.getTime()) && Number.isFinite(now.getTime()))) {
+    throw new Error("True Market Mean UTC 日时间戳无效");
+  }
+  const today = Math.floor(now.getTime() / DAY_MS) * DAY_MS;
+  if (date.getTime() > today) throw new Error("True Market Mean 日期位于未来");
+  return { timestamp, asOf: date.toISOString().slice(0, 10), ageDays: (today - date.getTime()) / DAY_MS };
 }
 
 export function validateTrueMarketMeanDataset(dataset, { now = new Date() } = {}) {
@@ -14,17 +22,18 @@ export function validateTrueMarketMeanDataset(dataset, { now = new Date() } = {}
   const value = Number(dataset.value);
   const price = Number(dataset.inputs?.priceUsdClose);
   const aviv = Number(dataset.inputs?.aviv);
-  const timestamp = Number(dataset.inputs?.timestamp);
+  const day = trueMarketMeanDay(dataset.inputs?.timestamp, now);
   if (!Number.isFinite(value) || value < 1_000 || value > 500_000) throw new Error("True Market Mean 数值超出合理范围");
   if (!Number.isFinite(price) || price < 1_000 || price > 1_000_000) throw new Error("True Market Mean 的 BTC 收盘价无效");
   if (!Number.isFinite(aviv) || aviv < 0.2 || aviv > 5) throw new Error("True Market Mean 的 AVIV 无效");
-  if (!Number.isFinite(timestamp) || new Date(timestamp * 1000).toISOString().slice(0, 10) !== dataset.asOf) {
+  if (day.asOf !== dataset.asOf) {
     throw new Error("True Market Mean 指标日期未对齐");
   }
+  if (day.ageDays === 0) throw new Error("True Market Mean 当天 UTC 日尚未完成");
 
   const expected = price / aviv;
   if (Math.abs(expected - value) > Math.max(0.02, value * 0.000001)) throw new Error("True Market Mean 公式校验失败");
-  const ageDays = Math.max(0, Math.floor((utcDay(now) - utcDay(`${dataset.asOf}T00:00:00Z`)) / DAY_MS));
+  const ageDays = day.ageDays;
   if (ageDays > 3) throw new Error(`True Market Mean 自动快照已滞后 ${ageDays} 天`);
   return { value, ageDays };
 }
