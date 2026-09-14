@@ -2,7 +2,7 @@ import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboa
 import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260913-1";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation } from "./i18n.js?v=20260913-1";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation } from "./i18n.js?v=20260914-2";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -364,13 +364,22 @@ function render() {
 }
 
 async function api(url, options = {}) {
-  const response = await fetch(url, {
-    ...options,
-    headers: { "content-type": "application/json", ...(options.headers || {}) }
-  });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.code === "DASHBOARD_WRITE_BUSY" ? t(language, "writeBusy") : payload.error || "请求失败");
-  return payload;
+  // Bound reads, including response bodies. Do not infer that a slow write failed.
+  const deadline = (options.method || "GET").toUpperCase() === "GET" ? AbortSignal.timeout(10_000) : null;
+  const signal = deadline && options.signal ? AbortSignal.any([deadline, options.signal]) : deadline || options.signal;
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal,
+      headers: { "content-type": "application/json", ...(options.headers || {}) }
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.code === "DASHBOARD_WRITE_BUSY" ? t(language, "writeBusy") : payload.error || "请求失败");
+    return payload;
+  } catch (error) {
+    if (deadline?.aborted && signal.reason === deadline.reason) throw new Error(t(language, "readTimeout"));
+    throw error;
+  }
 }
 
 function showToast(message, tone = "default", duration = 3800) {
