@@ -746,6 +746,19 @@ async function saveSnapshot() {
 async function init() {
   try {
     dashboard = await api(IS_LOCAL_MAINTENANCE ? "/api/dashboard" : `./dashboard.json?v=${Date.now()}`);
+    publishedPositioningCard = cloneValue(dashboard.cards.find((item) => item.id === 9));
+    publishedDataMode = dashboard.dataMode;
+    if (!IS_LOCAL_MAINTENANCE) {
+      try {
+        const saved = JSON.parse(localStorage.getItem(POSITIONING_STORAGE_KEY));
+        if (saved) applyPositioning(saved.accountRatio, saved.positionRatio, saved.savedAt);
+      } catch {
+        localStorage.removeItem(POSITIONING_STORAGE_KEY);
+      }
+    }
+    // Show the saved dashboard before the optional ETF history request settles.
+    // Keep its original timestamps; only the subsequent refresh reports new checks.
+    render();
     try {
       const etfResult = IS_LOCAL_MAINTENANCE
         ? await api("/api/etf-flows")
@@ -753,16 +766,8 @@ async function init() {
       publishedEtfDataset = cloneValue(etfResult.dataset);
       currentEtfDataset = cloneValue(publishedEtfDataset);
     } catch { /* A failed ETF request must not hide the rest of the dashboard. */ }
-    publishedPositioningCard = cloneValue(dashboard.cards.find((item) => item.id === 9));
-    publishedDataMode = dashboard.dataMode;
     if (!IS_LOCAL_MAINTENANCE) {
       composeBrowserEtf();
-      try {
-        const saved = JSON.parse(localStorage.getItem(POSITIONING_STORAGE_KEY));
-        if (saved) applyPositioning(saved.accountRatio, saved.positionRatio, saved.savedAt);
-      } catch {
-        localStorage.removeItem(POSITIONING_STORAGE_KEY);
-      }
     }
     render();
     await refreshData({ automatic: true });
