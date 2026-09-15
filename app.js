@@ -1,8 +1,8 @@
 import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260913-1";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260913-1";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260915-1";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation } from "./i18n.js?v=20260914-2";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation } from "./i18n.js?v=20260915-1";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -12,6 +12,7 @@ const SECTION_META = {
 };
 
 let dashboard;
+let refreshState = null;
 let language = getInitialLanguage();
 let publishedEtfDataset;
 let currentEtfDataset;
@@ -120,7 +121,7 @@ function applyStaticTranslations() {
   $(".risk-panel h3").textContent = t(language, "risks");
   $(".macro-panel h3").textContent = t(language, "watch");
   $("footer p").textContent = t(language, IS_LOCAL_MAINTENANCE ? "footerLocal" : "footer");
-  $("#refreshButton").innerHTML = `<span class="refresh-icon">↻</span> ${t(language, "refresh")}`;
+  renderRefreshProgress();
   $("#refreshButton").title = t(language, "refreshTitle");
   $("#positioningDialog h2").textContent = t(language, "positioningTitle");
   $("#positioningNote").textContent = t(language, IS_LOCAL_MAINTENANCE ? "positioningLocalNote" : "positioningNote");
@@ -390,7 +391,22 @@ function showToast(message, tone = "default", duration = 3800) {
   showToast.timer = setTimeout(() => toast.className = "toast", duration);
 }
 
+function renderRefreshProgress() {
+  const progress = $("#refreshProgress");
+  progress.hidden = !refreshState;
+  $("#refreshButton").innerHTML = `<span class="refresh-icon">↻</span> ${t(language, refreshState ? "refreshing" : "refresh")}`;
+  if (!refreshState) { progress.textContent = ""; return; }
+  const count = refreshState.total == null ? t(language, "refreshWaiting")
+    : t(language, "refreshProgress", refreshState);
+  const latest = refreshState.name ? t(language, "refreshLastCheck", {
+    name: translateText(refreshState.name, language),
+    status: t(language, refreshState.status === "ok" ? "refreshCheckOk" : "refreshCheckFailed")
+  }) : "";
+  progress.textContent = `${count}${latest} ${t(language, "refreshAtomic")}`;
+}
+
 async function refreshData({ automatic = false } = {}) {
+  if (refreshState) return;
   const button = $("#refreshButton");
   if (!dashboard) {
     showToast(t(language, "loadingDashboard"), "warning");
@@ -398,12 +414,17 @@ async function refreshData({ automatic = false } = {}) {
   }
   button.disabled = true;
   button.classList.add("loading");
+  refreshState = { completed: 0, total: null };
+  renderRefreshProgress();
   if (automatic) $("#updatedAt").textContent = t(language, "syncing");
   const started = cloneValue(dashboard);
   try {
     const result = IS_LOCAL_MAINTENANCE
       ? await api("/api/refresh", { method: "POST" })
-      : await refreshPublicDashboard(dashboard);
+      : await refreshPublicDashboard(dashboard, { onProgress: progress => {
+        refreshState = progress;
+        renderRefreshProgress();
+      } });
     if (result.etfDataset) publishedEtfDataset = cloneValue(result.etfDataset);
     if (!IS_LOCAL_MAINTENANCE && localStorage.getItem(POSITIONING_STORAGE_KEY)) {
       result.data.dataMode = result.warnings.length ? "本地维护 + 混合数据" : "本地维护 + 实时数据";
@@ -436,6 +457,8 @@ async function refreshData({ automatic = false } = {}) {
   } finally {
     button.disabled = false;
     button.classList.remove("loading");
+    refreshState = null;
+    renderRefreshProgress();
   }
 }
 

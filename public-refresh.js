@@ -249,7 +249,7 @@ async function updateMacroQuote(data, fetchImpl, { id, prefix = "" }) {
 
 const updateWma = (data, fetchImpl) => updateWeeklyMean(data, fetchImpl, new Date(), { snapshotFirst: true });
 
-export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fetch } = {}) {
+export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fetch, onProgress } = {}) {
   const data = cloneDashboard(input);
   let etfDataset;
   const tasks = [
@@ -266,7 +266,25 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
     ["黄金", () => updateMacroQuote(data, fetchImpl, { id: 6, prefix: "$" })],
     ["200WMA", () => updateWma(data, fetchImpl)]
   ];
-  const results = await Promise.allSettled(tasks.map(([, run]) => run()));
+  let completed = 0;
+  // Progress is observational only: no partial dashboard or source timestamps.
+  const reportProgress = (name = "", status = "pending") => {
+    try { onProgress?.({ completed, total: tasks.length, name, status }); }
+    catch { /* A view failure must not turn a successful source into a failure. */ }
+  };
+  reportProgress();
+  const results = await Promise.allSettled(tasks.map(async ([name, run]) => {
+    try {
+      const value = await run();
+      completed++;
+      reportProgress(name, "ok");
+      return value;
+    } catch (error) {
+      completed++;
+      reportProgress(name, "failed");
+      throw error;
+    }
+  }));
   const updated = [];
   const warnings = [];
   const checkedAt = new Date().toISOString();

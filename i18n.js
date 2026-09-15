@@ -4,6 +4,10 @@ export const LANGUAGE_STORAGE_KEY = "crypto-signal-tracker:language-v1";
 
 const MESSAGES = {
   zh: {
+    refreshing: "正在刷新…", refreshProgress: "已完成检查 {completed}/{total} 项。",
+    refreshWaiting: "正在等待本地刷新结果。", refreshLastCheck: " 最近：{name} · {status}。",
+    refreshCheckOk: "检查成功", refreshCheckFailed: "失败，保留旧值",
+    refreshAtomic: "当前显示保留，全部检查结束后统一更新；检查成功不代表数据仍在时效内。",
     readTimeout: "读取超过 10 秒，请稍后重试",
     freshnessUnknown: "日期待核验", trueMarketMeanDatePending: "TMM 尚无可核验的完整 UTC 日，保留旧值，暂停当前参考位判断。",
     writeBusy: "正在发布或保存，本次未写入数据，请稍后重试。",
@@ -50,6 +54,10 @@ const MESSAGES = {
     statusGreen: "触发", statusYellow: "观察", statusRed: "风险", statusOff: "未触发"
   },
   en: {
+    refreshing: "Refreshing…", refreshProgress: "Checks completed: {completed}/{total}.",
+    refreshWaiting: "Waiting for local refresh results.", refreshLastCheck: " Latest: {name} · {status}.",
+    refreshCheckOk: "Check succeeded", refreshCheckFailed: "Failed; previous value retained",
+    refreshAtomic: "Current values stay visible until all checks finish. A successful check does not guarantee freshness.",
     readTimeout: "Read timed out after 10 seconds. Please try again.",
     freshnessUnknown: "Date unverified", trueMarketMeanDatePending: "TMM has no verified completed UTC day. The previous value is retained; reference-level analysis is paused.",
     writeBusy: "Another save or publication is in progress. Nothing was written; please retry shortly.",
