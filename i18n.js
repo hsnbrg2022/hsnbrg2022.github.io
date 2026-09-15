@@ -4,6 +4,10 @@ export const LANGUAGE_STORAGE_KEY = "crypto-signal-tracker:language-v1";
 
 const MESSAGES = {
   zh: {
+    dailyBaselineReady: "本浏览器昨日基线：{time}（UTC+8）。仅比较保存时有效的历史读数与当前有效读数；非滚动 24h 涨幅。",
+    dailyBaselineMissing: "暂无昨日对比：本浏览器未保存昨日刷新快照；不使用更早数据替代。",
+    dailyHistoryUnavailable: "本浏览器历史不可读取或格式异常，暂停昨日比较；原记录未覆盖。",
+    dailyHistorySaveFailed: "今日基线未能保存；当前数据仍可查看。请检查浏览器存储权限或空间。",
     refreshing: "正在刷新…", refreshProgress: "已完成检查 {completed}/{total} 项。",
     refreshWaiting: "正在等待本地刷新结果。", refreshLastCheck: " 最近：{name} · {status}。",
     refreshCheckOk: "检查成功", refreshCheckFailed: "失败，保留旧值",
@@ -54,6 +58,10 @@ const MESSAGES = {
     statusGreen: "触发", statusYellow: "观察", statusRed: "风险", statusOff: "未触发"
   },
   en: {
+    dailyBaselineReady: "Yesterday's browser-local baseline: {time} (UTC+8). Only readings valid at capture and valid current readings are compared; this is not a rolling 24h change.",
+    dailyBaselineMissing: "No comparison for yesterday: this browser has no saved refresh snapshot from yesterday. Older data is not substituted.",
+    dailyHistoryUnavailable: "Browser history is unreadable or invalid. Yesterday's comparison is paused; original records were not overwritten.",
+    dailyHistorySaveFailed: "Today's baseline could not be saved; current data remains available. Check browser storage access or space.",
     refreshing: "Refreshing…", refreshProgress: "Checks completed: {completed}/{total}.",
     refreshWaiting: "Waiting for local refresh results.", refreshLastCheck: " Latest: {name} · {status}.",
     refreshCheckOk: "Check succeeded", refreshCheckFailed: "Failed; previous value retained",

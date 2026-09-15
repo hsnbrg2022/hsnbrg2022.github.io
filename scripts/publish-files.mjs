@@ -10,7 +10,7 @@ export const PUBLICATION_FILES = Object.freeze([
   ".github/workflows/update-true-market-mean.yml",
   ".github/workflows/update-weekly-mean.yml",
   ".nojekyll",
-  "app.js", "dashboard.json", "data-quality.js", "etf-core.js", "etf-flows.json",
+  "app.js", "daily-baseline.js", "dashboard.json", "data-quality.js", "etf-core.js", "etf-flows.json",
   "etf-overrides.js", "fed-signals.js", "fed-signals.json", "i18n.js", "index.html",
   "macro-quote.js", "mnav-source.js", "model.js", "mvrv.json", "og.png", "onchain-source.js",
   "package.json", "public-refresh.js", "publish-github.command", "puell.json", "README.md",

@@ -1,8 +1,9 @@
 import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260913-1";
+import { DAILY_BASELINE_KEY, dailyBaselineView, saveDailyBaseline } from "./daily-baseline.js?v=20260915-2";
 import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260915-1";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation } from "./i18n.js?v=20260915-1";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation } from "./i18n.js?v=20260915-2";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -13,6 +14,11 @@ const SECTION_META = {
 
 let dashboard;
 let refreshState = null;
+let dailyHistorySaveFailed = false;
+const dailyHistoryStorage = {
+  getItem: key => localStorage.getItem(key),
+  setItem: (key, value) => localStorage.setItem(key, value)
+};
 let language = getInitialLanguage();
 let publishedEtfDataset;
 let currentEtfDataset;
@@ -305,10 +311,22 @@ function renderTracker(data) {
     <div><i class="legend-${key}"></i><strong>${data.counts[key]}</strong><span>${statusLabel(language, key)}</span></div>`).join("");
 }
 
+function dailyChangeLines(data) {
+  const previous = data.previous;
+  const note = previous.baselineStatus === "available"
+    ? t(language, "dailyBaselineReady", { time: new Intl.DateTimeFormat(language === "en" ? "en-GB" : "zh-CN", {
+      timeZone: "Asia/Shanghai", dateStyle: "short", timeStyle: "medium", hour12: false
+    }).format(new Date(previous.capturedAt)) })
+    : t(language, previous.baselineStatus === "unavailable" ? "dailyHistoryUnavailable" : "dailyBaselineMissing");
+  return [note, ...(dailyHistorySaveFailed ? [t(language, "dailyHistorySaveFailed")] : []), ...(previous.changes || [])];
+}
+
 function renderBriefing(data) {
   $("#summaryText").textContent = data.summary;
-  $("#changeTitle").textContent = `${t(language, "changes")} (${data.previous?.date || (language === "en" ? "Previous" : "上期")} → ${data.date})`;
-  $("#changeList").innerHTML = (data.previous?.changes || ["暂无上期快照，保存今日快照后即可开始对比。"])
+  $("#changeTitle").textContent = data.previous.date
+    ? `${t(language, "changes")} (${data.previous.date} → ${data.previous.today})`
+    : t(language, "changes");
+  $("#changeList").innerHTML = dailyChangeLines(data)
     .map((item) => `<li>${escapeHtml(item)}</li>`).join("");
   $("#riskList").innerHTML = (data.risks.length ? data.risks : ["当前规则未识别到突出风险，仍需保持仓位纪律。"])
     .map((item) => `<li>${escapeHtml(item)}</li>`).join("");
@@ -328,7 +346,7 @@ function renderMarketSource(selector, source, quality) {
 function render() {
   activeIndicatorTooltip = null;
   applyStaticTranslations();
-  const data = localizeDashboard(deriveDashboard(dashboard), language);
+  const data = localizeDashboard(deriveDashboard(dailyBaselineView(dashboard, dailyHistoryStorage)), language);
   $("#dashboardDate").textContent = formatDate(data.date);
   const updateTime = new Intl.DateTimeFormat(language === "en" ? "en-GB" : "zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Shanghai" }).format(new Date(data.updatedAt));
   $("#updatedAt").textContent = t(language, "lastUpdated", { time: updateTime });
@@ -436,6 +454,14 @@ async function refreshData({ automatic = false } = {}) {
       catch { /* Keep the last successfully loaded editor history. */ }
     }
     if ($("#etfDialog").open) renderEtfHistory(currentEtfDataset);
+    if (result.updated.length) {
+      try {
+        const save = () => saveDailyBaseline(dailyHistoryStorage, dashboard);
+        if (navigator.locks?.request) await navigator.locks.request(DAILY_BASELINE_KEY, save);
+        else save();
+        dailyHistorySaveFailed = false;
+      } catch { dailyHistorySaveFailed = true; }
+    }
     render();
     const retainedNote = result.retained?.length
       ? (language === "en" ? ` Changes saved during refresh were retained: ${result.retained.map((name) => translateText(name, language)).join(", ")}.` : `；已保留刷新期间保存的值：${result.retained.join("、")}`)
@@ -742,7 +768,7 @@ function resetPositioningMaintenance() {
 }
 
 function buildReport() {
-  const data = localizeDashboard(deriveDashboard(dashboard), language);
+  const data = localizeDashboard(deriveDashboard(dailyBaselineView(dashboard, dailyHistoryStorage)), language);
   const { text: btcChange } = btcChangePresentation(data, language);
   const wmaRatio = data.marketQuality.btc.eligible ? `${data.market.wmaRatio.toFixed(2)}x` : "—";
   const btcPrice = btcPricePresentation(data.market, language);
@@ -750,11 +776,12 @@ function buildReport() {
   const trueMean = trueMarketMeanView(data);
   const trueMeanLine = trueMean ? `True Market Mean ${formatMoney(trueMean.analysis.value, 0)} | ${trueMean.insight} | ${t(language, "trueMarketMeanAsOf", { date: trueMean.asOf })}` : "";
   const cards = data.cards.map((card) => `${STATUS[card.status].emoji} ${String(card.id).padStart(2, "0")} ${card.title} — ${card.headline}\n${t(language, card.quality.reason || (card.quality.eligible ? "qualityFresh" : card.quality.state === "stale" ? "qualityStale" : "qualityUnknown"))}\n→ ${card.detail}\n来源：${card.source.label}`).join("\n\n");
+  const comparison = `${t(language, "changes")}\n${dailyChangeLines(data).map(item => `• ${item}`).join("\n")}`;
   const tracking = data.cards.map((card) => `• #: ${String(card.id).padStart(2, "0")} | 信号: ${card.shortName} | 状态: ${STATUS[card.status].emoji} | 变动: ${card.change}`).join("\n");
   if (language === "en") {
-    return `${headline}\n${trueMeanLine}\n\n${cards.replaceAll("来源：", "Source: ")}\n\nSignal tracker:\n${tracking.replaceAll("信号:", "Signal:").replaceAll("状态:", "Status:").replaceAll("变动:", "Change:")}\n\n${data.score}/9 active | ${data.counts.yellow} watch | ${data.counts.red} risk | ${data.counts.off} inactive\n\nRisk alerts:\n${data.risks.map((item) => `• ${item}`).join("\n")}\n\nSummary: ${data.summary}\n\nFor research only; not financial advice.`;
+    return `${headline}\n${trueMeanLine}\n\n${cards.replaceAll("来源：", "Source: ")}\n\n${comparison}\n\nSignal tracker:\n${tracking.replaceAll("信号:", "Signal:").replaceAll("状态:", "Status:").replaceAll("变动:", "Change:")}\n\n${data.score}/9 active | ${data.counts.yellow} watch | ${data.counts.red} risk | ${data.counts.off} inactive\n\nRisk alerts:\n${data.risks.map((item) => `• ${item}`).join("\n")}\n\nSummary: ${data.summary}\n\nFor research only; not financial advice.`;
   }
-  return `${headline}\n${trueMeanLine}\n\n${cards}\n\n状态跟踪：\n${tracking}\n\n${data.score}/9 ✅ | ${data.counts.yellow} 🟡 | ${data.counts.red} 🔴 | ${data.counts.off} ❌\n\n⚠️ 风险提示：\n${data.risks.map((item) => `• ${item}`).join("\n")}\n\n总结：${data.summary}\n\n仅供研究，不构成投资建议。`;
+  return `${headline}\n${trueMeanLine}\n\n${cards}\n\n${comparison}\n\n状态跟踪：\n${tracking}\n\n${data.score}/9 ✅ | ${data.counts.yellow} 🟡 | ${data.counts.red} 🔴 | ${data.counts.off} ❌\n\n⚠️ 风险提示：\n${data.risks.map((item) => `• ${item}`).join("\n")}\n\n总结：${data.summary}\n\n仅供研究，不构成投资建议。`;
 }
 
 async function copyReport() {
