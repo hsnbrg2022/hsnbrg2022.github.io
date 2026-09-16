@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "status": "active",
-  "generatedAt": "2026-09-15T08:01:43.997Z",
-  "asOf": "2026-09-14",
-  "value": 76683.75,
+  "generatedAt": "2026-09-16T07:54:34.680Z",
+  "asOf": "2026-09-15",
+  "value": 76681.63,
   "formula": "glassnode_price_usd_close / glassnode_aviv",
   "inputs": {
-    "priceUsdClose": 78183.8606184491,
-    "aviv": 1.0195623393330098,
-    "timestamp": 1789344000
+    "priceUsdClose": 75608.0861986267,
+    "aviv": 0.9860000430866294,
+    "timestamp": 1789430400
   },
   "comparison": {
     "publishedValue": 75689,
