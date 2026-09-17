@@ -3,6 +3,7 @@ import path from "node:path";
 
 // New public resources must be added explicitly. Never discover uploads by glob.
 export const PUBLICATION_FILES = Object.freeze([
+  ".github/workflows/test.yml",
   ".github/workflows/update-etf-flows.yml",
   ".github/workflows/update-fed-signals.yml",
   ".github/workflows/update-onchain.yml",
