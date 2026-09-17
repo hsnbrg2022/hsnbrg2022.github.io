@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-16T22:58:37.521Z",
+  "generatedAt": "2026-09-17T01:27:58.477Z",
   "status": "live",
   "source": {
     "label": "Federal Reserve",
@@ -34,8 +34,8 @@
     "role": "secondary"
   },
   "nextMeeting": {
-    "startDate": "2026-09-15",
-    "endDate": "2026-09-16",
+    "startDate": "2026-10-27",
+    "endDate": "2026-10-28",
     "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
   }
 }
