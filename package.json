@@ -2,8 +2,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test ../crypto-dashboard/tests/*.test.mjs",
+    "test": "node --test",
     "publish:dry-run": "node scripts/publish-github.mjs --dry-run",
     "publish": "node scripts/publish-github.mjs"
-  }
+  },
+  "engines": { "node": ">=20" }
 }
