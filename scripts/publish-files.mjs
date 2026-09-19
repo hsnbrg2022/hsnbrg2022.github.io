@@ -21,7 +21,7 @@ export const PUBLICATION_FILES = Object.freeze([
   "scripts/update-weekly-mean.mjs", "scripts/write-lock.mjs", "stablecoin-source.js", "strategy-mnav.json", "styles.css",
   "trading-calendar.js", "true-market-mean.js", "true-market-mean.json", "weekly-mean.js", "weekly-mean.json",
   "tests/daily-baseline.test.mjs", "tests/etf-overrides.test.mjs", "tests/stablecoin-history.test.mjs", "tests/tmm-dates.test.mjs",
-  "tests/calendar-weekly.test.mjs", "tests/macro-quote.test.mjs"
+  "tests/calendar-weekly.test.mjs", "tests/macro-quote.test.mjs", "tests/mnav-source.test.mjs"
 ]);
 
 export async function collectPublicationFiles(root) {
