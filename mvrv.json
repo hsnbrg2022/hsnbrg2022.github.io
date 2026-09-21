@@ -4,16 +4,16 @@
   "asset": "BTC",
   "interval": "24h",
   "metric": "mvrv_z_score",
-  "asOf": "2026-09-19",
-  "generatedAt": "2026-09-20T04:50:59.882Z",
-  "value": 0.9475130675749116,
+  "asOf": "2026-09-20",
+  "generatedAt": "2026-09-21T04:51:41.903Z",
+  "value": 0.946632405748703,
   "observation": {
-    "timestamp": 1789776000,
-    "value": 0.9475130675749116
+    "timestamp": 1789862400,
+    "value": 0.946632405748703
   },
   "auxiliary": {
-    "timestamp": 1789776000,
-    "value": 1.523858353565299,
+    "timestamp": 1789862400,
+    "value": 1.5224727849645618,
     "metric": "mvrv"
   },
   "source": {
