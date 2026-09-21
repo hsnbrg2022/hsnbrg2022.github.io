@@ -38,8 +38,20 @@ export function applyEtfDatasetToDashboard(data, dataset, { now = new Date() } =
   return target.refreshStatus === "stale" ? `ETF 数据可能滞后 / ${target.source.label}` : target.refreshStatus === "snapshot" ? `ETF 发布快照 / ${target.source.label}` : `ETF / ${target.source.label}`;
 }
 
-async function updateEtf(data, fetchImpl, onDataset) {
-  const dataset = await fetchJson(`./etf-flows.json?v=${Date.now()}`, fetchImpl);
+export async function updateEtf(data, fetchImpl, onDataset) {
+  // Bot commits do not trigger a Pages build. Read the public repository data
+  // directly as well as the deployed copy, without any token in the browser.
+  const paths = ["https://raw.githubusercontent.com/hsnbrg2022/hsnbrg2022.github.io/main/etf-flows.json", "./etf-flows.json"];
+  const candidates = await Promise.allSettled(paths.map(async path => {
+    const snapshot = await fetchJson(`${path}?v=${Date.now()}`, fetchImpl);
+    applyEtfDatasetToDashboard(structuredClone(data), snapshot);
+    return snapshot;
+  }));
+  const valid = candidates.filter(result => result.status === "fulfilled").map(result => result.value)
+    .sort((a, b) => String(b.marketDate || b.rows.at(-1).date).localeCompare(String(a.marketDate || a.rows.at(-1).date)) ||
+      (Date.parse(b.generatedAt) || 0) - (Date.parse(a.generatedAt) || 0));
+  if (!valid.length) throw new Error("ETF snapshots unavailable / ETF 快照暂不可用");
+  const dataset = valid[0];
   const message = applyEtfDatasetToDashboard(data, dataset);
   onDataset(dataset);
   return message;

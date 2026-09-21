@@ -3,12 +3,12 @@
   "asset": "BTC",
   "unit": "USD_MILLIONS",
   "status": "snapshot",
-  "marketDate": "2026-08-28",
-  "generatedAt": "2026-08-29T07:52:30.000Z",
+  "marketDate": "2026-09-18",
+  "generatedAt": "2026-09-21T17:08:22.643Z",
   "source": {
-    "label": "Farside",
-    "url": "https://farside.co.uk/btc/",
-    "method": "manual-entry"
+    "label": "PANews / SoSoValue (rounded)",
+    "url": "https://www.panewslab.com/zh/articles/01a0b7d4-066a-7762-b044-ae9845bc15f5",
+    "method": "public-media"
   },
   "verificationSource": {
     "label": "SoSoValue",
@@ -54,6 +54,202 @@
     {
       "date": "2026-08-28",
       "flowUsdMillions": -168.5
+    },
+    {
+      "date": "2026-08-31",
+      "flowUsdMillions": 217
+    },
+    {
+      "date": "2026-09-01",
+      "flowUsdMillions": -236
+    },
+    {
+      "date": "2026-09-02",
+      "flowUsdMillions": 101
+    },
+    {
+      "date": "2026-09-03",
+      "flowUsdMillions": 731
+    },
+    {
+      "date": "2026-09-04",
+      "flowUsdMillions": 175
+    },
+    {
+      "date": "2026-09-08",
+      "flowUsdMillions": -46.6464
+    },
+    {
+      "date": "2026-09-09",
+      "flowUsdMillions": -120
+    },
+    {
+      "date": "2026-09-10",
+      "flowUsdMillions": -283
+    },
+    {
+      "date": "2026-09-11",
+      "flowUsdMillions": -13.2893
+    },
+    {
+      "date": "2026-09-14",
+      "flowUsdMillions": 160
+    },
+    {
+      "date": "2026-09-15",
+      "flowUsdMillions": -450
+    },
+    {
+      "date": "2026-09-16",
+      "flowUsdMillions": -296
+    },
+    {
+      "date": "2026-09-17",
+      "flowUsdMillions": 159
+    },
+    {
+      "date": "2026-09-18",
+      "flowUsdMillions": 433
     }
-  ]
+  ],
+  "recordOrigins": {
+    "2026-08-17": {
+      "method": "manual-entry",
+      "url": "https://farside.co.uk/btc/"
+    },
+    "2026-08-18": {
+      "method": "manual-entry",
+      "url": "https://farside.co.uk/btc/"
+    },
+    "2026-08-19": {
+      "method": "manual-entry",
+      "url": "https://farside.co.uk/btc/"
+    },
+    "2026-08-20": {
+      "method": "manual-entry",
+      "url": "https://farside.co.uk/btc/"
+    },
+    "2026-08-21": {
+      "method": "manual-entry",
+      "url": "https://farside.co.uk/btc/"
+    },
+    "2026-08-24": {
+      "method": "manual-entry",
+      "url": "https://farside.co.uk/btc/"
+    },
+    "2026-08-25": {
+      "method": "manual-entry",
+      "url": "https://farside.co.uk/btc/"
+    },
+    "2026-08-26": {
+      "method": "manual-entry",
+      "url": "https://farside.co.uk/btc/"
+    },
+    "2026-08-27": {
+      "method": "manual-entry",
+      "url": "https://farside.co.uk/btc/"
+    },
+    "2026-08-28": {
+      "method": "manual-entry",
+      "url": "https://farside.co.uk/btc/"
+    },
+    "2026-08-31": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a05b1c-5e85-70f0-a13e-4cc86198552c",
+      "publishedAt": "2026-09-01T03:55:00.000Z",
+      "revisedAt": "2026-09-01T03:56:20.997Z",
+      "precisionUsdMillions": 1
+    },
+    "2026-09-01": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a06044-fdda-7119-9095-1f6a1c461cef",
+      "publishedAt": "2026-09-02T03:58:00.000Z",
+      "revisedAt": "2026-09-02T03:58:49.306Z",
+      "precisionUsdMillions": 1
+    },
+    "2026-09-02": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a0656a-8500-7769-af3d-f0dd9260544f",
+      "publishedAt": "2026-09-03T03:57:00.000Z",
+      "revisedAt": "2026-09-03T03:58:14.380Z",
+      "precisionUsdMillions": 1
+    },
+    "2026-09-03": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a06a92-ac8d-75fe-874c-fbf7c386ef24",
+      "publishedAt": "2026-09-04T03:59:00.000Z",
+      "revisedAt": "2026-09-04T04:00:46.583Z",
+      "precisionUsdMillions": 1
+    },
+    "2026-09-04": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a06fc9-3066-7519-b835-e67c0ddb2458",
+      "publishedAt": "2026-09-05T04:17:00.000Z",
+      "revisedAt": "2026-09-05T04:17:31.238Z",
+      "precisionUsdMillions": 1
+    },
+    "2026-09-08": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a08464-5d8c-74d1-8240-7d057d396466",
+      "publishedAt": "2026-09-09T04:18:00.000Z",
+      "revisedAt": "2026-09-09T04:19:25.196Z",
+      "precisionUsdMillions": 0.0001
+    },
+    "2026-09-09": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a08978-a0d1-70ce-98e1-84503255e139",
+      "publishedAt": "2026-09-10T03:59:00.000Z",
+      "revisedAt": "2026-09-10T04:04:23.023Z",
+      "precisionUsdMillions": 1
+    },
+    "2026-09-10": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a08ea7-0f4b-741b-a81e-86ce7974e5a4",
+      "publishedAt": "2026-09-11T04:08:00.000Z",
+      "revisedAt": "2026-09-11T04:08:28.235Z",
+      "precisionUsdMillions": 1
+    },
+    "2026-09-11": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a093d0-224b-75b3-8ebf-a7f412c5f073",
+      "publishedAt": "2026-09-12T04:11:00.000Z",
+      "revisedAt": "2026-09-12T04:11:26.155Z",
+      "precisionUsdMillions": 0.0001
+    },
+    "2026-09-14": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a0a339-756e-718a-bc6f-868111d091dd",
+      "publishedAt": "2026-09-15T04:00:00.000Z",
+      "revisedAt": "2026-09-15T04:00:46.958Z",
+      "precisionUsdMillions": 1
+    },
+    "2026-09-15": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a0a873-0374-7728-a17d-f9dbe3f771e5",
+      "publishedAt": "2026-09-16T04:21:00.000Z",
+      "revisedAt": "2026-09-16T04:21:44.948Z",
+      "precisionUsdMillions": 1
+    },
+    "2026-09-16": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a0ad8c-645c-7751-b6e0-5dbd869cd5a2",
+      "publishedAt": "2026-09-17T04:07:00.000Z",
+      "revisedAt": "2026-09-17T04:07:34.236Z",
+      "precisionUsdMillions": 1
+    },
+    "2026-09-17": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a0b2b0-ea61-72ef-8716-8d54fe2bd24a",
+      "publishedAt": "2026-09-18T04:04:00.000Z",
+      "revisedAt": "2026-09-18T04:05:33.921Z",
+      "precisionUsdMillions": 1
+    },
+    "2026-09-18": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a0b7d4-066a-7762-b044-ae9845bc15f5",
+      "publishedAt": "2026-09-19T04:01:00.000Z",
+      "revisedAt": "2026-09-19T04:02:00.938Z",
+      "precisionUsdMillions": 1
+    }
+  }
 }

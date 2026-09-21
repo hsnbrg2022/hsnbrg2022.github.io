@@ -15,14 +15,14 @@ export const PUBLICATION_FILES = Object.freeze([
   "etf-overrides.js", "fed-signals.js", "fed-signals.json", "i18n.js", "index.html",
   "macro-quote.js", "mnav-source.js", "model.js", "mvrv.json", "og.png", "onchain-source.js",
   "package.json", "public-refresh.js", "publish-github.command", "puell.json", "README.md",
-  "scripts/manual-etf-flow.mjs", "scripts/publish-files.mjs", "scripts/publish-github.mjs",
+  "scripts/etf-media.mjs", "scripts/manual-etf-flow.mjs", "scripts/publish-files.mjs", "scripts/publish-github.mjs",
   "scripts/publish-merge.mjs", "scripts/push-snapshot.mjs", "scripts/update-etf-flows.mjs", "scripts/update-fed-signals.mjs",
   "scripts/update-onchain.mjs", "scripts/update-strategy-mnav.mjs", "scripts/update-true-market-mean.mjs",
   "scripts/update-weekly-mean.mjs", "scripts/write-lock.mjs", "stablecoin-source.js", "strategy-mnav.json", "styles.css",
   "trading-calendar.js", "true-market-mean.js", "true-market-mean.json", "weekly-mean.js", "weekly-mean.json",
   "tests/daily-baseline.test.mjs", "tests/etf-overrides.test.mjs", "tests/stablecoin-history.test.mjs", "tests/tmm-dates.test.mjs",
   "tests/calendar-weekly.test.mjs", "tests/macro-quote.test.mjs", "tests/mnav-source.test.mjs", "tests/refresh-progress.test.mjs",
-  "tests/api-read-timeout.test.mjs", "tests/publish-files.test.mjs"
+  "tests/api-read-timeout.test.mjs", "tests/publish-files.test.mjs", "tests/etf-media.test.mjs"
 ]);
 
 export async function collectPublicationFiles(root) {

@@ -3,8 +3,8 @@ name: Update BTC ETF flows
 on:
   workflow_dispatch:
   schedule:
-    # 美股周一至周五收盘后的亚洲时段运行（UTC 周二至周六）。
-    - cron: "30 1 * * 2-6"
+    # 分批检查收盘后的报道，容忍数据发布延迟；每次最多六页公开查询。
+    - cron: "17 1,5,9 * * 2-6"
 
 permissions:
   contents: write

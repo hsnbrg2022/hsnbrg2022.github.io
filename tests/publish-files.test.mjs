@@ -19,7 +19,7 @@ async function fixture(t) {
 test("明确清单保留所有既有公开资源，包括隐藏.nojekyll和工作流", async t => {
   const root = await fixture(t);
   const files = await collectPublicationFiles(root);
-  assert.equal(PUBLICATION_FILES.length, 60);
+  assert.equal(PUBLICATION_FILES.length, 62);
   assert.equal(new Set(PUBLICATION_FILES).size, PUBLICATION_FILES.length);
   assert.equal(Object.isFrozen(PUBLICATION_FILES), true);
   assert.deepEqual(files.map(file => file.relativePath), [...PUBLICATION_FILES]);
@@ -37,7 +37,7 @@ test("凭据、备份、临时文件、私有数据及未知前端资源默认�
     await writeFile(file, "synthetic-private-fixture");
   }
   const files = await collectPublicationFiles(root);
-  assert.equal(files.length, 60);
+  assert.equal(files.length, 62);
   for (const name of denied) assert.equal(files.some(file => file.relativePath === name), false);
   assert.equal(await readFile(path.join(root, "token.txt"), "utf8"), "synthetic-private-fixture");
 });

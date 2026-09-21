@@ -1,8 +1,11 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, rename, unlink } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { etfSignal, normalizeEtfRows } from "../etf-core.js";
 import { validTradingDate } from "../trading-calendar.js";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { loadPanewsEtf, mergeEtfCollection } from "./etf-media.mjs";
+import { withWriteLock } from "./write-lock.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const SITE_DIR = resolve(SCRIPT_DIR, "..");
@@ -121,9 +124,7 @@ export async function loadProviderDataset({ env = process.env, fetchImpl = globa
       }
     });
   }
-  if (!providers.length) {
-    throw new Error("未配置 COINGLASS_API_KEY 或 ETF_FLOW_BACKUP_URL；Farside 会拦截服务器抓取，仅能作为人工复核来源");
-  }
+  providers.push({ label: "PANews", load: () => loadPanewsEtf({ fetchImpl }) });
 
   const errors = [];
   for (const provider of providers) {
@@ -137,14 +138,21 @@ export async function loadProviderDataset({ env = process.env, fetchImpl = globa
 }
 
 async function main() {
-  const dataset = await loadProviderDataset();
-  const current = JSON.parse(await readFile(ETF_FILE, "utf8"));
-  if (validDate(current.marketDate) && dataset.marketDate < current.marketDate) {
-    throw new Error(`新数据 ${dataset.marketDate} 早于现有数据 ${current.marketDate}，已拒绝回退`);
-  }
-  etfSignal(dataset);
-  await writeFile(ETF_FILE, `${JSON.stringify(dataset, null, 2)}\n`);
-  console.log(`ETF 数据已更新至 ${dataset.marketDate}，来源 ${dataset.source.label}。`);
+  const incoming = await loadProviderDataset();
+  const save = async () => {
+    const current = JSON.parse(await readFile(ETF_FILE, "utf8"));
+    const dataset = mergeEtfCollection(current, incoming);
+    etfSignal(dataset);
+    if (dataset === current) { console.log(`ETF 无新增或可核验更正，保留 ${current.marketDate} 快照。`); return; }
+    const temporary = `${ETF_FILE}.${randomUUID()}.tmp`;
+    try {
+      await writeFile(temporary, `${JSON.stringify(dataset, null, 2)}\n`, { flag: "wx" });
+      await rename(temporary, ETF_FILE);
+    } finally { await unlink(temporary).catch(error => { if (error.code !== "ENOENT") throw error; }); }
+    console.log(`ETF 数据已更新至 ${dataset.marketDate}，来源 ${dataset.source.label}。`);
+  };
+  if (process.env.GITHUB_ACTIONS === "true") await save();
+  else await withWriteLock(resolve(SITE_DIR, "../crypto-dashboard/.dashboard-write.lock"), save);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

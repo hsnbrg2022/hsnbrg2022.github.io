@@ -30,26 +30,31 @@
       "section": "capital",
       "title": "BTC ETF 资金流",
       "shortName": "ETF",
-      "status": "yellow",
-      "headline": "连续 1 日净流出 · 累计 −$168.5M",
+      "status": "green",
+      "headline": "连续 2 日净流入 · 累计 $592.0M",
       "facts": [
-        "8/25 +$314.3M",
-        "8/26 +$232.2M",
-        "8/27 +$242.3M",
-        "8/28 −$168.5M"
+        "9/15 −$450.0M",
+        "9/16 −$296.0M",
+        "9/17 +$159.0M",
+        "9/18 +$433.0M"
       ],
-      "detail": "ETF 资金连续净流出，机构配置需求转弱。",
-      "change": "连续1日净流出",
+      "detail": "ETF 资金连续净流入，机构配置需求保持支撑。",
+      "change": "连续2日净流入",
       "source": {
-        "label": "Farside",
-        "url": "https://farside.co.uk/btc/"
+        "label": "PANews / SoSoValue (rounded)",
+        "url": "https://www.panewslab.com/zh/articles/01a0b7d4-066a-7762-b044-ae9845bc15f5"
       },
       "refresh": "auto",
-      "refreshStatus": "snapshot",
-      "refreshMessage": "ETF / Farside · 手工维护 · 截至 2026-08-28",
-      "dataAsOf": "2026-08-28",
-      "marketFetchedAt": "2026-08-29T07:52:30.000Z",
-      "manualEntry": true
+      "refreshStatus": "ok",
+      "refreshMessage": "ETF / PANews / SoSoValue (rounded) · 截至 2026-09-18",
+      "dataAsOf": "2026-09-18",
+      "marketFetchedAt": "2026-09-21T17:08:22.643Z",
+      "manualEntry": false,
+      "continuity": {
+        "gapAfter": null,
+        "calendarUnknown": false,
+        "rule": "nyse-calendar-2026-2028-v1"
+      }
     },
     {
       "id": 2,
@@ -254,7 +259,7 @@
       "⑨ 机构锁仓做多（S+级）——🟦S+ 仓帐比1.70",
       "② mNAV：mNAV 1.15x · 最新口径，按 Strategy 2026-07-23 起最新口径估算：MSTR 股价 ÷ Net BTC Per Share ($)；资本结构采用 2026-08-31 官方披露，行情自动更新。",
       "⑥ 黄金：$4,604.40 · 较上次 -0.00%",
-      "① ETF：连续 1 日净流出 · 累计 −$168.5M",
+      "① ETF：连续 2 日净流入 · 累计 $592.0M",
       "③ 稳定币：$3,085 亿 · 7d +0.65%"
     ]
   },

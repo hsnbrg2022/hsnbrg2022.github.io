@@ -1,4 +1,5 @@
 import { isTradingDay, nextTradingDay } from "../trading-calendar.js";
+import { etfRecordOrigins } from "./etf-media.mjs";
 
 export const ETF_MANUAL_SOURCES = {
   sosovalue: {
@@ -72,6 +73,7 @@ export function upsertManualEtfFlow(current, input, now = new Date()) {
       generatedAt: now.toISOString(),
       source: { ...source, method: "manual-entry" },
       verificationSource: verification,
+      recordOrigins: { ...etfRecordOrigins(current || {}), [date]: { ...source, method: "manual-entry", maintainedAt: now.toISOString() } },
       rows: outputRows
     },
     action: existed ? "updated" : "added"
