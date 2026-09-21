@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "rule": "200-completed-weeks-UTC-Monday-v1",
-  "generatedAt": "2026-09-21T06:55:48.148Z",
-  "value": 65494.52051757812,
+  "generatedAt": "2026-09-21T14:27:55.630Z",
+  "value": 65494.06516601562,
   "sampleCount": 200,
   "firstWeek": "2022-11-21T00:00:00.000Z",
   "asOf": "2026-09-20T23:59:59.999Z",
@@ -809,7 +809,7 @@
     },
     {
       "timestamp": 1789344000,
-      "close": 81233.6796875
+      "close": 81142.609375
     }
   ]
 }
