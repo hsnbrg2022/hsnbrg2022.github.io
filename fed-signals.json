@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-17T01:27:58.477Z",
+  "generatedAt": "2026-09-22T14:57:32.543Z",
   "status": "live",
   "source": {
     "label": "Federal Reserve",
@@ -20,15 +20,15 @@
     "role": "primary"
   },
   "chair": {
-    "eventDate": "2026-08-28",
-    "publishedAt": "2026-08-28T14:00:00.000Z",
-    "author": "Warsh",
-    "title": "In Our Time",
-    "url": "https://www.federalreserve.gov/newsevents/speech/warsh20260828a.htm",
-    "tone": "hawkish",
-    "confidence": "high",
+    "eventDate": "2026-09-22",
+    "publishedAt": "2026-09-22T14:20:00.000Z",
+    "author": "Jefferson",
+    "title": "Discount Window Modernization and Treasury Market Functioning",
+    "url": "https://www.federalreserve.gov/newsevents/speech/jefferson20260922a.htm",
+    "tone": "neutral",
+    "confidence": "low",
     "scores": {
-      "hawkish": 4,
+      "hawkish": 0,
       "dovish": 0
     },
     "role": "secondary"
