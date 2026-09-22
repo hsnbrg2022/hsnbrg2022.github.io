@@ -148,23 +148,24 @@ function sameObservation(left, right) {
 
 export async function updateStrategyMnav({ fetchImpl = globalThis.fetch, now = new Date() } = {}) {
   const previous = JSON.parse(await readFile(OUTPUT_FILE, "utf8"));
-  let officialHtml = "";
-  try { officialHtml = await fetchText(OFFICIAL_URL, { fetchImpl }); } catch {}
-
-  let candidate;
+  let officialHtml;
+  try {
+    officialHtml = await fetchText(OFFICIAL_URL, { fetchImpl });
+  } catch (error) {
+    throw new Error(`Strategy 官方页面请求失败：${error.message}`, { cause: error });
+  }
+  let quote;
+  try {
+    quote = parseOfficialLiveQuote(officialHtml);
+  } catch (error) {
+    // Preserve the actual failure instead of misreporting a classification issue.
+    // Missing official values must not activate the unverified estimate.
+    throw new Error(`Strategy 官方行情解析失败：${error.message}；未启用估算`, { cause: error });
+  }
   let basis = previous.basis;
-  if (officialHtml) {
-    try {
-      const quote = parseOfficialLiveQuote(officialHtml);
-      try { basis = parseOfficialBasis(officialHtml); } catch {}
-      candidate = officialDataset({ quote, basis, now });
-    } catch {}
-  }
+  try { basis = parseOfficialBasis(officialHtml); } catch {}
   if (!basis?.asOf) throw new Error("缺少最后有效的 Strategy 官方资本结构基准");
-  if (!candidate) {
-    // The aggregate basis has no per-instrument conversion evidence.
-    calculateStrategyMnav();
-  }
+  const candidate = officialDataset({ quote, basis, now });
   if (previous?.mnav && Math.abs((candidate.mnav / previous.mnav) - 1) > 0.3) {
     throw new Error("Strategy mNAV 较上一快照跳变超过 30%");
   }
