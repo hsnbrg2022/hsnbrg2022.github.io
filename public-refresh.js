@@ -313,7 +313,7 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
       if (target) Object.assign(target, {
         refreshStatus: ["ETF", "Fed"].includes(name) ? target.refreshStatus : "ok",
         refreshMessage: result.value,
-        refreshMethod: ["MVRV", "Puell"].includes(name) ? "scheduled-snapshot" : "public-manual",
+        refreshMethod: ["mNAV", "MVRV", "Puell"].includes(name) ? "scheduled-snapshot" : "public-manual",
         lastRefreshAt: checkedAt
       });
       if (metricTarget) Object.assign(metricTarget, { refreshStatus: "ok", lastRefreshAt: checkedAt });
