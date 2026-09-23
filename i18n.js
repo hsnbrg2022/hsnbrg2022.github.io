@@ -22,7 +22,7 @@ const MESSAGES = {
     stablecoinSevenDayFailed: "七日源更新失败 · 保留主读数",
     marketFresh: "时效内", marketStale: "旧值", marketUnknown: "待核验", marketTime: "读数/获取时间 {time}（UTC+8）；BTC 15 分钟、F&G 36 小时有效，刷新失败不会重置此时间。", marketTimeUnknown: "读数时间待核验", marketPending: "待更新/核验", pricePending: "BTC 报价待更新或核验，暂停当前偏离判断。",
     wmaVerified: "200 个完整周 · UTC 周一边界", wmaRetained: "更新失败 · 保留上次完整周值", wmaUnverified: "保留旧值 · 周样本口径待核验",
-    mnavBasisUnknown: "资本基准日期待核验 · 保留旧值，不计入当期", mnavBasisStale: "资本基准超过 7 天 · 保留旧值，不计入当期", mnavClassificationUnknown: "转换分类未核验 · 停止估算，旧值不计入当期",
+    mnavBasisUnknown: "资本基准日期待核验 · 官方行情独立更新，不计入当期", mnavBasisStale: "资本基准超过 7 天 · 官方行情独立更新，不计入当期", mnavBasisIncomplete: "资本资料不完整 · 官方行情独立更新，不计入当期", mnavClassificationUnknown: "转换分类未核验 · 停止估算，旧值不计入当期",
     qualityFresh: "时效内 · 参与当期确认", qualityStale: "数据过期 · 仅供历史参考", qualityUnknown: "日期待核验 · 不计入当期确认", qualityPending: "未计入当期", qualityIncomplete: "覆盖不完整 · 不作全局确认",
     qualityCoverage: "有效覆盖 {count}/{total} · 待更新/核验 {pending} 项",
     qualityRules: "ETF/mNAV 行情 2 个交易日；mNAV 资本基准 7 个日历日，仅接收官方直接读数；稳定币/DXY/黄金 3 天；MVRV/Puell 最近完整 UTC 日值 3 天；多空比 24 小时；Fed 45 天。缺日期不计入当期；交易日历已核对 2026–2028 年 NYSE 休市安排。",
@@ -76,7 +76,7 @@ const MESSAGES = {
     stablecoinSevenDayFailed: "Seven-day update failed · Main reading retained",
     marketFresh: "Current", marketStale: "Historical", marketUnknown: "Unverified", marketTime: "Reading/retrieval time {time} (UTC+8); valid for 15 minutes (BTC) / 36 hours (F&G). Failed refreshes do not reset this time.", marketTimeUnknown: "Reading time unverified", marketPending: "Update/verification needed", pricePending: "BTC awaits an update or verification; current deviation analysis is paused.",
     wmaVerified: "200 completed weeks · UTC Monday", wmaRetained: "Update failed · Previous weekly value retained", wmaUnverified: "Previous value · Weekly basis unverified",
-    mnavBasisUnknown: "Capital basis date unverified · Previous value, not counted", mnavBasisStale: "Capital basis older than 7 days · Previous value, not counted", mnavClassificationUnknown: "Conversion classification unverified · Estimates stopped; previous value not counted",
+    mnavBasisUnknown: "Capital basis date unverified · Official quotes update separately; not counted", mnavBasisStale: "Capital basis older than 7 days · Official quotes update separately; not counted", mnavBasisIncomplete: "Capital information incomplete · Official quotes update separately; not counted", mnavClassificationUnknown: "Conversion classification unverified · Estimates stopped; previous value not counted",
     qualityFresh: "Within freshness window · Included", qualityStale: "Stale · Historical reference only", qualityUnknown: "Date unverified · Not counted", qualityPending: "Not counted", qualityIncomplete: "Incomplete coverage · No overall confirmation",
     qualityCoverage: "Valid coverage {count}/{total} · {pending} pending update/verification",
     qualityRules: "ETF/mNAV quotes: 2 trading days; mNAV basis: 7 calendar days, official direct readings only; stablecoins/DXY/gold: 3 days; MVRV/Puell: latest completed UTC day within 3 days; positioning: 24 hours; Fed: 45 days. Undated data is excluded. NYSE full-day closures are verified for 2026–2028.",
@@ -264,6 +264,7 @@ const EXACT_EN = new Map([
   ["最新交易日 ETF 资金净流量持平。", "ETF net flows were flat on the latest trading day."],
   ["ETF 发布快照", "ETF published snapshot"], ["ETF 数据可能滞后", "ETF data may be stale"],
   ["采用 Strategy 2026-07-23 起最新口径：MSTR 股价 ÷ Net BTC Per Share ($)；数值来自官方看板。", "Uses Strategy's current methodology effective July 23, 2026: MSTR share price ÷ Net BTC Per Share ($). Values come directly from the official dashboard."],
+  ["官方 mNAV 与 Net BPS 独立更新；资本资料未通过当前校验，不计入当期确认，不使用估算。", "Official mNAV and Net BPS update independently. Capital information is unverified, so this signal is excluded from current confirmation. No estimates are used."],
   ["距 1.0 触发仅 2%，BTC 拉升带动回升，现金跑道健康。", "Only 2% below the 1.0 trigger; BTC strength is lifting mNAV and the cash runway remains healthy."],
   ["稳定币供给扩张", "Stablecoin supply expanding"], ["稳定币供给收缩", "Stablecoin supply contracting"],
   ["USD 锚定样本 · 同源七日比较", "USD-pegged universe · Same-source seven-day comparison"],
@@ -378,6 +379,9 @@ export function translateText(value, language) {
     .replace(/Strategy 官方口径/g, "Strategy official methodology")
     .replace(/行情截至/g, "Market as of")
     .replace(/资本结构截至/g, "Capital structure as of")
+    .replace(/资本资料日期待核验/g, "Capital information date unverified")
+    .replace(/资本资料日期/g, "Capital information as of")
+    .replace(/资本资料未确认 · 不计入当期确认/g, "Capital information unverified · Not counted as a current confirmation")
     .replace(/数据日期 (\d{4}-\d{2}-\d{2}) · UTC 日频/g, "Data as of $1 · UTC daily")
     .replace(/净 BTC/g, "Net BTC")
     .replace(/最新口径/g, "Current methodology")

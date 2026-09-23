@@ -4,11 +4,44 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { validateStrategyMnavDataset, STRATEGY_MNAV_FORMULA, STRATEGY_MNAV_METHODOLOGY_EFFECTIVE_DATE } from "../mnav-source.js";
+import { validateStrategyMnavDataset, strategyMnavBusinessDaysSince, STRATEGY_MNAV_FORMULA, STRATEGY_MNAV_METHODOLOGY_EFFECTIVE_DATE } from "../mnav-source.js";
 
 const SITE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT_FILE = path.join(SITE_DIR, "strategy-mnav.json");
 const OFFICIAL_URL = "https://www.strategy.com/btc";
+export const MSTR_API = "https://api.strategy.com/btc/mstrKpiData";
+export const BTC_API = "https://api.strategy.com/btc/bitcoinKpis";
+
+export function parseOfficialApiQuote(mstrPayload, btcPayload, { now = new Date() } = {}) {
+  const stocks = Array.isArray(mstrPayload) ? mstrPayload.filter(row => row.company === "MSTR") : [];
+  if (stocks.length !== 1) throw new Error("官方 MSTR 行情记录无效");
+  const stock = stocks[0], btc = btcPayload?.results;
+  const timestamp = (value, label) => {
+    if (!Number.isSafeInteger(value) || value <= 0 || value > now.getTime()) throw new Error(`官方 ${label} 时间无效`);
+    return new Date(value).toISOString();
+  };
+  const mstrObservedAt = timestamp(stock.msTimeStamp, "MSTR");
+  const btcObservedAt = timestamp(btc?.msTimestamp, "BTC");
+  const marketDate = value => new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date(value));
+  const marketAsOf = marketDate(mstrObservedAt);
+  // BTC trades around the clock, MSTR does not. Keep both observations rather
+  // than relabelling the last stock trade with today's BTC timestamp.
+  for (const date of [marketAsOf, marketDate(btcObservedAt)]) {
+    if (strategyMnavBusinessDaysSince(date, now) > 2) throw new Error("官方行情已滞后超过 2 个交易日");
+  }
+  const positive = (value, label) => {
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) throw new Error(`官方 ${label} 无效`);
+    return value;
+  };
+  // Use only the regular-session fields; never mix in extendedSession quotes.
+  return {
+    mnav: positive(btc.mNav, "mNAV"),
+    mstrPriceUsd: positive(stock.ufPrice, "MSTR 价格"),
+    netBtcPerShareUsd: positive(btc.netBtcPerShareUsd, "Net BPS"),
+    btcPriceUsd: positive(btc.ufPrice, "BTC 价格"),
+    netBtc: null, marketAsOf, mstrObservedAt, btcObservedAt
+  };
+}
 
 function unescapeHtml(value) {
   return String(value)
@@ -91,7 +124,7 @@ export function parseOfficialLiveQuote(html) {
 
 async function fetchText(url, { fetchImpl = globalThis.fetch, timeoutMs = 10_000, headers = {} } = {}) {
   const response = await fetchImpl(url, {
-    headers: { "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/128 Safari/537.36", ...headers },
+    headers: { accept: "application/json", ...headers },
     signal: AbortSignal.timeout(timeoutMs)
   });
   const text = await response.text();
@@ -146,30 +179,38 @@ function sameObservation(left, right) {
     && left.calculation?.mode === right.calculation?.mode;
 }
 
-export async function updateStrategyMnav({ fetchImpl = globalThis.fetch, now = new Date() } = {}) {
+export async function updateStrategyMnav({ fetchImpl = globalThis.fetch, now } = {}) {
   const previous = JSON.parse(await readFile(OUTPUT_FILE, "utf8"));
-  let officialHtml;
+  let payloads;
   try {
-    officialHtml = await fetchText(OFFICIAL_URL, { fetchImpl });
+    payloads = await Promise.all([MSTR_API, BTC_API].map(async url => JSON.parse(await fetchText(url, { fetchImpl }))));
   } catch (error) {
-    throw new Error(`Strategy 官方页面请求失败：${error.message}`, { cause: error });
+    throw new Error(`Strategy 官方 API 请求失败：${error.message}`, { cause: error });
   }
   let quote;
+  now ??= new Date();
   try {
-    quote = parseOfficialLiveQuote(officialHtml);
+    quote = parseOfficialApiQuote(...payloads, { now });
   } catch (error) {
     // Preserve the actual failure instead of misreporting a classification issue.
     // Missing official values must not activate the unverified estimate.
     throw new Error(`Strategy 官方行情解析失败：${error.message}；未启用估算`, { cause: error });
   }
-  let basis = previous.basis;
-  try { basis = parseOfficialBasis(officialHtml); } catch {}
-  if (!basis?.asOf) throw new Error("缺少最后有效的 Strategy 官方资本结构基准");
+  // API quote timestamps say nothing about the age/completeness of capital data.
+  const basis = previous.basis || {};
   const candidate = officialDataset({ quote, basis, now });
+  candidate.basisAsOf = basis.asOf || null;
+  candidate.basisComplete = false;
+  candidate.observations = { mstr: quote.mstrObservedAt, btc: quote.btcObservedAt };
+  candidate.inputs.netBtc = null;
+  candidate.source.apiUrls = [MSTR_API, BTC_API];
+  candidate.calculation.note = "Direct official API readings; capital information retained separately and unverified";
   if (previous?.mnav && Math.abs((candidate.mnav / previous.mnav) - 1) > 0.3) {
     throw new Error("Strategy mNAV 较上一快照跳变超过 30%");
   }
-  const observationChanged = !sameObservation(previous, candidate);
+  const observationChanged = !sameObservation(previous, candidate)
+    || previous.basisComplete !== candidate.basisComplete
+    || JSON.stringify(previous.observations) !== JSON.stringify(candidate.observations);
   const effectiveDataset = observationChanged ? candidate : previous;
   validateStrategyMnavDataset(effectiveDataset, { now });
   if (!observationChanged) return { dataset: previous, changed: false };

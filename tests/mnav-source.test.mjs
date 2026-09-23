@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyStrategyMnavDataset, strategyMnavBusinessDaysSince, validateStrategyMnavDataset } from "../mnav-source.js";
+import { applyStrategyMnavDataset, strategyMnavBusinessDaysSince, validateStrategyMnavDataset, updateMnavFromSnapshot } from "../mnav-source.js";
+import { parseOfficialApiQuote } from "../scripts/update-strategy-mnav.mjs";
+import { cardQuality } from "../data-quality.js";
+import { translateText, t } from "../i18n.js";
 
 const dataset = {
   schemaVersion: 1,
@@ -50,13 +53,22 @@ test("mNAV 行情年龄按美股交易日计算", () => {
   assert.equal(strategyMnavBusinessDaysSince("2026-09-03", new Date("2026-09-09T12:00:00Z")), 3);
 });
 
-test("资本基准第七天可用，第八天停用；无效日期和未核验估算不覆盖旧值", () => {
+test("资本基准第七天可确认，第八天仍展示官方读数但不确认；拒绝估算", () => {
   const now = new Date("2026-09-07T04:00:00Z");
   assert.equal(validateStrategyMnavDataset(dataset, { now }).mnav, 1.15);
   for (const [patch, reason] of [
     [{ basisAsOf: "2026-08-30" }, /mnavBasisStale/],
     [{ basisAsOf: "2026-02-30" }, /mnavBasisUnknown/],
     [{ basisAsOf: "2026-09-08" }, /mnavBasisUnknown/],
+    [{ basisComplete: false }, /mnavBasisIncomplete/]
+  ]) {
+    const data = { cards: [{ id: 2, headline: "old", status: "green" }] };
+    applyStrategyMnavDataset(data, { ...dataset, ...patch }, { now });
+    assert.match(data.cards[0].headline, /1.15x/);
+    assert.equal(cardQuality(data.cards[0], now).eligible, false);
+    assert.match(cardQuality(data.cards[0], now).reason, reason);
+  }
+  for (const [patch, reason] of [
     [{ marketAsOf: "2026-09-08" }, /行情日期无效/],
     [{ calculation: { mode: "official-methodology-estimate" }, validation: { basisClassification: "verified" } }, /mnavClassificationUnknown/]
   ]) {
@@ -64,5 +76,70 @@ test("资本基准第七天可用，第八天停用；无效日期和未核验�
     const before = structuredClone(data);
     assert.throws(() => applyStrategyMnavDataset(data, { ...dataset, ...patch }, { now }), reason);
     assert.deepEqual(data, before);
+  }
+});
+
+const apiNow = new Date("2026-09-22T20:04:00Z");
+const stock = [{ company: "MSTR", ufPrice: 167.33, msTimeStamp: Date.parse("2026-09-22T20:00:00Z"), extendedSession: { ufPrice: 9000 } }];
+const btc = { results: { mNav: 1.2228, netBtcPerShareUsd: 136.8648, ufPrice: 86223.75, msTimestamp: Date.parse("2026-09-22T20:03:21.449Z"), extendedSession: { mNav: 9 } } };
+
+test("官方 API 使用正常盘直接读数与明确时间，不混入盘后或美元净储备", () => {
+  const q = parseOfficialApiQuote(stock, btc, { now: apiNow });
+  assert.equal(q.mnav, 1.2228);
+  assert.equal(q.mstrPriceUsd, 167.33);
+  assert.equal(q.netBtcPerShareUsd, 136.8648);
+  assert.equal(q.marketAsOf, "2026-09-22");
+  assert.equal(q.netBtc, null);
+  assert.equal(q.btcObservedAt, "2026-09-22T20:03:21.449Z");
+  const nextDay = new Date("2026-09-23T10:00:00Z");
+  const offHours = parseOfficialApiQuote(stock, { results: { ...btc.results, msTimestamp: nextDay.getTime() } }, { now: nextDay });
+  assert.equal(offHours.marketAsOf, "2026-09-22");
+  assert.equal(offHours.btcObservedAt, nextDay.toISOString());
+});
+
+test("官方 API 拒绝缺字段、错资产、未来时间与超过两交易日的读数", () => {
+  for (const [s, b] of [
+    [[], btc], [[{ ...stock[0], company: "OTHER" }], btc],
+    [[stock[0], stock[0]], btc], [stock, { results: { ...btc.results, mNav: null } }],
+    [stock, { results: { ...btc.results, ufPrice: "86223.75" } }],
+    [[{ ...stock[0], msTimeStamp: null }], btc],
+    [stock, { results: { ...btc.results, msTimestamp: apiNow.getTime() + 1 } }],
+    [[{ ...stock[0], msTimeStamp: Date.parse("2026-09-16T20:00:00Z") }], btc]
+  ]) assert.throws(() => parseOfficialApiQuote(s, b, { now: apiNow }));
+});
+
+test("资本待核验中英文提示不再把新官方行情称为旧值", () => {
+  const data = { cards: [{ id: 2 }] };
+  applyStrategyMnavDataset(data, { ...dataset, basisAsOf: null, basisComplete: false }, { now: new Date("2026-09-04T08:00:00Z") });
+  for (const fact of data.cards[0].facts) assert.doesNotMatch(translateText(fact, "en"), /[\u4e00-\u9fff]/);
+  for (const key of ["mnavBasisUnknown", "mnavBasisStale", "mnavBasisIncomplete"]) {
+    assert.doesNotMatch(t("en", key), /Previous value|[\u4e00-\u9fff]/);
+    assert.match(t("en", key), /not counted/);
+  }
+});
+
+test("公开 mNAV 刷新选择仓库较新快照，不依赖 Pages 重建", async t => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-04T08:00:00Z") });
+  const data = { cards: [{ id: 2 }] };
+  await updateMnavFromSnapshot(data, async url => ({ ok: true, json: async () => ({ ...dataset, basisComplete: false, marketAsOf: url.startsWith("https:") ? "2026-09-04" : "2026-09-03" }) }));
+  assert.equal(data.cards[0].dataAsOf, "2026-09-04");
+  assert.equal(cardQuality(data.cards[0]).eligible, false);
+});
+
+test("仓库读取失败可回退站点；全失败与公式错误不覆盖原卡", async t => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-04T08:00:00Z") });
+  const data = { cards: [{ id: 2 }] };
+  await updateMnavFromSnapshot(data, async url => {
+    if (url.startsWith("https:")) throw new Error("offline");
+    return { ok: true, json: async () => dataset };
+  });
+  const before = structuredClone(data);
+  await assert.rejects(updateMnavFromSnapshot(data, async () => ({ ok: true, json: async () => ({ ...dataset, mnav: 8 }) })), /公式/);
+  assert.deepEqual(data, before);
+});
+
+test("未来或非法快照生成时间不能参与择新", () => {
+  for (const generatedAt of [null, "invalid", "2026-09-05T00:00:00Z"]) {
+    assert.throws(() => validateStrategyMnavDataset({ ...dataset, generatedAt }, { now: new Date("2026-09-04T08:00:00Z") }), /快照时间/);
   }
 });
