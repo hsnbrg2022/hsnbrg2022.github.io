@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyStrategyMnavDataset, strategyMnavBusinessDaysSince, validateStrategyMnavDataset, updateMnavFromSnapshot } from "../mnav-source.js";
+import { applyStrategyMnavDataset, strategyMnavBusinessDaysSince, validateStrategyMnavDataset, updateMnavFromSnapshot, mnavHealthRows } from "../mnav-source.js";
 import { parseOfficialApiQuote } from "../scripts/update-strategy-mnav.mjs";
 import { cardQuality } from "../data-quality.js";
 import { translateText, t } from "../i18n.js";
@@ -135,11 +135,44 @@ test("仓库读取失败可回退站点；全失败与公式错误不覆盖原�
   });
   const before = structuredClone(data);
   await assert.rejects(updateMnavFromSnapshot(data, async () => ({ ok: true, json: async () => ({ ...dataset, mnav: 8 }) })), /公式/);
+  assert.equal(data.cards[0].mnavReadCheck.status, "failed");
+  data.cards[0].mnavReadCheck = before.cards[0].mnavReadCheck;
   assert.deepEqual(data, before);
 });
 
 test("未来或非法快照生成时间不能参与择新", () => {
   for (const generatedAt of [null, "invalid", "2026-09-05T00:00:00Z"]) {
     assert.throws(() => validateStrategyMnavDataset({ ...dataset, generatedAt }, { now: new Date("2026-09-04T08:00:00Z") }), /快照时间/);
+  }
+});
+
+test("更新状态区分行情、快照生成及读取检查，不推断后台运行时间", async t => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-04T08:00:00Z") });
+  const data = { cards: [{ id: 2 }] };
+  await updateMnavFromSnapshot(data, async () => ({ ok: true, json: async () => dataset }));
+  const target = data.cards[0];
+  const rows = Object.fromEntries(mnavHealthRows(target).map(([key, value, fallback]) => [key, value ?? fallback ?? "healthUnknown"]));
+  assert.equal(rows.healthMarketDate, "2026-09-03");
+  assert.equal(rows.healthSnapshotCreated, "04/09/2026, 10:00:00");
+  assert.equal(rows.healthReadCheck, "04/09/2026, 16:00:00");
+  assert.equal(rows.healthReadStatus, "healthReadOk");
+  for (const key of ["healthBackendCheck", "healthBackendSuccess", "healthBackendError"]) assert.equal(rows[key], "healthNotConnected");
+  assert.equal(mnavHealthRows({ ...target, mnavSnapshotAt: undefined, lastRefreshAt: "2026-09-04T08:00:00Z" }).find(row => row[0] === "healthSnapshotCreated")[1], null);
+});
+
+test("失败检查不翻新快照时间；未知状态如实展示；全部标签适配双语", async context => {
+  context.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-04T08:00:00Z") });
+  const data = { cards: [{ id: 2 }] };
+  applyStrategyMnavDataset(data, dataset);
+  const snapshotAt = data.cards[0].mnavSnapshotAt;
+  await assert.rejects(updateMnavFromSnapshot(data, async () => { throw new Error("HTTP 403"); }));
+  assert.equal(data.cards[0].mnavSnapshotAt, snapshotAt);
+  assert.equal(data.cards[0].headline, "1.15x · MSTR $144.82");
+  const rows = mnavHealthRows(data.cards[0]);
+  assert.equal(rows.find(row => row[0] === "healthReadError")[1], "HTTP 403");
+  for (const [label, , fallback] of [...rows, ...mnavHealthRows({})]) for (const key of [label, fallback].filter(Boolean)) {
+    assert.notEqual(t("zh", key), key);
+    assert.notEqual(t("en", key), key);
+    assert.doesNotMatch(t("en", key), /[\u4e00-\u9fff]/);
   }
 });

@@ -1,9 +1,10 @@
 import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260923-mnav";
 import { DAILY_BASELINE_KEY, dailyBaselineView, saveDailyBaseline } from "./daily-baseline.js?v=20260915-2";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260923-mnav";
+import { mnavHealthRows } from "./mnav-source.js?v=20260924-health";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20260924-health";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation } from "./i18n.js?v=20260923-mnav";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation } from "./i18n.js?v=20260924-health";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -223,6 +224,9 @@ function renderCard(card) {
         change: `${card.stablecoinAux.change >= 0 ? "+" : ""}${card.stablecoinAux.change.toFixed(2)}%`, total: formatMoney(card.stablecoinAux.total, 0), date: card.stablecoinAux.asOf || t(language, "marketTimeUnknown")
       }))}</p>` : ""}
       <p class="quality-note ${card.quality?.eligible ? "" : "needs-review"}">${t(language, card.quality?.reason || (card.quality?.eligible ? "qualityFresh" : card.quality?.state === "stale" ? "qualityStale" : "qualityUnknown"))}${card.browserEditCount ? ` · ${t(language, "etfEditsCount", { count: card.browserEditCount })}` : ""}</p>
+      ${card.id === 2 ? `<details class="collection-health quality-note"><summary>${t(language, "healthTitle")}</summary>
+        <dl>${mnavHealthRows(card).map(([label, value, key]) => `<dt>${t(language, label)}</dt><dd>${escapeHtml(value == null ? t(language, key || "healthUnknown") : translateText(value, language))}</dd>`).join("")}</dl>
+        <p>${t(language, "healthReadOnlyNote")}</p></details>` : ""}
       <div class="signal-footer">
         <span title="${escapeHtml(card.refreshMessage || "")}">${refreshLabel}</span>
         ${source}

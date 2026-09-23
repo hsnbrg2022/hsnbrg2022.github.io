@@ -86,6 +86,7 @@ export function applyStrategyMnavDataset(data, dataset, { now = new Date() } = {
   target.mnavBasisComplete = dataset.basisComplete;
   target.mnavMode = dataset.calculation.mode;
   target.marketFetchedAt = dataset.generatedAt;
+  target.mnavSnapshotAt = dataset.generatedAt;
   target.lastRefreshAt = dataset.generatedAt;
   if (Array.isArray(data.previous?.changes)) {
     const line = `② mNAV：${target.change}，${target.detail}`;
@@ -113,10 +114,39 @@ export async function updateMnavFromSnapshot(data, fetchImpl = globalThis.fetch)
     const valid = candidates.filter(item => item.status === "fulfilled").map(item => item.value)
       .sort((a, b) => b.marketAsOf.localeCompare(a.marketAsOf) || String(b.generatedAt).localeCompare(String(a.generatedAt)));
     if (!valid.length) throw candidates[0].reason;
-    return applyStrategyMnavDataset(data, valid[0]);
+    const result = applyStrategyMnavDataset(data, valid[0]);
+    card(data, 2).mnavReadCheck = { checkedAt: new Date().toISOString(), status: "ok" };
+    return result;
+  } catch (error) {
+    const target = card(data, 2);
+    if (target) target.mnavReadCheck = { checkedAt: new Date().toISOString(), status: "failed", message: String(error.message || error) };
+    throw error;
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Reading a published snapshot cannot establish when its collector last ran.
+export function mnavHealthRows(target) {
+  const time = value => {
+    const ms = typeof value === "string" && value.endsWith("Z") ? Date.parse(value) : NaN;
+    return Number.isFinite(ms) ? new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23"
+    }).format(new Date(ms)) : null;
+  };
+  const check = target.mnavReadCheck;
+  return [
+    ["healthMode", null, target.refreshMethod === "scheduled-snapshot" ? "healthSnapshotMode" : "healthUnknown"],
+    ["healthMarketDate", validTradingDate(target.dataAsOf) ? target.dataAsOf : null],
+    ["healthSnapshotCreated", time(target.mnavSnapshotAt)],
+    ["healthReadCheck", time(check?.checkedAt)],
+    ["healthReadStatus", null, check?.status === "ok" ? "healthReadOk" : check?.status === "failed" ? "healthReadFailed" : "healthUnknown"],
+    ...(check?.status === "failed" ? [["healthReadError", check.message || null]] : []),
+    ["healthBackendCheck", null, "healthNotConnected"],
+    ["healthBackendSuccess", null, "healthNotConnected"],
+    ["healthBackendError", null, "healthNotConnected"]
+  ];
 }
 
 export const STRATEGY_MNAV_FORMULA = FORMULA;
