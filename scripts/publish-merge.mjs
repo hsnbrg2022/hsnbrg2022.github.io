@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from "node:util";
 import { applyEtfDataset } from "./update-etf-flows.mjs";
 
 export const PROTECTED_DATA_FILES = new Set([
-  "dashboard.json", "etf-flows.json", "fed-signals.json", "true-market-mean.json", "strategy-mnav.json", "weekly-mean.json", "mvrv.json", "puell.json"
+  "dashboard.json", "etf-flows.json", "fed-signals.json", "true-market-mean.json", "strategy-mnav.json", "strategy-mnav-health.json", "weekly-mean.json", "mvrv.json", "puell.json"
 ]);
 
 export function gitBlobSha(content) {
@@ -31,8 +31,8 @@ function observationDates(value) {
 function bootstrapObservation(local, remote, location) {
   const localDates = observationDates(local);
   const remoteDates = observationDates(remote);
-  const localCaptured = date(local?.generatedAt ?? local?.marketFetchedAt ?? local?.lastRefreshAt);
-  const remoteCaptured = date(remote?.generatedAt ?? remote?.marketFetchedAt ?? remote?.lastRefreshAt);
+  const localCaptured = date(local?.generatedAt ?? local?.marketFetchedAt ?? local?.lastRefreshAt ?? local?.checkedAt);
+  const remoteCaptured = date(remote?.generatedAt ?? remote?.marketFetchedAt ?? remote?.lastRefreshAt ?? remote?.checkedAt);
   if (localDates.length !== remoteDates.length || localCaptured === null || remoteCaptured === null) {
     return conflict(`${location}（首次同步缺少可比较的日期）`);
   }
@@ -116,7 +116,7 @@ function mergeObject(base, local, remote, location, hasBase, context = { local, 
 function assertNoRegression(candidate, remote, location) {
   if (!object(remote)) return;
   if (!object(candidate)) throw new Error(`${location}：禁止发布时丢失已有观测`);
-  for (const key of ["marketDate", "marketAsOf", "basisAsOf", "asOf", "dataAsOf", "eventDate"]) {
+  for (const key of ["marketDate", "marketAsOf", "basisAsOf", "asOf", "dataAsOf", "eventDate", "checkedAt", "lastSuccessAt"]) {
     if (date(remote[key]) !== null && (date(candidate[key]) === null || date(candidate[key]) < date(remote[key]))) {
       throw new Error(`${location}.${key}：禁止把 GitHub 的 ${remote[key]} 回退到 ${candidate[key] ?? "无日期"}`);
     }

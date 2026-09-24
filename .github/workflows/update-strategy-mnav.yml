@@ -33,15 +33,18 @@ jobs:
         with:
           node-version: 22
       - name: Calculate latest-methodology Strategy mNAV
+        id: collect
         run: node scripts/update-strategy-mnav.mjs
       - name: Commit changed automatic snapshot
+        # Preserve failure records without turning a failed collection job green.
+        if: ${{ !cancelled() && (steps.collect.outcome == 'success' || steps.collect.outcome == 'failure') }}
         run: |
-          if git diff --quiet -- strategy-mnav.json; then
+          if git diff --quiet -- strategy-mnav.json strategy-mnav-health.json; then
             echo "No Strategy mNAV update available."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add strategy-mnav.json
-          git commit -m "data: update Strategy mNAV snapshot"
+          git add strategy-mnav.json strategy-mnav-health.json
+          git commit -m "data: update Strategy mNAV snapshot and collection health"
           node scripts/push-snapshot.mjs

@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "collector": "strategy-mnav",
+  "execution": null,
+  "checkedAt": null,
+  "status": "unknown",
+  "lastSuccessAt": null,
+  "snapshotChanged": null,
+  "errorCode": null
+}

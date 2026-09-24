@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, rename, rm } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { validateStrategyMnavDataset, strategyMnavBusinessDaysSince, STRATEGY_MNAV_FORMULA, STRATEGY_MNAV_METHODOLOGY_EFFECTIVE_DATE } from "../mnav-source.js";
+import { withWriteLock } from "./write-lock.mjs";
 
 const SITE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT_FILE = path.join(SITE_DIR, "strategy-mnav.json");
+const HEALTH_FILE = path.join(SITE_DIR, "strategy-mnav-health.json");
 const OFFICIAL_URL = "https://www.strategy.com/btc";
 export const MSTR_API = "https://api.strategy.com/btc/mstrKpiData";
 export const BTC_API = "https://api.strategy.com/btc/bitcoinKpis";
@@ -185,7 +188,7 @@ export async function updateStrategyMnav({ fetchImpl = globalThis.fetch, now } =
   try {
     payloads = await Promise.all([MSTR_API, BTC_API].map(async url => JSON.parse(await fetchText(url, { fetchImpl }))));
   } catch (error) {
-    throw new Error(`Strategy 官方 API 请求失败：${error.message}`, { cause: error });
+    throw Object.assign(new Error(`Strategy 官方 API 请求失败：${error.message}`, { cause: error }), { healthCode: "upstream_request_failed" });
   }
   let quote;
   now ??= new Date();
@@ -194,7 +197,7 @@ export async function updateStrategyMnav({ fetchImpl = globalThis.fetch, now } =
   } catch (error) {
     // Preserve the actual failure instead of misreporting a classification issue.
     // Missing official values must not activate the unverified estimate.
-    throw new Error(`Strategy 官方行情解析失败：${error.message}；未启用估算`, { cause: error });
+    throw Object.assign(new Error(`Strategy 官方行情解析失败：${error.message}；未启用估算`, { cause: error }), { healthCode: "invalid_official_quote" });
   }
   // API quote timestamps say nothing about the age/completeness of capital data.
   const basis = previous.basis || {};
@@ -206,20 +209,68 @@ export async function updateStrategyMnav({ fetchImpl = globalThis.fetch, now } =
   candidate.source.apiUrls = [MSTR_API, BTC_API];
   candidate.calculation.note = "Direct official API readings; capital information retained separately and unverified";
   if (previous?.mnav && Math.abs((candidate.mnav / previous.mnav) - 1) > 0.3) {
-    throw new Error("Strategy mNAV 较上一快照跳变超过 30%");
+    throw Object.assign(new Error("Strategy mNAV 较上一快照跳变超过 30%"), { healthCode: "validation_failed" });
   }
   const observationChanged = !sameObservation(previous, candidate)
     || previous.basisComplete !== candidate.basisComplete
     || JSON.stringify(previous.observations) !== JSON.stringify(candidate.observations);
   const effectiveDataset = observationChanged ? candidate : previous;
-  validateStrategyMnavDataset(effectiveDataset, { now });
+  try { validateStrategyMnavDataset(effectiveDataset, { now }); }
+  catch (error) { throw Object.assign(error, { healthCode: "validation_failed" }); }
   if (!observationChanged) return { dataset: previous, changed: false };
-  await writeFile(OUTPUT_FILE, `${JSON.stringify(candidate, null, 2)}\n`);
+  await writeJsonAtomic(OUTPUT_FILE, candidate);
   return { dataset: effectiveDataset, changed: true };
 }
 
+async function writeJsonAtomic(file, value) {
+  const temporary = `${file}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { flag: "wx" });
+    await rename(temporary, file);
+  } finally { await rm(temporary, { force: true }); }
+}
+
+// Only the actual collector records backend health. Reading a cached snapshot
+// must never call this entry point or refresh these timestamps.
+export async function runStrategyMnav(options = {}) {
+  const run = async () => {
+    const previous = JSON.parse(await readFile(HEALTH_FILE, "utf8"));
+    const before = options.now ?? new Date();
+    const validTime = value => typeof value === "string" && Number.isFinite(Date.parse(value))
+      && new Date(value).toISOString() === value && Date.parse(value) <= before.getTime();
+    const initial = previous.status === "unknown" && previous.checkedAt === null && previous.lastSuccessAt === null;
+    const recorded = ["ok", "failed"].includes(previous.status) && validTime(previous.checkedAt)
+      && (previous.lastSuccessAt === null || validTime(previous.lastSuccessAt) && previous.lastSuccessAt <= previous.checkedAt)
+      && (previous.status !== "ok" || previous.lastSuccessAt === previous.checkedAt);
+    if (previous.schemaVersion !== 1 || previous.collector !== "strategy-mnav" || (!initial && !recorded)) {
+      throw new Error("mNAV 后台运行记录无效，停止覆盖，请核查记录");
+    }
+    let result, failure;
+    try { result = await updateStrategyMnav(options); }
+    catch (error) { failure = error; }
+    const checkedAt = (options.now ?? new Date()).toISOString();
+    const knownCodes = ["upstream_request_failed", "invalid_official_quote", "validation_failed"];
+    await writeJsonAtomic(HEALTH_FILE, {
+      schemaVersion: 1,
+      collector: "strategy-mnav",
+      execution: process.env.GITHUB_ACTIONS === "true" ? "github-actions" : "local",
+      checkedAt,
+      status: failure ? "failed" : "ok",
+      lastSuccessAt: failure ? previous.lastSuccessAt : checkedAt,
+      snapshotChanged: failure ? null : result.changed,
+      // Never publish exception text, response bodies, stack traces or credentials.
+      errorCode: failure ? (knownCodes.includes(failure.healthCode) ? failure.healthCode : "collector_failed") : null
+    });
+    if (failure) throw failure;
+    return result;
+  };
+  // Actions already serializes this collector. Local runs share the publisher's lock.
+  return process.env.GITHUB_ACTIONS === "true" ? run()
+    : withWriteLock(path.resolve(SITE_DIR, "../crypto-dashboard/.dashboard-write.lock"), run);
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  updateStrategyMnav().then(({ dataset, changed }) => {
+  runStrategyMnav().then(({ dataset, changed }) => {
     console.log(changed
       ? `Strategy mNAV 自动快照已更新：${dataset.marketAsOf} · ${dataset.mnav.toFixed(2)}x · ${dataset.calculation.mode}`
       : "Strategy mNAV 自动快照没有变化。");
