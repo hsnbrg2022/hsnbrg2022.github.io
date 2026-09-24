@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "status": "active",
-  "generatedAt": "2026-09-24T06:52:53.762Z",
-  "marketAsOf": "2026-09-23",
+  "generatedAt": "2026-09-24T17:07:15.393Z",
+  "marketAsOf": "2026-09-24",
   "basisAsOf": "2026-08-31",
   "mnav": 1.22,
   "formula": "mstr_price_usd / net_btc_per_share_usd",
@@ -12,9 +12,9 @@
     "note": "Direct official API readings; capital information retained separately and unverified"
   },
   "inputs": {
-    "mstrPriceUsd": 162.2,
-    "btcPriceUsd": 84112.73,
-    "netBtcPerShareUsd": 132.71,
+    "mstrPriceUsd": 161.84,
+    "btcPriceUsd": 84362.58,
+    "netBtcPerShareUsd": 133.2,
     "netBtc": null,
     "btcHoldings": 845050,
     "usdAssetsUsd": 6714000000,
@@ -58,7 +58,7 @@
   },
   "basisComplete": false,
   "observations": {
-    "mstr": "2026-09-23T20:00:00.000Z",
-    "btc": "2026-09-24T06:52:37.949Z"
+    "mstr": "2026-09-24T17:06:54.512Z",
+    "btc": "2026-09-24T17:06:54.933Z"
   }
 }

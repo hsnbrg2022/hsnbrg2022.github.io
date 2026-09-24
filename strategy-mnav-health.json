@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "collector": "strategy-mnav",
   "execution": "github-actions",
-  "checkedAt": "2026-09-24T06:52:54.190Z",
+  "checkedAt": "2026-09-24T17:07:15.427Z",
   "status": "ok",
-  "lastSuccessAt": "2026-09-24T06:52:54.190Z",
+  "lastSuccessAt": "2026-09-24T17:07:15.427Z",
   "snapshotChanged": true,
   "errorCode": null
 }
