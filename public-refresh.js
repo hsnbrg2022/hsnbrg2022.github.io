@@ -6,7 +6,7 @@ import { tradingDaysSince } from "./trading-calendar.js";
 import { updateWeeklyMean } from "./weekly-mean.js?v=20260905-3";
 import { applyFedDatasetToDashboard } from "./fed-signals.js?v=20260829-1";
 import { applyTrueMarketMeanDataset } from "./true-market-mean.js?v=20260913-1";
-import { updateMnavFromSnapshot } from "./mnav-source.js?v=20260924-health";
+import { updateMnavFromSnapshot } from "./mnav-source.js?v=20260925-health";
 import { updateOnchainFromSnapshot } from "./onchain-source.js?v=20260906-5";
 import { applyMacroQuote } from "./macro-quote.js?v=20260905-2";
 

@@ -100,6 +100,7 @@ export function applyStrategyMnavDataset(data, dataset, { now = new Date() } = {
 export async function updateMnavFromSnapshot(data, fetchImpl = globalThis.fetch) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10_000);
+  const healthRead = readMnavHealth(data, fetchImpl, controller.signal);
   try {
     const paths = ["https://raw.githubusercontent.com/hsnbrg2022/hsnbrg2022.github.io/main/strategy-mnav.json", "./strategy-mnav.json"];
     const candidates = await Promise.allSettled(paths.map(async path => {
@@ -122,8 +123,46 @@ export async function updateMnavFromSnapshot(data, fetchImpl = globalThis.fetch)
     if (target) target.mnavReadCheck = { checkedAt: new Date().toISOString(), status: "failed", message: String(error.message || error) };
     throw error;
   } finally {
+    await healthRead;
     clearTimeout(timer);
   }
+}
+
+const HEALTH_ERRORS = {
+  upstream_request_failed: "healthUpstreamFailed",
+  invalid_official_quote: "healthQuoteInvalid",
+  validation_failed: "healthValidationFailed",
+  collector_failed: "healthCollectorFailed"
+};
+
+export function validateMnavHealth(value, { now = new Date() } = {}) {
+  const invalid = () => { throw new Error("Invalid mNAV collection record"); };
+  const time = stamp => typeof stamp === "string" && Number.isFinite(Date.parse(stamp))
+    && new Date(stamp).toISOString() === stamp && Date.parse(stamp) <= now.getTime();
+  if (value?.schemaVersion !== 1 || value.collector !== "strategy-mnav") return invalid();
+  if (value.status === "unknown") {
+    if ([value.execution, value.checkedAt, value.lastSuccessAt, value.snapshotChanged, value.errorCode].some(v => v !== null)) return invalid();
+  } else {
+    if (!["ok", "failed"].includes(value.status) || !["local", "github-actions"].includes(value.execution) || !time(value.checkedAt)) return invalid();
+    if (value.lastSuccessAt !== null && (!time(value.lastSuccessAt) || value.lastSuccessAt > value.checkedAt)) return invalid();
+    if (value.status === "ok" ? value.lastSuccessAt !== value.checkedAt || typeof value.snapshotChanged !== "boolean" || value.errorCode !== null
+      : value.snapshotChanged !== null || !Object.hasOwn(HEALTH_ERRORS, value.errorCode)) return invalid();
+  }
+  // Select only known fields. Never render a remote exception message or payload.
+  return Object.fromEntries(["schemaVersion", "collector", "execution", "status", "checkedAt", "lastSuccessAt", "snapshotChanged", "errorCode"].map(key => [key, value[key]]));
+}
+
+async function readMnavHealth(data, fetchImpl, signal) {
+  const paths = ["https://raw.githubusercontent.com/hsnbrg2022/hsnbrg2022.github.io/main/strategy-mnav-health.json", "./strategy-mnav-health.json"];
+  const results = await Promise.allSettled(paths.map(async path => {
+    const response = await fetchImpl(`${path}?v=${Date.now()}`, { cache: "no-store", headers: { accept: "application/json" }, signal });
+    if (!response.ok) throw new Error("Collection record unavailable");
+    return validateMnavHealth(await response.json());
+  }));
+  const valid = results.filter(r => r.status === "fulfilled").map(r => r.value)
+    .sort((a, b) => String(b.checkedAt ?? "").localeCompare(String(a.checkedAt ?? "")));
+  const target = card(data, 2);
+  if (target) target.mnavBackendHealth = valid[0] ?? null;
 }
 
 // Reading a published snapshot cannot establish when its collector last ran.
@@ -136,6 +175,9 @@ export function mnavHealthRows(target) {
     }).format(new Date(ms)) : null;
   };
   const check = target.mnavReadCheck;
+  let backend;
+  try { backend = validateMnavHealth(target.mnavBackendHealth); } catch { /* Unknown is not a successful check. */ }
+  const recorded = backend && backend.status !== "unknown";
   return [
     ["healthMode", null, target.refreshMethod === "scheduled-snapshot" ? "healthSnapshotMode" : "healthUnknown"],
     ["healthMarketDate", validTradingDate(target.dataAsOf) ? target.dataAsOf : null],
@@ -143,9 +185,11 @@ export function mnavHealthRows(target) {
     ["healthReadCheck", time(check?.checkedAt)],
     ["healthReadStatus", null, check?.status === "ok" ? "healthReadOk" : check?.status === "failed" ? "healthReadFailed" : "healthUnknown"],
     ...(check?.status === "failed" ? [["healthReadError", check.message || null]] : []),
-    ["healthBackendCheck", null, "healthNotConnected"],
-    ["healthBackendSuccess", null, "healthNotConnected"],
-    ["healthBackendError", null, "healthNotConnected"]
+    ["healthBackendExecution", null, recorded ? (backend.execution === "github-actions" ? "healthCloud" : "healthLocal") : "healthUnknown"],
+    ["healthBackendCheck", time(backend?.checkedAt)],
+    ["healthBackendSuccess", time(backend?.lastSuccessAt)],
+    ["healthBackendStatus", null, !recorded ? "healthUnknown" : backend.status === "failed" ? "healthCollectionFailed" : backend.snapshotChanged ? "healthCollected" : "healthUnchanged"],
+    ["healthBackendError", null, !recorded ? "healthUnknown" : backend.status === "ok" ? "healthNoError" : HEALTH_ERRORS[backend.errorCode]]
   ];
 }
 

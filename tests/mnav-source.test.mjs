@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyStrategyMnavDataset, strategyMnavBusinessDaysSince, validateStrategyMnavDataset, updateMnavFromSnapshot, mnavHealthRows } from "../mnav-source.js";
+import { applyStrategyMnavDataset, strategyMnavBusinessDaysSince, validateStrategyMnavDataset, updateMnavFromSnapshot, mnavHealthRows, validateMnavHealth } from "../mnav-source.js";
 import { parseOfficialApiQuote } from "../scripts/update-strategy-mnav.mjs";
 import { cardQuality } from "../data-quality.js";
 import { translateText, t } from "../i18n.js";
@@ -156,7 +156,7 @@ test("更新状态区分行情、快照生成及读取检查，不推断后台�
   assert.equal(rows.healthSnapshotCreated, "04/09/2026, 10:00:00");
   assert.equal(rows.healthReadCheck, "04/09/2026, 16:00:00");
   assert.equal(rows.healthReadStatus, "healthReadOk");
-  for (const key of ["healthBackendCheck", "healthBackendSuccess", "healthBackendError"]) assert.equal(rows[key], "healthNotConnected");
+  for (const key of ["healthBackendCheck", "healthBackendSuccess", "healthBackendError"]) assert.equal(rows[key], "healthUnknown");
   assert.equal(mnavHealthRows({ ...target, mnavSnapshotAt: undefined, lastRefreshAt: "2026-09-04T08:00:00Z" }).find(row => row[0] === "healthSnapshotCreated")[1], null);
 });
 
@@ -175,4 +175,93 @@ test("失败检查不翻新快照时间；未知状态如实展示；全部标�
     assert.notEqual(t("en", key), key);
     assert.doesNotMatch(t("en", key), /[\u4e00-\u9fff]/);
   }
+});
+
+const healthRecord = {
+  schemaVersion: 1, collector: "strategy-mnav", execution: "github-actions",
+  checkedAt: "2026-09-04T06:00:00.000Z", lastSuccessAt: "2026-09-04T06:00:00.000Z",
+  status: "ok", snapshotChanged: false, errorCode: null
+};
+const healthRows = target => Object.fromEntries(mnavHealthRows(target).map(([key, value, fallback]) => [key, value ?? fallback ?? "healthUnknown"]));
+
+test("后台记录严格校验时间、状态、执行环境和错误枚举，拒绝不一致或未来记录", () => {
+  const now = new Date("2026-09-04T08:00:00Z");
+  assert.deepEqual(validateMnavHealth(healthRecord, { now }), healthRecord);
+  for (const patch of [
+    { schemaVersion: 2 }, { collector: "ETF" }, { execution: "browser" }, { status: "healthy" },
+    { checkedAt: "2026-02-30T06:00:00.000Z" }, { checkedAt: "2026-09-05T06:00:00.000Z" },
+    { checkedAt: "2026-09-04T06:00:00+00:00" }, { lastSuccessAt: null },
+    { lastSuccessAt: "2026-09-04T07:00:00.000Z" }, { snapshotChanged: "false" },
+    { errorCode: "collector_failed" }, { status: "failed", snapshotChanged: null, errorCode: "__proto__" }
+  ]) assert.throws(() => validateMnavHealth({ ...healthRecord, ...patch }, { now }));
+  assert.deepEqual(validateMnavHealth({ ...healthRecord, message: "do not render this" }, { now }), healthRecord);
+  const initial = { schemaVersion: 1, collector: "strategy-mnav", execution: null, status: "unknown", checkedAt: null, lastSuccessAt: null, snapshotChanged: null, errorCode: null };
+  assert.deepEqual(validateMnavHealth(initial, { now }), initial);
+  assert.throws(() => validateMnavHealth({ ...initial, checkedAt: healthRecord.checkedAt }, { now }));
+});
+
+test("后台记录独立择新，较新失败不能被旧成功掩盖；旧成功时间不随刷新变化", async context => {
+  context.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-04T08:00:00Z") });
+  const newer = { ...healthRecord, status: "failed", checkedAt: "2026-09-04T07:00:00.000Z", snapshotChanged: null, errorCode: "upstream_request_failed" };
+  const data = { cards: [{ id: 2 }] }, signals = [];
+  await updateMnavFromSnapshot(data, async (url, options) => {
+    signals.push(options.signal);
+    assert.equal(options.cache, "no-store");
+    return { ok: true, json: async () => url.includes("health.json") ? (url.startsWith("https:") ? newer : healthRecord) : dataset };
+  });
+  assert.equal(signals.length, 4);
+  assert.ok(signals.every(s => s === signals[0]));
+  const target = data.cards[0], rows = healthRows(target);
+  assert.equal(rows.healthBackendCheck, "04/09/2026, 15:00:00");
+  assert.equal(rows.healthBackendSuccess, "04/09/2026, 14:00:00");
+  assert.equal(rows.healthBackendStatus, "healthCollectionFailed");
+  assert.equal(rows.healthBackendError, "healthUpstreamFailed");
+  assert.equal(rows.healthReadStatus, "healthReadOk");
+  assert.equal(target.mnavSnapshotAt, dataset.generatedAt);
+  assert.equal(cardQuality({ ...target, mnavBasisComplete: false }).eligible, false);
+});
+
+test("后台记录回退、全失败或无效不阻挡行情；行情失败仍能读取后台失败记录", async context => {
+  context.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-04T08:00:00Z") });
+  const data = { cards: [{ id: 2 }] };
+  await updateMnavFromSnapshot(data, async url => {
+    if (url.includes("health.json") && url.startsWith("https:")) throw Error("offline");
+    return { ok: true, json: async () => url.includes("health.json") ? healthRecord : dataset };
+  });
+  assert.equal(healthRows(data.cards[0]).healthBackendStatus, "healthUnchanged");
+  await updateMnavFromSnapshot(data, async url => {
+    if (url.includes("health.json")) return { ok: true, json: async () => ({ ...healthRecord, checkedAt: "2099-01-01T00:00:00.000Z" }) };
+    return { ok: true, json: async () => dataset };
+  });
+  assert.equal(data.cards[0].mnavBackendHealth, null);
+  assert.equal(healthRows(data.cards[0]).healthBackendCheck, "healthUnknown");
+  const failure = { ...healthRecord, status: "failed", lastSuccessAt: null, snapshotChanged: null, errorCode: "collector_failed" };
+  await assert.rejects(updateMnavFromSnapshot(data, async url => {
+    if (!url.includes("health.json")) throw Error("quote unavailable");
+    return { ok: true, json: async () => failure };
+  }), /quote unavailable/);
+  assert.equal(data.cards[0].headline, "1.15x · MSTR $144.82");
+  assert.equal(healthRows(data.cards[0]).healthBackendError, "healthCollectorFailed");
+  assert.equal(healthRows(data.cards[0]).healthBackendSuccess, "healthUnknown");
+  await updateMnavFromSnapshot(data, async url => {
+    if (url.includes("health.json")) throw Error("health unavailable");
+    return { ok: true, json: async () => dataset };
+  });
+  assert.equal(healthRows(data.cards[0]).healthBackendStatus, "healthUnknown");
+});
+
+test("后台各结果均为已发布记录口径，双语齐全且不呈现原始异常文本", context => {
+  context.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-04T08:00:00Z") });
+  for (const record of [healthRecord, { ...healthRecord, snapshotChanged: true, execution: "local" },
+    ...["upstream_request_failed", "invalid_official_quote", "validation_failed", "collector_failed"].map(errorCode => ({ ...healthRecord, status: "failed", snapshotChanged: null, errorCode }))]) {
+    const rows = mnavHealthRows({ mnavBackendHealth: { ...record, message: "<script>synthetic-secret</script>" } });
+    assert.doesNotMatch(JSON.stringify(rows), /script|synthetic-secret/);
+    for (const [label, , fallback] of rows) for (const key of [label, fallback].filter(Boolean)) {
+      assert.notEqual(t("zh", key), key);
+      assert.notEqual(t("en", key), key);
+      assert.doesNotMatch(t("en", key), /[\u4e00-\u9fff]/);
+    }
+  }
+  assert.match(t("zh", "healthReadOnlyNote"), /已发布记录/);
+  assert.match(t("en", "healthReadOnlyNote"), /published record/);
 });
