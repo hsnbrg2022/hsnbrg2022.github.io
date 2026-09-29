@@ -5,15 +5,15 @@
   "interval": "24h",
   "metric": "mvrv_z_score",
   "asOf": "2026-09-28",
-  "generatedAt": "2026-09-29T00:21:08.384Z",
-  "value": 1.0117412173361433,
+  "generatedAt": "2026-09-29T10:39:09.230Z",
+  "value": 1.0117394253367131,
   "observation": {
     "timestamp": 1790553600,
-    "value": 1.0117412173361433
+    "value": 1.0117394253367131
   },
   "auxiliary": {
     "timestamp": 1790553600,
-    "value": 1.5579250925432675,
+    "value": 1.5574224225773907,
     "metric": "mvrv"
   },
   "source": {
