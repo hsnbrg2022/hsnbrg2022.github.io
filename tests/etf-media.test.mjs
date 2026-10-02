@@ -4,6 +4,8 @@ import { parsePanewsEtf, loadPanewsEtf, mergeEtfCollection, etfCompleteness } fr
 import { upsertManualEtfFlow } from "../scripts/manual-etf-flow.mjs";
 import { summarizeEtfFlows } from "../etf-core.js";
 import { updateEtf } from "../public-refresh.js";
+import { validateEtfHealth, etfHealthRows } from "../etf-health.js";
+import { t } from "../i18n.js";
 
 const now = new Date("2026-09-21T12:00:00Z");
 const article = (overrides = {}) => ({ id: "fixture-btc", type: "NEWS", status: "PUBLISHED", lang: "zh",
@@ -137,4 +139,83 @@ test("public refresh reads bot-updated repository data, falls back safely and ne
   const view = { cards: [{ id: 1, headline: "old" }] };
   await assert.rejects(updateEtf(view, async () => { throw new Error("offline"); }, () => {}));
   assert.equal(view.cards[0].headline, "old");
+});
+
+const health = { schemaVersion: 1, collector: "etf-flows", execution: "github-actions", status: "ok",
+  checkedAt: "2026-09-21T10:00:00.000Z", lastSuccessAt: "2026-09-21T10:00:00.000Z", snapshotChanged: false,
+  errorCode: null, completeness: { status: "complete", missingDates: [] } };
+
+test("ETF health validates UTC, execution, error codes and coverage without remote exception text", () => {
+  assert.deepEqual(validateEtfHealth({ ...health, message: "secret", completeness: { ...health.completeness, message: "secret" } }, { now }), health);
+  for (const patch of [{ collector: "strategy-mnav" }, { schemaVersion: 2 }, { execution: "browser" },
+    { checkedAt: "2099-01-01T00:00:00.000Z" }, { checkedAt: "2026-09-21T10:00:00+00:00" },
+    { lastSuccessAt: "2026-09-21T11:00:00.000Z" }, { errorCode: "raw-message" },
+    { completeness: { status: "complete", missingDates: ["2026-09-18"] } },
+    { completeness: { status: "missing-trading-days", missingDates: [] } },
+    { completeness: { status: "missing-trading-days", missingDates: ["2026-09-19"] } },
+    { completeness: { status: "missing-trading-days", missingDates: ["2026-09-22"] } },
+    { completeness: { status: "missing-trading-days", missingDates: ["2026-09-18", "2026-09-17"] } }]) {
+    assert.throws(() => validateEtfHealth({ ...health, ...patch }, { now }));
+  }
+  const failed = { ...health, status: "failed", snapshotChanged: null, errorCode: "upstream_unavailable", completeness: null };
+  assert.deepEqual(validateEtfHealth(failed, { now }), failed);
+  assert.throws(() => validateEtfHealth({ ...failed, completeness: health.completeness }, { now }));
+  const unknown = { schemaVersion: 1, collector: "etf-flows", execution: null, status: "unknown", checkedAt: null, lastSuccessAt: null, snapshotChanged: null, errorCode: null };
+  assert.equal(validateEtfHealth(unknown, { now }).completeness, null);
+  assert.throws(() => validateEtfHealth({ ...unknown, lastSuccessAt: health.checkedAt }, { now }));
+});
+
+test("ETF read and backend result are independent; newest published failure beats older success", async () => {
+  const failed = { ...health, status: "failed", checkedAt: "2026-09-21T11:00:00.000Z", snapshotChanged: null, errorCode: "upstream_unavailable", completeness: null };
+  const view = { cards: [{ id: 1 }] }, snap = dataset([report()]);
+  const before = JSON.stringify(snap);
+  await updateEtf(view, async (url, options) => {
+    assert.ok(options.signal); assert.equal(options.cache, "no-store");
+    return { ok: true, json: async () => url.includes("health.json") ? url.startsWith("https:") ? failed : health : snap };
+  }, () => {});
+  const target = view.cards[0];
+  assert.equal(target.etfBackendHealth.status, "failed");
+  assert.equal(target.etfReadCheck.status, "ok");
+  assert.equal(target.etfSnapshotAt, snap.generatedAt);
+  assert.equal(target.headline, "连续 1 日净流入 · 累计 $433.0M");
+  assert.equal(JSON.stringify(snap), before);
+  const rows = Object.fromEntries(etfHealthRows(target).map(([label, value, key]) => [label, value ?? key]));
+  assert.equal(rows.healthBackendCheck, "21/09/2026, 19:00:00");
+  assert.equal(rows.healthBackendSuccess, "21/09/2026, 18:00:00");
+  assert.equal(rows.healthReadStatus, "healthReadOk");
+  assert.equal(rows.healthBackendStatus, "etfHealthCollectionFailed");
+  assert.equal(rows.etfHealthCompleteness, "healthUnknown");
+});
+
+test("ETF missing or invalid health never fails a valid quote; failed snapshot read retains old source time", async () => {
+  const view = { cards: [{ id: 1, etfBackendHealth: health }] };
+  await updateEtf(view, async url => {
+    if (url.includes("health.json")) return { ok: true, json: async () => ({ ...health, checkedAt: "2099-01-01T00:00:00.000Z" }) };
+    return { ok: true, json: async () => dataset([report()]) };
+  }, () => {});
+  assert.equal(view.cards[0].etfBackendHealth, null);
+  const before = view.cards[0].etfSnapshotAt, headline = view.cards[0].headline;
+  await assert.rejects(updateEtf(view, async url => {
+    if (!url.includes("health.json")) throw new Error("private-fixture-token");
+    return { ok: true, json: async () => health };
+  }, () => {}));
+  assert.equal(view.cards[0].etfSnapshotAt, before);
+  assert.equal(view.cards[0].headline, headline);
+  assert.equal(view.cards[0].etfReadCheck.status, "failed");
+  assert.equal(view.cards[0].etfBackendHealth.status, "ok");
+  assert.doesNotMatch(JSON.stringify(etfHealthRows(view.cards[0])), /private-fixture-token/);
+});
+
+test("ETF coverage rows are bilingual, interval-specific and independent of personal overrides", () => {
+  const gap = { ...health, completeness: { status: "missing-trading-days", missingDates: ["2026-09-17"] } };
+  for (const value of [health, gap, { ...health, completeness: null }, null]) {
+    const rows = etfHealthRows({ etfBackendHealth: value, browserEditCount: 20 });
+    for (const language of ["zh", "en"]) for (const [label, , key] of rows) {
+      assert.notEqual(t(language, label), label);
+      if (key) assert.notEqual(t(language, key), key);
+    }
+  }
+  assert.equal(etfHealthRows({ etfBackendHealth: gap }).find(r => r[0] === "etfHealthMissingDates")[1], "2026-09-17");
+  assert.match(t("zh", "etfHealthReadOnlyNote"), /本浏览器.*手工覆盖/);
+  assert.match(t("en", "etfHealthReadOnlyNote"), /browser's manual overrides/);
 });

@@ -2,6 +2,7 @@ import { calculateDxyFromRates, applyBtcChange } from "./model.js?v=20260913-1";
 import { BTC_MAX_AGE_MS, btcObservationTimestamp } from "./data-quality.js?v=20260911-2";
 import { updateStablecoins as refreshStablecoins } from "./stablecoin-source.js?v=20260909-1";
 import { etfSignal } from "./etf-core.js?v=20260905-3";
+import { readEtfHealth } from "./etf-health.js?v=20261003-health";
 import { tradingDaysSince } from "./trading-calendar.js";
 import { updateWeeklyMean } from "./weekly-mean.js?v=20260905-3";
 import { applyFedDatasetToDashboard } from "./fed-signals.js?v=20260829-1";
@@ -31,6 +32,7 @@ export function applyEtfDatasetToDashboard(data, dataset, { now = new Date() } =
   target.source = { label: dataset.source?.label || "ETF data", url: dataset.source?.url || "https://farside.co.uk/btc/" };
   target.refresh = "auto";
   target.marketFetchedAt = dataset.generatedAt || null;
+  target.etfSnapshotAt = dataset.generatedAt || null;
   target.manualEntry = dataset.source?.method === "manual-entry";
   const age = tradingDaysSince(target.dataAsOf, now);
   target.refreshStatus = age > 2 ? "stale" : dataset.status === "live" ? "ok" : "snapshot";
@@ -39,6 +41,8 @@ export function applyEtfDatasetToDashboard(data, dataset, { now = new Date() } =
 }
 
 export async function updateEtf(data, fetchImpl, onDataset) {
+  const healthRead = readEtfHealth(data, fetchImpl);
+  try {
   // Bot commits do not trigger a Pages build. Read the public repository data
   // directly as well as the deployed copy, without any token in the browser.
   const paths = ["https://raw.githubusercontent.com/hsnbrg2022/hsnbrg2022.github.io/main/etf-flows.json", "./etf-flows.json"];
@@ -54,7 +58,13 @@ export async function updateEtf(data, fetchImpl, onDataset) {
   const dataset = valid[0];
   const message = applyEtfDatasetToDashboard(data, dataset);
   onDataset(dataset);
+  card(data, 1).etfReadCheck = { checkedAt: new Date().toISOString(), status: "ok" };
   return message;
+  } catch (error) {
+    const target = card(data, 1);
+    if (target) target.etfReadCheck = { checkedAt: new Date().toISOString(), status: "failed" };
+    throw error;
+  } finally { await healthRead; }
 }
 
 async function updateFed(data, fetchImpl) {
