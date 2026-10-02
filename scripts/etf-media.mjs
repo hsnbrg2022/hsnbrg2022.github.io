@@ -1,5 +1,5 @@
 import { normalizeEtfRows } from "../etf-core.js";
-import { isTradingDay, validTradingDate } from "../trading-calendar.js";
+import { isTradingDay, validTradingDate, nextTradingDay } from "../trading-calendar.js";
 
 const ENDPOINT = "https://universal-api.panewslab.com/search/articles";
 const SOURCE = { label: "PANews / SoSoValue (rounded)", url: "https://www.panewslab.com/zh", method: "public-media" };
@@ -9,14 +9,17 @@ const SOURCE = { label: "PANews / SoSoValue (rounded)", url: "https://www.panews
 export function parsePanewsEtf(article, now = new Date()) {
   if (article?.type !== "NEWS" || article.status !== "PUBLISHED" || article.lang !== "zh") return null;
   if (!/^[a-zA-Z0-9-]+$/.test(article.id || "")) return null;
-  if (!/比特币现货\s*ETF.*(?:昨日|单日)/i.test(article.title || "")) return null;
+  if (!/(?:比特币现货\s*ETF.*(?:昨日|单日)|美国现货比特币\s*ETF净流[入出])/i.test(article.title || "")) return null;
   const published = new Date(article.publishedAt);
   if (!Number.isFinite(+published) || published > now) return null;
   const lead = (article.content?.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i)?.[1] || "")
     .replace(/<[^>]*>/g, "").replace(/&nbsp;|&#160;/g, " ").replace(/\s+/g, "");
-  if (!/SoSoValue数据/i.test(lead)) return null;
-  const match = lead.match(/昨日[（(]美东时间(?:(\d{4})年)?(\d{1,2})月(\d{1,2})日[）)]比特币现货ETF总净流(入|出)(\d+(?:\.\d+)?)(亿|万)美元/);
-  if (!match) return null;
+  const soso = /SoSoValue数据/i.test(lead) ? lead.match(/昨日[（(]美东时间(?:(\d{4})年)?(\d{1,2})月(\d{1,2})日[）)]比特币现货ETF总净流(入|出)(\d+(?:\.\d+)?)(亿|万)美元/) : null;
+  // Separately allow the verified The Block daily aggregate wording. Do not
+  // relax to arbitrary media, individual funds, weekly totals or inferred dates.
+  const block = lead.match(/据TheBlock统计[，,]美国现货比特币ETF于(?:(\d{4})年)?(\d{1,2})月(\d{1,2})日合计净流(入|出)(\d+(?:\.\d+)?)(亿|万)美元(?=[，。,;；]|$)/i);
+  if (!!soso === !!block) return null;
+  const match = soso || block;
   const [, year, month, day, direction, amount, unit] = match;
   const years = year ? [Number(year)] : [published.getUTCFullYear(), published.getUTCFullYear() - 1];
   const dates = years.map(y => `${y}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`)
@@ -30,21 +33,23 @@ export function parsePanewsEtf(article, now = new Date()) {
   return {
     date: dates[0], flowUsdMillions,
     origin: { method: "public-media", url: `https://www.panewslab.com/zh/articles/${article.id}`,
-      publishedAt: published.toISOString(), revisedAt: updated.toISOString(),
+      publishedAt: published.toISOString(), revisedAt: updated.toISOString(), reportedSource: soso ? "SoSoValue" : "The Block",
       precisionUsdMillions: Number((10 ** -(amount.split(".")[1]?.length || 0) * (unit === "亿" ? 100 : 0.01)).toFixed(8)) }
   };
 }
 
 export async function loadPanewsEtf({ fetchImpl = globalThis.fetch, now = new Date() } = {}) {
   const reports = new Map();
+  // Two attribution-independent searches, still at most six pages per run.
+  // Dedupe across queries, but detect repeated pagination within each query.
   const seen = new Set();
-  // Same public search used by the site's search UI. Six bounded pages allow
-  // recovery beyond the 100-item general RSS window, without an account/key.
-  for (let page = 0; page < 6; page++) {
+  for (const query of ["SoSoValue", "比特币现货ETF"]) {
+   const querySeen = new Set();
+   for (let page = 0; page < 3; page++) {
     const response = await fetchImpl(ENDPOINT, {
       method: "POST", signal: AbortSignal.timeout(20000),
       headers: { "content-type": "application/json", "PA-Accept-Language": "zh" },
-      body: JSON.stringify({ query: "SoSoValue", type: ["NEWS"], mode: "time", take: 20, skip: page * 20 })
+      body: JSON.stringify({ query, type: ["NEWS"], mode: "time", take: 20, skip: page * 20 })
     });
     if (!response.ok) throw new Error(`PANews HTTP ${response.status}`);
     const items = await response.json();
@@ -52,8 +57,10 @@ export async function loadPanewsEtf({ fetchImpl = globalThis.fetch, now = new Da
     let added = 0;
     for (const item of items) {
       const article = item?.article;
-      if (!article?.id || seen.has(article.id)) continue;
-      seen.add(article.id); added++;
+      if (!article?.id || querySeen.has(article.id)) continue;
+      querySeen.add(article.id); added++;
+      if (seen.has(article.id)) continue;
+      seen.add(article.id);
       const report = parsePanewsEtf(article, now);
       if (!report) continue;
       const previous = reports.get(report.date);
@@ -62,13 +69,29 @@ export async function loadPanewsEtf({ fetchImpl = globalThis.fetch, now = new Da
     }
     if (items.length === 20 && added === 0) throw new Error("PANews 分页重复，拒绝不完整采集");
     if (items.length < 20) break;
+   }
   }
   const rows = normalizeEtfRows([...reports.values()]);
   if (!rows.length) throw new Error("PANews 未返回可核验的 ETF 单日总流量");
   return { schemaVersion: 1, asset: "BTC", unit: "USD_MILLIONS", status: "snapshot",
-    marketDate: rows.at(-1).date, generatedAt: now.toISOString(), source: { ...SOURCE, url: reports.get(rows.at(-1).date).origin.url },
+    marketDate: rows.at(-1).date, generatedAt: now.toISOString(), source: { ...SOURCE,
+      label: `PANews / ${reports.get(rows.at(-1).date).origin.reportedSource} (rounded)`, url: reports.get(rows.at(-1).date).origin.url },
     verificationSource: { label: "SoSoValue", url: "https://sosovalue.com/zh/assets/etf/us-btc-spot" }, rows,
     recordOrigins: Object.fromEntries([...reports].map(([date, report]) => [date, report.origin])) };
+}
+
+// Internal gaps only: a not-yet-published newest session is not assumed missing.
+export function etfCompleteness(inputRows) {
+  const rows = normalizeEtfRows(inputRows), missingDates = [];
+  for (let i = 1; i < rows.length; i++) {
+    let date = nextTradingDay(rows[i - 1].date), steps = 0;
+    while (date && date < rows[i].date && steps++ < 1000) {
+      missingDates.push(date);
+      date = nextTradingDay(date);
+    }
+    if (!date || steps >= 1000) return { status: "calendar-unverified", missingDates };
+  }
+  return { status: missingDates.length ? "missing-trading-days" : "complete", missingDates };
 }
 
 export function etfRecordOrigins(dataset) {

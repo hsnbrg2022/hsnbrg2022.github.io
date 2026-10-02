@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parsePanewsEtf, loadPanewsEtf, mergeEtfCollection } from "../scripts/etf-media.mjs";
+import { parsePanewsEtf, loadPanewsEtf, mergeEtfCollection, etfCompleteness } from "../scripts/etf-media.mjs";
 import { upsertManualEtfFlow } from "../scripts/manual-etf-flow.mjs";
 import { summarizeEtfFlows } from "../etf-core.js";
 import { updateEtf } from "../public-refresh.js";
@@ -22,6 +22,20 @@ test("media parser selects aggregate, signed USD units and reported precision (i
   assert.equal(out.flowUsdMillions, -13.2893);
   assert.equal(out.origin.precisionUsdMillions, 0.0001);
   assert.equal(parsePanewsEtf(article({ content: article().content.replace("4.33", "0") }), now).flowUsdMillions, 0);
+  const block = article({ title: "美国现货比特币ETF净流出1.487亿美元，结束连续9日净流入",
+    publishedAt: "2026-10-01T12:31:00Z", updatedAt: "2026-10-01T12:31:38Z",
+    content: "<p>PANews 10月1日消息，据The Block统计，美国现货比特币ETF于9月30日合计净流出1.487亿美元，结束连续9个交易日、累计约31亿美元的净流入。其中富达FBTC净流出1.256亿美元。</p>" });
+  const blockNow = new Date("2026-10-02T00:00:00Z");
+  const parsed = parsePanewsEtf(block, blockNow);
+  assert.equal(parsed?.date, "2026-09-30");
+  assert.equal(parsed?.flowUsdMillions, -148.7);
+  assert.equal(parsed?.origin.precisionUsdMillions, 0.1);
+  assert.equal(parsed?.origin.reportedSource, "The Block");
+  for (const content of [block.content.replace("The Block", "未知媒体"), block.content.replace("9月30日", "9月28日至9月30日"),
+    block.content.replace("美国现货比特币ETF于", "富达FBTC于"), block.content.replace("9月30日", "10月3日"),
+    block.content.replace("9月30日", "9月27日"), block.content.replace("合计净流出", "总资产达")]) {
+    assert.equal(parsePanewsEtf({ ...block, content }, blockNow), null);
+  }
 });
 
 test("media parser rejects weekly, individual, ambiguous, closed and future reports", () => {
@@ -40,12 +54,27 @@ test("media parser rejects weekly, individual, ambiguous, closed and future repo
 test("public search recovers a report outside the first page with bounded requests", async () => {
   const calls = [];
   const result = await loadPanewsEtf({ now, fetchImpl: async (url, options) => {
-    const body = JSON.parse(options.body); calls.push(body.skip);
-    assert.equal(body.query, "SoSoValue"); assert.equal(body.take, 20); assert.ok(options.signal);
+    const body = JSON.parse(options.body); calls.push([body.query, body.skip]);
+    assert.ok(["SoSoValue", "比特币现货ETF"].includes(body.query)); assert.equal(body.take, 20); assert.ok(options.signal);
     return { ok: true, json: async () => body.skip === 0 ? Array.from({ length: 20 }, (_, i) => ({ article: { id: `other-${i}` } })) : [{ article: article() }] };
   } });
-  assert.deepEqual(calls, [0, 20]); assert.equal(result.marketDate, "2026-09-18");
+  assert.deepEqual(calls, [["SoSoValue", 0], ["SoSoValue", 20], ["比特币现货ETF", 0], ["比特币现货ETF", 20]]); assert.equal(result.marketDate, "2026-09-18");
   assert.equal(result.rows[0].flowUsdMillions, 433); assert.equal(result.source.method, "public-media");
+  const block = article({ id: "block-query-only", title: "美国现货比特币ETF净流出1.487亿美元",
+    publishedAt: "2026-10-01T12:31:00Z", updatedAt: "2026-10-01T12:31:38Z",
+    content: "<p>据The Block统计，美国现货比特币ETF于9月30日合计净流出1.487亿美元。</p>" });
+  const fallback = await loadPanewsEtf({ now: new Date("2026-10-02T00:00:00Z"), fetchImpl: async (url, options) => ({
+    ok: true, json: async () => JSON.parse(options.body).query === "SoSoValue" ? [] : [{ article: block }]
+  }) });
+  assert.equal(fallback.rows[0].flowUsdMillions, -148.7);
+  assert.equal(fallback.source.label, "PANews / The Block (rounded)");
+  let boundedCalls = 0;
+  await loadPanewsEtf({ now, fetchImpl: async (url, options) => {
+    boundedCalls++;
+    const body = JSON.parse(options.body);
+    return { ok: true, json: async () => Array.from({ length: 20 }, (_, i) => ({ article: i === 0 ? article() : { id: `${body.query}-${body.skip}-${i}` } })) };
+  } });
+  assert.equal(boundedCalls, 6);
 });
 
 test("HTTP failure, empty results, repeated pages and conflicting reports fail closed", async () => {
@@ -63,6 +92,9 @@ test("collection preserves all legacy manual values and does not bridge missing 
   assert.equal(merged.recordOrigins["2026-09-16"].method, "manual-entry");
   assert.equal(summarizeEtfFlows(merged.rows).streak, 1);
   assert.equal(current.rows.length, 1);
+  assert.deepEqual(etfCompleteness(merged.rows), { status: "missing-trading-days", missingDates: ["2026-09-17"] });
+  assert.deepEqual(etfCompleteness([{ date: "2026-09-04", flowUsdMillions: 1 }, { date: "2026-09-08", flowUsdMillions: 2 }]), { status: "complete", missingDates: [] });
+  assert.deepEqual(etfCompleteness([{ date: "2026-09-29", flowUsdMillions: 66.1947 }, { date: "2026-10-01", flowUsdMillions: 103 }]), { status: "missing-trading-days", missingDates: ["2026-09-30"] });
 });
 
 test("only a later revision of the same media article can correct an automatic value", () => {

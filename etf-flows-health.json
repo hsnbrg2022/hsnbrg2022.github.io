@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "collector": "etf-flows",
+  "execution": "local",
+  "checkedAt": "2026-10-02T10:31:22.941Z",
+  "status": "ok",
+  "lastSuccessAt": "2026-10-02T10:31:22.941Z",
+  "snapshotChanged": true,
+  "errorCode": null,
+  "completeness": {
+    "status": "complete",
+    "missingDates": []
+  }
+}

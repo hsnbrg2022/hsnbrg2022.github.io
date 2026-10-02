@@ -4,12 +4,13 @@ import { etfSignal, normalizeEtfRows } from "../etf-core.js";
 import { validTradingDate } from "../trading-calendar.js";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { loadPanewsEtf, mergeEtfCollection } from "./etf-media.mjs";
+import { loadPanewsEtf, mergeEtfCollection, etfCompleteness } from "./etf-media.mjs";
 import { withWriteLock } from "./write-lock.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const SITE_DIR = resolve(SCRIPT_DIR, "..");
 const ETF_FILE = resolve(SITE_DIR, "etf-flows.json");
+const HEALTH_FILE = resolve(SITE_DIR, "etf-flows-health.json");
 const COINGLASS_ENDPOINT = "https://open-api-v4.coinglass.com/api/etf/bitcoin/flow-history";
 const FARSIDE_URL = "https://farside.co.uk/btc/";
 
@@ -137,26 +138,73 @@ export async function loadProviderDataset({ env = process.env, fetchImpl = globa
   throw new Error(`ETF 数据源全部失败：${errors.join("；")}`);
 }
 
-async function main() {
-  const incoming = await loadProviderDataset();
+async function writeJsonAtomic(file, value) {
+  const temporary = `${file}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { flag: "wx" });
+    await rename(temporary, file);
+  } finally { await unlink(temporary).catch(error => { if (error.code !== "ENOENT") throw error; }); }
+}
+
+export async function runEtfCollection({ env = process.env, fetchImpl = globalThis.fetch, now } = {}) {
+  let incoming, failure, errorCode;
+  try { incoming = await loadProviderDataset({ env, fetchImpl }); }
+  catch (error) { failure = error; errorCode = "upstream_unavailable"; }
   const save = async () => {
-    const current = JSON.parse(await readFile(ETF_FILE, "utf8"));
-    const dataset = mergeEtfCollection(current, incoming);
-    etfSignal(dataset);
-    if (dataset === current) { console.log(`ETF 无新增或可核验更正，保留 ${current.marketDate} 快照。`); return; }
-    const temporary = `${ETF_FILE}.${randomUUID()}.tmp`;
+    // File imports and fixtures are not evidence of an upstream collection.
+    let previous;
+    if (!env.ETF_FLOW_INPUT_PATH) {
+      previous = JSON.parse(await readFile(HEALTH_FILE, "utf8"));
+      const time = value => typeof value === "string" && Number.isFinite(Date.parse(value))
+        && new Date(value).toISOString() === value && Date.parse(value) <= (now ?? new Date()).getTime();
+      const initial = previous.status === "unknown" && previous.checkedAt === null && previous.lastSuccessAt === null;
+      const recorded = ["ok", "failed"].includes(previous.status) && time(previous.checkedAt)
+        && (previous.lastSuccessAt === null || time(previous.lastSuccessAt) && previous.lastSuccessAt <= previous.checkedAt)
+        && (previous.status !== "ok" || previous.lastSuccessAt === previous.checkedAt);
+      if (previous.schemaVersion !== 1 || previous.collector !== "etf-flows" || (!initial && !recorded)) throw new Error("ETF 后台运行记录无效，停止覆盖，请核查记录");
+    }
+    let result;
     try {
-      await writeFile(temporary, `${JSON.stringify(dataset, null, 2)}\n`, { flag: "wx" });
-      await rename(temporary, ETF_FILE);
-    } finally { await unlink(temporary).catch(error => { if (error.code !== "ENOENT") throw error; }); }
-    console.log(`ETF 数据已更新至 ${dataset.marketDate}，来源 ${dataset.source.label}。`);
+      if (failure) throw failure;
+      const current = JSON.parse(await readFile(ETF_FILE, "utf8"));
+      let dataset;
+      try {
+        dataset = mergeEtfCollection(current, incoming);
+        etfSignal(dataset);
+      } catch (error) { errorCode = "validation_failed"; throw error; }
+      const changed = dataset !== current;
+      if (changed) await writeJsonAtomic(ETF_FILE, dataset);
+      result = { dataset, changed, completeness: etfCompleteness(dataset.rows) };
+    } catch (error) { failure = error; }
+    if (previous) {
+      const checkedAt = (now ?? new Date()).toISOString();
+      await writeJsonAtomic(HEALTH_FILE, {
+        schemaVersion: 1, collector: "etf-flows",
+        execution: env.GITHUB_ACTIONS === "true" ? "github-actions" : "local",
+        checkedAt, status: failure ? "failed" : "ok",
+        lastSuccessAt: failure ? previous.lastSuccessAt : checkedAt,
+        snapshotChanged: failure ? null : result.changed,
+        // Fixed codes only: no provider URLs, labels, keys or exception text.
+        errorCode: failure ? errorCode || "collector_failed" : null,
+        // Success means readable, not complete. Failure leaves coverage unknown.
+        completeness: failure ? null : result.completeness
+      });
+    }
+    if (failure) throw failure;
+    return result;
   };
-  if (process.env.GITHUB_ACTIONS === "true") await save();
-  else await withWriteLock(resolve(SITE_DIR, "../crypto-dashboard/.dashboard-write.lock"), save);
+  if (env.GITHUB_ACTIONS === "true") return save();
+  return withWriteLock(resolve(SITE_DIR, "../crypto-dashboard/.dashboard-write.lock"), save);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  main().catch((error) => {
+  runEtfCollection().then(({ dataset, changed, completeness }) => {
+    console.log(changed ? `ETF 数据已更新至 ${dataset.marketDate}，来源 ${dataset.source.label}。`
+      : `ETF 无新增或可核验更正，保留 ${dataset.marketDate} 快照。`);
+    if (completeness.status === "missing-trading-days") console.warn(`ETF 采集成功但存在缺少交易日：${completeness.missingDates.join("、")}；不得跨缺口累计。`);
+    else if (completeness.status === "calendar-unverified") console.warn("ETF 采集成功，但交易日完整性待核验。");
+    else console.log("ETF 已记录区间内无缺少交易日（不保证最新交易日已公布）。");
+  }).catch((error) => {
     console.error(`ETF 更新失败：${error.message}`);
     process.exitCode = 1;
   });

@@ -4,7 +4,7 @@
   "unit": "USD_MILLIONS",
   "status": "snapshot",
   "marketDate": "2026-10-01",
-  "generatedAt": "2026-10-02T07:03:53.371Z",
+  "generatedAt": "2026-10-02T10:31:17.307Z",
   "source": {
     "label": "PANews / SoSoValue (rounded)",
     "url": "https://www.panewslab.com/zh/articles/01a0fac9-52d6-77c3-bf29-8fa0a9dcd74c",
@@ -138,6 +138,10 @@
     {
       "date": "2026-09-29",
       "flowUsdMillions": 66.1947
+    },
+    {
+      "date": "2026-09-30",
+      "flowUsdMillions": -148.7
     },
     {
       "date": "2026-10-01",
@@ -323,6 +327,7 @@
       "url": "https://www.panewslab.com/zh/articles/01a0eb8a-fdfe-76e8-99db-eb7a891cf7b4",
       "publishedAt": "2026-09-29T05:02:00.000Z",
       "revisedAt": "2026-09-29T05:02:29.886Z",
+      "reportedSource": "SoSoValue",
       "precisionUsdMillions": 0.0001
     },
     "2026-09-29": {
@@ -330,13 +335,23 @@
       "url": "https://www.panewslab.com/zh/articles/01a0f072-41df-71e0-b39f-cde373f16c8c",
       "publishedAt": "2026-09-30T03:53:00.000Z",
       "revisedAt": "2026-09-30T03:53:34.943Z",
+      "reportedSource": "SoSoValue",
       "precisionUsdMillions": 0.0001
+    },
+    "2026-09-30": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a0f773-3951-70bd-8ca8-72caff065fbb",
+      "publishedAt": "2026-10-01T12:31:00.000Z",
+      "revisedAt": "2026-10-02T00:58:49.554Z",
+      "reportedSource": "The Block",
+      "precisionUsdMillions": 0.1
     },
     "2026-10-01": {
       "method": "public-media",
       "url": "https://www.panewslab.com/zh/articles/01a0fac9-52d6-77c3-bf29-8fa0a9dcd74c",
       "publishedAt": "2026-10-02T04:04:00.000Z",
       "revisedAt": "2026-10-02T04:04:53.078Z",
+      "reportedSource": "SoSoValue",
       "precisionUsdMillions": 1
     }
   }
