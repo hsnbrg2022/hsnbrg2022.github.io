@@ -2,6 +2,7 @@ import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboa
 import { DAILY_BASELINE_KEY, dailyBaselineView, saveDailyBaseline } from "./daily-baseline.js?v=20260915-2";
 import { mnavHealthRows } from "./mnav-source.js?v=20260925-health";
 import { etfHealthRows } from "./etf-health.js?v=20261003-health";
+import { detectLocalMaintenance } from "./maintenance-mode.js?v=20261003-mode";
 import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261003-health";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
@@ -28,7 +29,7 @@ let editingEtfDate = "";
 let publishedPositioningCard;
 let publishedDataMode;
 let activeIndicatorTooltip;
-const IS_LOCAL_MAINTENANCE = ["127.0.0.1", "localhost"].includes(location.hostname);
+let IS_LOCAL_MAINTENANCE = false;
 const POSITIONING_STORAGE_KEY = "crypto-signal-tracker:positioning-v1";
 const $ = (selector) => document.querySelector(selector);
 
@@ -124,6 +125,7 @@ function applyStaticTranslations() {
   $(".score-heading span").textContent = t(language, "todayStatus");
   $(".briefing-head h2").textContent = t(language, "briefing");
   $("#copyButton").textContent = t(language, "copy");
+  $("#snapshotButton").hidden = !IS_LOCAL_MAINTENANCE;
   $(".summary-panel .panel-index").textContent = `01 / ${t(language, "summary").toUpperCase()}`;
   $(".change-panel .panel-index").textContent = `02 / ${t(language, "changes").toUpperCase()}`;
   $(".risk-panel h3").textContent = t(language, "risks");
@@ -799,6 +801,7 @@ async function copyReport() {
 }
 
 async function saveSnapshot() {
+  if (!IS_LOCAL_MAINTENANCE) return;
   try {
     const result = await api("/api/snapshot", { method: "POST" });
     showToast(`快照已保存（共 ${result.count} 份）`, "success");
@@ -809,6 +812,8 @@ async function saveSnapshot() {
 
 async function init() {
   try {
+    $("#snapshotButton").hidden = true;
+    IS_LOCAL_MAINTENANCE = await detectLocalMaintenance(location);
     dashboard = await api(IS_LOCAL_MAINTENANCE ? "/api/dashboard" : `./dashboard.json?v=${Date.now()}`);
     publishedPositioningCard = cloneValue(dashboard.cards.find((item) => item.id === 9));
     publishedDataMode = dashboard.dataMode;
