@@ -4,7 +4,7 @@ import { etfSignal, normalizeEtfRows } from "../etf-core.js";
 import { validTradingDate } from "../trading-calendar.js";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { loadPanewsEtf, mergeEtfCollection, etfCompleteness } from "./etf-media.mjs";
+import { loadFreeEtf, mergeEtfCollection, etfCompleteness } from "./etf-media.mjs";
 import { withWriteLock } from "./write-lock.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -88,7 +88,7 @@ async function fetchJson(url, options = {}) {
   return response.json();
 }
 
-export async function loadProviderDataset({ env = process.env, fetchImpl = globalThis.fetch } = {}) {
+export async function loadProviderDataset({ env = process.env, fetchImpl = globalThis.fetch, now = new Date() } = {}) {
   if (env.ETF_FLOW_INPUT_PATH) {
     const payload = JSON.parse(await readFile(resolve(env.ETF_FLOW_INPUT_PATH), "utf8"));
     return normalizeEtfPayload(payload, payload.source || { label: "Fixture", method: "file" });
@@ -125,7 +125,7 @@ export async function loadProviderDataset({ env = process.env, fetchImpl = globa
       }
     });
   }
-  providers.push({ label: "PANews", load: () => loadPanewsEtf({ fetchImpl }) });
+  providers.push({ label: "Free public ETF", load: () => loadFreeEtf({ fetchImpl, now }) });
 
   const errors = [];
   for (const provider of providers) {
@@ -148,7 +148,7 @@ async function writeJsonAtomic(file, value) {
 
 export async function runEtfCollection({ env = process.env, fetchImpl = globalThis.fetch, now } = {}) {
   let incoming, failure, errorCode;
-  try { incoming = await loadProviderDataset({ env, fetchImpl }); }
+  try { incoming = await loadProviderDataset({ env, fetchImpl, now }); }
   catch (error) { failure = error; errorCode = "upstream_unavailable"; }
   const save = async () => {
     // File imports and fixtures are not evidence of an upstream collection.

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parsePanewsEtf, loadPanewsEtf, mergeEtfCollection, etfCompleteness } from "../scripts/etf-media.mjs";
+import { parsePanewsEtf, loadPanewsEtf, parseDailyMarketEtf, loadDailyMarketEtf, loadFreeEtf, mergeEtfCollection, etfCompleteness } from "../scripts/etf-media.mjs";
 import { upsertManualEtfFlow } from "../scripts/manual-etf-flow.mjs";
 import { summarizeEtfFlows } from "../etf-core.js";
 import { updateEtf } from "../public-refresh.js";
@@ -16,6 +16,80 @@ const dataset = (reports, method = "public-media") => ({ schemaVersion: 1, asset
   rows: reports.map(({ date, flowUsdMillions }) => ({ date, flowUsdMillions })),
   recordOrigins: Object.fromEntries(reports.map(r => [r.date, r.origin])) });
 const report = () => parsePanewsEtf(article(), now);
+
+const dmrNow = new Date("2026-10-04T19:00:00Z");
+const dmrHtml = (date = "02 Oct 2026", value = "+$32 M") => `<section class="section" id="crypto-etfs">
+<span class="last-updated">Refreshed 4 Oct 2026 17:03 UTC · 19:03 CEST</span>
+<div class="etf-block"><span class="title">Spot ETF Flows</span><span class="sub">Source: Farside Investors · AUM via FMP</span>
+<div class="etf-card"><span class="ticker">BTC</span><span class="label etf-funds-trigger">13 funds</span>
+<span class="etf-funds-tt-foot">Flow data as of ${date}</span><div class="etf-flows">
+<div class="row"><span class="k">24h Flow</span><span class="v pos">${value}</span></div>
+<div class="row"><span class="k">7-day Flow</span><span class="v pos">+$83 M</span></div></div></div>
+<div class="etf-card"><span class="ticker">ETH</span><span class="etf-funds-tt-foot">Flow data as of 02 Oct 2026</span>
+<div class="row"><span class="k">24h Flow</span><span class="v neg">−$17 M</span></div></div></div></section>`;
+
+test("DMR parses only dated BTC daily aggregate with explicit rounded precision and attribution", () => {
+  const parsed = parseDailyMarketEtf(dmrHtml(), dmrNow);
+  assert.equal(parsed.date, "2026-10-02"); assert.equal(parsed.flowUsdMillions, 32);
+  assert.equal(parsed.origin.precisionUsdMillions, 1); assert.equal(parsed.origin.rounded, true);
+  assert.equal(parsed.origin.reportedSource, "Farside Investors");
+  assert.equal(parsed.origin.revisedAt, "2026-10-04T17:03:00.000Z");
+  assert.equal(parsed.origin.url, "https://www.dailymarket.report/index.html");
+  assert.equal(parseDailyMarketEtf(dmrHtml("01 Oct 2026", "+$103 M"), dmrNow).flowUsdMillions, 103);
+  assert.equal(parseDailyMarketEtf(dmrHtml("02 Oct 2026", "−$1.25 B"), dmrNow).flowUsdMillions, -1250);
+  assert.equal(parseDailyMarketEtf(dmrHtml("02 Oct 2026", "$0 M"), dmrNow).flowUsdMillions, 0);
+});
+
+test("DMR rejects wrong sources, assets, ambiguous values, invalid, future or unfinished dates", () => {
+  for(const html of [dmrHtml().replace("Farside Investors", "Other"), dmrHtml().replace('>BTC<', '>ETH<'),
+    dmrHtml().replace("24h Flow", "7-day Flow"), dmrHtml().replace("+$32 M", "$32 M"),
+    dmrHtml().replace("+$32 M", "+$10001 M"), dmrHtml("03 Oct 2026"), dmrHtml("05 Oct 2026"),
+    dmrHtml("31 Sep 2026"), dmrHtml("20 Sep 2026"),
+    dmrHtml().replace("4 Oct 2026 17:03", "5 Oct 2026 17:03"),
+    dmrHtml().replace("<div class=\"etf-flows\">", '<span class="etf-funds-tt-foot">Flow data as of 01 Oct 2026</span><div class="etf-flows">'),
+    dmrHtml().replace("</div></div>\n<div class=\"etf-card\">", '<div class="row"><span class="k">24h Flow</span><span class="v pos">+$31 M</span></div></div></div><div class="etf-card">')
+  ]) assert.equal(parseDailyMarketEtf(html, dmrNow), null);
+  assert.equal(parseDailyMarketEtf(dmrHtml("02 Oct 2026").replace("4 Oct 2026 17:03", "2 Oct 2026 12:03"), new Date("2026-10-02T12:04:00Z")), null);
+});
+
+test("DMR performs one bounded ordinary GET and fails closed on HTTP or malformed HTML", async () => {
+  let calls = 0;
+  const result = await loadDailyMarketEtf({ now: dmrNow, fetchImpl: async (url, options) => {
+    calls++; assert.equal(url, "https://www.dailymarket.report/index.html"); assert.ok(options.signal);
+    assert.equal(options.method, "GET"); assert.equal(options.redirect, "error");
+    return { ok: true, text: async () => dmrHtml() };
+  }});
+  assert.equal(calls, 1); assert.equal(result.marketDate, "2026-10-02");
+  assert.match(result.source.label, /Daily Market Report.*rounded/);
+  for(const response of [{ok:false,status:403}, {ok:true,text:async()=>"challenge"}])
+    await assert.rejects(loadDailyMarketEtf({now:dmrNow,fetchImpl:async()=>response}));
+});
+
+test("free selection checks DMR even when PANews succeeds with an older transaction date", async () => {
+  const primary = article({ publishedAt: "2026-10-02T04:04:00Z", updatedAt: "2026-10-02T04:04:00Z",
+    content: "<p>据SoSoValue数据，昨日（美东时间10月1日）比特币现货ETF总净流入1.03亿美元。</p>" });
+  const fetchImpl = async url => url.includes("dailymarket") ? {ok:true,text:async()=>dmrHtml()} : {ok:true,json:async()=>[{article:primary}]};
+  const result = await loadFreeEtf({now:dmrNow,fetchImpl});
+  assert.deepEqual(result.rows, [{date:"2026-10-01",flowUsdMillions:103},{date:"2026-10-02",flowUsdMillions:32}]);
+  assert.equal(result.recordOrigins["2026-10-01"].reportedSource, "SoSoValue");
+  assert.equal(result.recordOrigins["2026-10-02"].precisionUsdMillions, 1);
+  const manual = { source:{method:"manual-entry"},marketDate:"2026-10-02",rows:[{date:"2026-10-02",flowUsdMillions:31.5}] };
+  assert.equal(mergeEtfCollection(manual,result).rows.at(-1).flowUsdMillions,31.5);
+  const current=mergeEtfCollection({source:{method:"legacy"},rows:[]}, result);
+  assert.equal(mergeEtfCollection(current,result),current);
+  await assert.rejects(loadFreeEtf({now:dmrNow,fetchImpl:async url=>url.includes("dailymarket")?
+    {ok:true,text:async()=>dmrHtml("01 Oct 2026", "+$104 M")}:{ok:true,json:async()=>[{article:primary}]}}), /冲突/);
+});
+
+test("free providers independently fall back; all failures reject without generating current data", async () => {
+  const onlyDmr = await loadFreeEtf({now:dmrNow,fetchImpl:async url=>url.includes("dailymarket")?
+    {ok:true,text:async()=>dmrHtml()}:{ok:false,status:503}});
+  assert.equal(onlyDmr.marketDate,"2026-10-02");
+  const onlyPanews = await loadFreeEtf({now,fetchImpl:async url=>url.includes("dailymarket")?
+    {ok:false,status:403}:{ok:true,json:async()=>[{article:article()}]}});
+  assert.equal(onlyPanews.marketDate,"2026-09-18");
+  await assert.rejects(loadFreeEtf({now:dmrNow,fetchImpl:async()=>({ok:false,status:503})}), /PANews HTTP 503/);
+});
 
 test("media parser selects aggregate, signed USD units and reported precision (including zero)", () => {
   assert.equal(report().flowUsdMillions, 433);

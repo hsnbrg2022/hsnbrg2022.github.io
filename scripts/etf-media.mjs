@@ -3,6 +3,82 @@ import { isTradingDay, validTradingDate, nextTradingDay } from "../trading-calen
 
 const ENDPOINT = "https://universal-api.panewslab.com/search/articles";
 const SOURCE = { label: "PANews / SoSoValue (rounded)", url: "https://www.panewslab.com/zh", method: "public-media" };
+const DMR_URL = "https://www.dailymarket.report/index.html";
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function dmrDate(day, month, year) {
+  const index = MONTHS.indexOf(month);
+  const date = `${year}-${String(index + 1).padStart(2, "0")}-${day.padStart(2, "0")}`;
+  return index >= 0 && validTradingDate(date) ? date : null;
+}
+
+// DMR's public methodology identifies this dated "24h Flow" as the Farside
+// daily total, not a rolling window. Never infer the trading day from publication.
+export function parseDailyMarketEtf(html, now = new Date()) {
+  if (typeof html !== "string" || html.length > 3_000_000 || !Number.isFinite(+now)) return null;
+  const sections = [...html.matchAll(/<section\b[^>]*id="crypto-etfs"[^>]*>([\s\S]*?)<\/section>/g)];
+  if (sections.length !== 1) return null;
+  const section = sections[0][1];
+  const refresh = section.match(/<span class="last-updated">Refreshed (\d{1,2}) ([A-Z][a-z]{2}) (\d{4}) (\d{2}):(\d{2}) UTC/);
+  if (!refresh) return null;
+  const refreshedDate = dmrDate(refresh[1], refresh[2], refresh[3]);
+  if (!refreshedDate || Number(refresh[4]) > 23 || Number(refresh[5]) > 59) return null;
+  const revisedAt = `${refreshedDate}T${refresh[4]}:${refresh[5]}:00.000Z`;
+  if (Date.parse(revisedAt) > +now || +now - Date.parse(revisedAt) > 7 * 86400000) return null;
+  const blocks = section.split('<div class="etf-block">');
+  if (blocks.length !== 2) return null;
+  const block = blocks[1];
+  if (!block.includes('<span class="title">Spot ETF Flows</span>') ||
+    !block.includes('<span class="sub">Source: Farside Investors · AUM via FMP</span>')) return null;
+  const cards = block.split('<div class="etf-card">').slice(1);
+  const btc = cards.filter(card => /^\s*<div class="head">\s*<span class="ticker">BTC<\/span>/.test(card) ||
+    /^\s*<span class="ticker">BTC<\/span>/.test(card));
+  if (btc.length !== 1 || !/\b\d+ funds\b/.test(btc[0])) return null;
+  const dates = [...btc[0].matchAll(/<span class="etf-funds-tt-foot">Flow data as of (\d{1,2}) ([A-Z][a-z]{2}) (\d{4})<\/span>/g)];
+  const flows = [...btc[0].matchAll(/<span class="k">24h Flow<\/span>\s*<span class="v(?: pos| neg)?">([+−-]?)\$(\d+(?:\.\d+)?) ([MB])<\/span>/g)];
+  if (dates.length !== 1 || flows.length !== 1) return null;
+  const date = dmrDate(dates[0][1], dates[0][2], dates[0][3]);
+  const nyParts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", hourCycle:"h23" }).formatToParts(now);
+  const ny = Object.fromEntries(nyParts.map(part => [part.type, part.value]));
+  const nyToday = `${ny.year}-${ny.month}-${ny.day}`;
+  if (!date || isTradingDay(date) !== true || date > nyToday || (date === nyToday && Number(ny.hour) < 16) ||
+    Date.parse(`${date}T00:00:00Z`) > Date.parse(revisedAt) || +now - Date.parse(`${date}T00:00:00Z`) > 7 * 86400000) return null;
+  const [, sign, amount, unit] = flows[0];
+  if (!sign && Number(amount) !== 0) return null;
+  const multiplier = unit === "B" ? 1000 : 1;
+  const flowUsdMillions = Number((Number(amount) * multiplier * (["−", "-"].includes(sign) ? -1 : 1)).toFixed(6));
+  if (!Number.isFinite(flowUsdMillions) || Math.abs(flowUsdMillions) > 10000) return null;
+  return { date, flowUsdMillions, origin: { method:"public-media", url:DMR_URL, reportedSource:"Farside Investors",
+    revisedAt, rounded:true, precisionUsdMillions:Number((multiplier * 10 ** -(amount.split(".")[1]?.length || 0)).toFixed(8)) } };
+}
+
+export async function loadDailyMarketEtf({ fetchImpl = globalThis.fetch, now = new Date() } = {}) {
+  const response = await fetchImpl(DMR_URL, { method:"GET", redirect:"error", signal:AbortSignal.timeout(20000), headers:{accept:"text/html"} });
+  if (!response.ok) throw new Error(`Daily Market Report HTTP ${response.status}`);
+  const report = parseDailyMarketEtf(await response.text(), now);
+  if (!report) throw new Error("Daily Market Report 未返回可核验的 BTC ETF 单日总流量");
+  return { schemaVersion:1, asset:"BTC", unit:"USD_MILLIONS", status:"snapshot", marketDate:report.date,
+    generatedAt:now.toISOString(), source:{label:"Daily Market Report / Farside (rounded)",url:DMR_URL,method:"public-media"},
+    verificationSource:{label:"Farside",url:"https://farside.co.uk/btc/"},
+    rows:[{date:report.date,flowUsdMillions:report.flowUsdMillions}], recordOrigins:{[report.date]:report.origin} };
+}
+
+export async function loadFreeEtf(options = {}) {
+  const results = [], errors = [];
+  // A readable old report is not enough: check the single-page free backup too.
+  for (const load of [loadPanewsEtf, loadDailyMarketEtf]) {
+    try { results.push(await load(options)); } catch (error) { errors.push(error.message); }
+  }
+  if (!results.length) throw new Error(`ETF 免费来源全部失败：${errors.join("；")}`);
+  const rows = new Map(), origins = {};
+  for (const result of results) for (const row of result.rows) {
+    const previous = rows.get(row.date);
+    if (previous && previous.flowUsdMillions !== row.flowUsdMillions) throw new Error(`ETF ${row.date} 免费来源金额冲突，保留旧快照`);
+    if (!previous) { rows.set(row.date,row); origins[row.date] = result.recordOrigins[row.date]; }
+  }
+  const latest = results.reduce((a,b) => b.marketDate > a.marketDate ? b : a);
+  return {...latest, rows:normalizeEtfRows([...rows.values()]), recordOrigins:origins};
+}
 
 // Only the lead paragraph of a published daily report is eligible. Never parse
 // headlines, related stories, individual funds, weekly totals or asset values.
