@@ -4,11 +4,11 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { trueMarketMeanDay } from "../true-market-mean.js";
+import { trueMarketMeanDay, validateTrueMarketMeanDataset } from "../true-market-mean.js";
+import { FREE_TMM, fetchFreeRows } from "../free-onchain-source.js";
 
 const SITE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT_FILE = path.join(SITE_DIR, "true-market-mean.json");
-const DASHBOARD_FILE = path.join(SITE_DIR, "dashboard.json");
 const MCP_URL = "https://mcp.glassnode.com";
 const AVIV_ENDPOINT = "/v1/metrics/indicators/aviv";
 const PRICE_ENDPOINT = "/v1/metrics/market/price_usd_close";
@@ -150,6 +150,9 @@ function sameObservation(left, right) {
   return Boolean(left && right)
     && left.asOf === right.asOf
     && left.value === right.value
+    && left.formula === right.formula
+    && JSON.stringify(left.source) === JSON.stringify(right.source)
+    && JSON.stringify(left.observation) === JSON.stringify(right.observation)
     && left.inputs?.timestamp === right.inputs?.timestamp
     && left.inputs?.aviv === right.inputs?.aviv
     && left.inputs?.priceUsdClose === right.inputs?.priceUsdClose
@@ -157,17 +160,25 @@ function sameObservation(left, right) {
     && left.validation?.activation === right.validation?.activation;
 }
 
+export function buildPublishedTrueMarketMean(rows, { now = new Date(), previous = null } = {}) {
+  const latest = [...completedRows(rows, now)].sort((a, b) => a[0] - b[0]).at(-1);
+  if (!latest) throw new Error("True Market Mean 没有完整 UTC 日值");
+  const [timestamp, raw] = latest, day = trueMarketMeanDay(timestamp, now);
+  if (previous?.asOf > day.asOf) throw new Error("True Market Mean 日期不得回退");
+  if (previous?.value && Math.abs(raw / Number(previous.value) - 1) > 0.1) throw new Error("True Market Mean 较上一快照跳变超过 10%");
+  const dataset = { schemaVersion: 1, status: "active", asset: "BTC", interval: "24h", metric: FREE_TMM.metric,
+    generatedAt: now.toISOString(), asOf: day.asOf, value: Number(raw.toFixed(2)),
+    formula: "published_true_market_mean", observation: { timestamp, value: raw },
+    validation: { dataAgeDays: day.ageDays, activation: "active" }, source: FREE_TMM };
+  validateTrueMarketMeanDataset(dataset, { now });
+  return dataset;
+}
+
 export async function updateTrueMarketMean({ fetchImpl = globalThis.fetch, now = new Date() } = {}) {
   let previous = null;
   try { previous = JSON.parse(await readFile(OUTPUT_FILE, "utf8")); } catch {}
-  const dashboard = JSON.parse(await readFile(DASHBOARD_FILE, "utf8"));
-  const [avivRows, priceRows] = await Promise.all([
-    fetchGlassnodeMetricRows(AVIV_ENDPOINT, { fetchImpl, now }),
-    fetchGlassnodeMetricRows(PRICE_ENDPOINT, { fetchImpl, now })
-  ]);
-  const candidate = calculateTrueMarketMean({
-    avivRows, priceRows, now, publishedMetric: dashboard.trueMarketMean, previous
-  });
+  const rows = await fetchFreeRows(FREE_TMM, { fetchImpl, now });
+  const candidate = buildPublishedTrueMarketMean(rows, { now, previous });
   if (sameObservation(previous, candidate)) return { dataset: previous, changed: false };
   await writeFile(OUTPUT_FILE, `${JSON.stringify(candidate, null, 2)}\n`);
   return { dataset: candidate, changed: true };

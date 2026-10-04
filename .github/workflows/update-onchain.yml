@@ -2,7 +2,7 @@ name: Update on-chain valuation
 on:
   push:
     branches: [main]
-    paths: [".github/workflows/update-onchain.yml", "onchain-source.js", "scripts/update-onchain.mjs"]
+    paths: [".github/workflows/update-onchain.yml", "free-onchain-source.js", "onchain-source.js", "scripts/update-onchain.mjs"]
   schedule:
     - cron: "17 */4 * * *"
   workflow_dispatch:
@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Fetch independent daily metrics
+      - name: Read free public daily metrics
         id: refresh
         continue-on-error: true
         run: node scripts/update-onchain.mjs

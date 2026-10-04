@@ -1,31 +1,26 @@
 {
   "schemaVersion": 1,
   "status": "active",
-  "generatedAt": "2026-09-30T09:00:26.330Z",
-  "asOf": "2026-09-29",
-  "value": 77220.19,
-  "formula": "glassnode_price_usd_close / glassnode_aviv",
-  "inputs": {
-    "priceUsdClose": 83638.3382484682,
-    "aviv": 1.0831149092585917,
-    "timestamp": 1790640000
-  },
-  "comparison": {
-    "publishedValue": 75689,
-    "deviationFromPublishedPct": 2.02
+  "asset": "BTC",
+  "interval": "24h",
+  "metric": "true_market_mean",
+  "generatedAt": "2026-10-04T08:05:57.158Z",
+  "asOf": "2026-10-03",
+  "value": 77380.53,
+  "formula": "published_true_market_mean",
+  "observation": {
+    "timestamp": 1790985600,
+    "value": 77380.53296397412
   },
   "validation": {
-    "sameUtcTimestamp": true,
     "dataAgeDays": 1,
     "activation": "active"
   },
   "source": {
-    "label": "Glassnode Public MCP",
-    "url": "https://studio.glassnode.com/charts/indicators.Aviv?a=BTC",
-    "endpoint": "https://mcp.glassnode.com",
-    "metrics": [
-      "/v1/metrics/indicators/aviv",
-      "/v1/metrics/market/price_usd_close"
-    ]
+    "label": "Checkonchain",
+    "metric": "true_market_mean",
+    "trace": "True Market Mean",
+    "endpoint": "https://charts-cdn.checkonchain.com/btconchain/cointime/pricing_mvrv_aviv_1/pricing_mvrv_aviv_1_light.html",
+    "url": "https://charts.checkonchain.com/btconchain/cointime/pricing_mvrv_aviv_1/pricing_mvrv_aviv_1_light.html"
   }
 }

@@ -6,9 +6,9 @@ import { readEtfHealth } from "./etf-health.js?v=20261003-health";
 import { tradingDaysSince } from "./trading-calendar.js";
 import { updateWeeklyMean } from "./weekly-mean.js?v=20260905-3";
 import { applyFedDatasetToDashboard } from "./fed-signals.js?v=20260829-1";
-import { applyTrueMarketMeanDataset } from "./true-market-mean.js?v=20260913-1";
+import { updateTrueMarketMeanFromSnapshot } from "./true-market-mean.js?v=20261004-onchain";
 import { updateMnavFromSnapshot } from "./mnav-source.js?v=20260925-health";
-import { updateOnchainFromSnapshot } from "./onchain-source.js?v=20260906-5";
+import { updateOnchainFromSnapshot } from "./onchain-source.js?v=20261004-onchain";
 import { applyMacroQuote } from "./macro-quote.js?v=20260905-2";
 
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -73,8 +73,7 @@ async function updateFed(data, fetchImpl) {
 }
 
 async function updateTrueMarketMean(data, fetchImpl) {
-  const dataset = await fetchJson(`./true-market-mean.json?v=${Date.now()}`, fetchImpl);
-  return applyTrueMarketMeanDataset(data, dataset);
+  return updateTrueMarketMeanFromSnapshot(data, fetchImpl);
 }
 
 async function fetchJson(url, fetchImpl) {

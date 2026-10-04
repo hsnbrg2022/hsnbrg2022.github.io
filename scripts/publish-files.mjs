@@ -12,7 +12,7 @@ export const PUBLICATION_FILES = Object.freeze([
   ".github/workflows/update-weekly-mean.yml",
   ".nojekyll",
   "app.js", "daily-baseline.js", "dashboard.json", "data-quality.js", "etf-core.js", "etf-health.js", "etf-flows.json", "etf-flows-health.json",
-  "etf-overrides.js", "fed-signals.js", "fed-signals.json", "i18n.js", "index.html",
+  "etf-overrides.js", "fed-signals.js", "fed-signals.json", "free-onchain-source.js", "i18n.js", "index.html",
   "macro-quote.js", "maintenance-mode.js", "mnav-source.js", "model.js", "mvrv.json", "og.png", "onchain-source.js",
   "package.json", "public-refresh.js", "publish-github.command", "puell.json", "README.md",
   "scripts/etf-media.mjs", "scripts/manual-etf-flow.mjs", "scripts/publish-files.mjs", "scripts/publish-github.mjs",
@@ -20,7 +20,7 @@ export const PUBLICATION_FILES = Object.freeze([
   "scripts/update-onchain.mjs", "scripts/update-strategy-mnav.mjs", "scripts/update-true-market-mean.mjs",
   "scripts/update-weekly-mean.mjs", "scripts/write-lock.mjs", "stablecoin-source.js", "strategy-mnav.json", "strategy-mnav-health.json", "styles.css",
   "trading-calendar.js", "true-market-mean.js", "true-market-mean.json", "weekly-mean.js", "weekly-mean.json",
-  "tests/daily-baseline.test.mjs", "tests/etf-overrides.test.mjs", "tests/stablecoin-history.test.mjs", "tests/tmm-dates.test.mjs",
+  "tests/daily-baseline.test.mjs", "tests/etf-overrides.test.mjs", "tests/free-onchain.test.mjs", "tests/stablecoin-history.test.mjs", "tests/tmm-dates.test.mjs",
   "tests/calendar-weekly.test.mjs", "tests/macro-quote.test.mjs", "tests/mnav-source.test.mjs", "tests/refresh-progress.test.mjs",
   "tests/api-read-timeout.test.mjs", "tests/publish-files.test.mjs", "tests/etf-media.test.mjs", "tests/maintenance-mode.test.mjs", "tests/btc-time.test.mjs", "tests/btc-change.test.mjs", "tests/btc-currency.test.mjs", "tests/btc-priority.test.mjs"
 ]);

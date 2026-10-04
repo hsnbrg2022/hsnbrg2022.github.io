@@ -3,10 +3,10 @@ import { DAILY_BASELINE_KEY, dailyBaselineView, saveDailyBaseline } from "./dail
 import { mnavHealthRows } from "./mnav-source.js?v=20260925-health";
 import { etfHealthRows } from "./etf-health.js?v=20261003-health";
 import { detectLocalMaintenance } from "./maintenance-mode.js?v=20261003-mode";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261003-health";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261004-onchain";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation } from "./i18n.js?v=20261003-health";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation } from "./i18n.js?v=20261004-onchain";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -193,7 +193,7 @@ function renderCard(card) {
       ? card.refreshStatus === "failed"
         ? `<i class="stale-dot"></i> ${t(language, "refreshFailed")}`
         : card.refresh === "auto"
-          ? `<i class="live-dot"></i> ${t(language, card.refreshMethod === "official-daily" ? "onchainDirect" : "onchainSnapshot")}`
+          ? `<i class="live-dot"></i> ${t(language, card.refreshMethod === "public-daily" ? "onchainFreeDirect" : card.refreshMethod === "official-daily" ? "onchainDirect" : "onchainSnapshot")}`
           : t(language, "onchainPending")
     : card.refresh === "auto"
     ? card.refreshStatus === "failed"
@@ -265,7 +265,7 @@ function renderTrueMarketMean(data) {
     : `<span>${escapeHtml(view.metric.source?.label || "Glassnode")}</span>`;
   const refreshLabel = view.metric.refreshStatus === "failed"
     ? t(language, "trueMarketMeanFailed")
-    : t(language, view.metric.refresh === "auto" ? "trueMarketMeanAuto" : "trueMarketMeanManual");
+    : t(language, view.metric.refresh === "auto" ? view.metric.formula === "published_true_market_mean" ? "trueMarketMeanPublished" : "trueMarketMeanAuto" : "trueMarketMeanManual");
   return `<article class="true-market-mean relation-${view.analysis.relation} freshness-${view.analysis.freshness}">
     <div class="true-market-mean-topline">
       <span>${t(language, "trueMarketMeanEyebrow")}</span>

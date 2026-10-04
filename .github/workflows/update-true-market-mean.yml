@@ -7,8 +7,10 @@ on:
     paths:
       - ".github/workflows/update-true-market-mean.yml"
       - "scripts/update-true-market-mean.mjs"
+      - "free-onchain-source.js"
+      - "true-market-mean.js"
   schedule:
-    - cron: "43 2 * * *"
+    - cron: "43 */4 * * *"
   workflow_dispatch:
 
 permissions:
@@ -29,7 +31,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Read Glassnode public metrics
+      - name: Read free published True Market Mean
         run: node scripts/update-true-market-mean.mjs
       - name: Commit changed automatic snapshot
         run: |

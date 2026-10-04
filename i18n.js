@@ -43,7 +43,7 @@ const MESSAGES = {
     lastUpdated: "快照时间 {time}（UTC+8）", syncing: "正在同步最新数据…", cached: "最近缓存",
     aboveWma: "价格位于长期成本线上方", belowWma: "价格位于长期成本线下方",
     bullishNoRed: "偏多主导 · 无红灯", redSignals: "出现 {count} 项风险信号", mixedSignals: "信号分化 · 保持观察",
-    onchainDirect: "官方日值 · 自动查询", onchainSnapshot: "日频自动快照", onchainPending: "等待自动数据",
+    onchainFreeDirect: "免费公开日值 · 自动查询", onchainDirect: "官方日值 · 自动查询", onchainSnapshot: "日频自动快照", onchainPending: "等待自动数据",
     maintain: "手动维护", manual: "手动口径", publishedRefresh: "发布时已刷新", visitorRefresh: "访客刚刚刷新", refreshFailed: "刷新失败 · 保留最近值", mnavAuto: "交易日自动更新",
     positioningTitle: "手动维护多空比", positioningNote: "只需填写账户比与仓位比；仓帐比、信号等级和解读将自动计算。数据仅保存在当前浏览器，不会影响其他访客。",
     positioningLocalNote: "只需填写账户比与仓位比；仓帐比、信号等级和解读将自动计算。保存会同步更新 GitHub Pages 发布快照。",
@@ -53,7 +53,7 @@ const MESSAGES = {
     loadingDashboard: "看板数据仍在加载，请稍后重试", languageChanged: "已切换为中文",
     indicatorHelpLabel: "查看{indicator}说明", indicatorGuide: "指标说明", confluenceTitle: "组合信号",
     trueMarketMeanEyebrow: "活跃投资者成本基础", trueMarketMeanSupport: "BTC 高于成本线 {distance}% · 下方成本支撑", trueMarketMeanResistance: "BTC 低于成本线 {distance}% · 上方成本阻力", trueMarketMeanTesting: "BTC 距成本线 {distance}% · 正在测试",
-    trueMarketMeanAsOf: "数据截至 {date}", trueMarketMeanManual: "手工维护", trueMarketMeanAuto: "每日自动更新", trueMarketMeanFailed: "自动更新失败 · 保留最近值", freshnessFresh: "数据正常", freshnessAging: "数据可能滞后", freshnessStale: "数据已过期",
+    trueMarketMeanAsOf: "数据截至 {date}", trueMarketMeanManual: "手工维护", trueMarketMeanAuto: "每日自动更新", trueMarketMeanPublished: "公开日值 · 来源直接读数", trueMarketMeanFailed: "自动更新失败 · 保留最近值", freshnessFresh: "数据正常", freshnessAging: "数据可能滞后", freshnessStale: "数据已过期",
     etfLiveAsOf: "交易日数据 · 截至 {date}", etfSnapshotAsOf: "发布快照 · 截至 {date}", etfStaleAsOf: "ETF 数据可能滞后 · 截至 {date}", etfFailedAsOf: "刷新失败 · 保留 {date} 数据",
     etfMaintenanceTitle: "维护 BTC ETF 资金流", etfMaintenanceNote: "只需填写交易日期和当日总净流量，系统将自动计算连续天数、累计金额和信号状态。", etfTradeDate: "交易日期", etfNetFlow: "当日总净流量（百万美元）", etfNetFlowHelp: "正数表示净流入，负数表示净流出", etfManualSource: "人工核对来源", etfRecentHistory: "最近记录", etfRecentHistoryHint: "点击任一记录可载入并修改", etfEditAction: "修改", etfEditingRecord: "正在修改 {date} 的记录；保存后将覆盖原值。", etfUpdateAndSync: "保存修改并同步", etfUpdateBrowser: "保存修改到本浏览器", etfPublishHint: "保存后将同步公开版快照；上传 etf-flows.json 和 dashboard.json 即可发布给访客。", etfSave: "保存并同步", etfSaved: "ETF 数据已保存，公开版快照已同步", etfUpdated: "ETF 最近记录已修改，公开版快照已同步", etfLoading: "正在读取 ETF 历史…",
     etfLocalNote: "填写交易日期和当日总净流量；点击最近记录可回填并修改，保存会更新本地看板和 GitHub Pages 发布数据。", etfBrowserNote: "填写交易日期和当日总净流量；点击最近记录可回填并修改。公开版修改只保存在当前浏览器。", etfLocalPolicy: "全局发布方式：本地保存后，上传 dashboard.json 与 etf-flows.json 到 GitHub 根目录。", etfBrowserPolicy: "浏览器本地数据：不会写回 GitHub，不会同步到其他设备或访客。", etfSavedBrowser: "ETF 数据已保存到当前浏览器，不影响其他访客", etfUpdatedBrowser: "ETF 最近记录已修改并保存到当前浏览器", etfResetBrowser: "已恢复 GitHub 发布的 ETF 数据", etfLoadFailed: "无法读取 ETF 历史", browserOnlyShort: "当前浏览器手工数据",
@@ -100,7 +100,7 @@ const MESSAGES = {
     lastUpdated: "Snapshot time {time} (UTC+8)", syncing: "Syncing latest data…", cached: "cached",
     aboveWma: "Price is above the long-term cost basis", belowWma: "Price is below the long-term cost basis",
     bullishNoRed: "Bullish bias · No red flags", redSignals: "{count} risk signal(s)", mixedSignals: "Mixed signals · Stay selective",
-    onchainDirect: "Official daily data · Auto query", onchainSnapshot: "Automatic daily snapshot", onchainPending: "Awaiting automatic data",
+    onchainFreeDirect: "Free public daily data · Auto query", onchainDirect: "Official daily data · Auto query", onchainSnapshot: "Automatic daily snapshot", onchainPending: "Awaiting automatic data",
     maintain: "Maintain", manual: "Manual", publishedRefresh: "Refreshed at publish", visitorRefresh: "Just refreshed", refreshFailed: "Refresh failed · Using last value", mnavAuto: "Updated automatically each trading day",
     positioningTitle: "Maintain long/short ratios", positioningNote: "Enter the account ratio and position ratio. The position/account ratio, signal tier and interpretation are calculated automatically. Values are stored only in this browser.",
     positioningLocalNote: "Enter the account and position ratios. The derived ratio and signal are calculated automatically, then synced to the GitHub Pages snapshot.",
@@ -110,7 +110,7 @@ const MESSAGES = {
     loadingDashboard: "Dashboard is still loading. Please try again shortly.", languageChanged: "Switched to English",
     indicatorHelpLabel: "About {indicator}", indicatorGuide: "Indicator guide", confluenceTitle: "Confluence signal",
     trueMarketMeanEyebrow: "Active-investor cost basis", trueMarketMeanSupport: "BTC is {distance}% above · Cost-basis support below", trueMarketMeanResistance: "BTC is {distance}% below · Cost-basis resistance above", trueMarketMeanTesting: "BTC is {distance}% from the cost basis · Testing the level",
-    trueMarketMeanAsOf: "Data as of {date}", trueMarketMeanManual: "Manually maintained", trueMarketMeanAuto: "Updated automatically each day", trueMarketMeanFailed: "Auto-update failed · Keeping last value", freshnessFresh: "Current", freshnessAging: "May be stale", freshnessStale: "Stale data",
+    trueMarketMeanAsOf: "Data as of {date}", trueMarketMeanManual: "Manually maintained", trueMarketMeanAuto: "Updated automatically each day", trueMarketMeanPublished: "Public daily value · Published reading", trueMarketMeanFailed: "Auto-update failed · Keeping last value", freshnessFresh: "Current", freshnessAging: "May be stale", freshnessStale: "Stale data",
     etfLiveAsOf: "Trading-day data · As of {date}", etfSnapshotAsOf: "Published snapshot · As of {date}", etfStaleAsOf: "ETF data may be stale · As of {date}", etfFailedAsOf: "Refresh failed · Keeping {date} data",
     etfMaintenanceTitle: "Maintain BTC ETF flows", etfMaintenanceNote: "Enter the trading date and daily total net flow. Streaks, cumulative flow and signal status are calculated automatically.", etfTradeDate: "Trading date", etfNetFlow: "Daily total net flow (USD millions)", etfNetFlowHelp: "Positive means net inflow; negative means net outflow", etfManualSource: "Manual verification source", etfRecentHistory: "Recent records", etfRecentHistoryHint: "Select any record to load and edit it", etfEditAction: "Edit", etfEditingRecord: "Editing the {date} record. Saving will replace its previous value.", etfUpdateAndSync: "Save changes and sync", etfUpdateBrowser: "Save changes in this browser", etfPublishHint: "Saving syncs the public snapshot. Upload etf-flows.json and dashboard.json to publish it for visitors.", etfSave: "Save and sync", etfSaved: "ETF flow saved and the public snapshot is synced", etfUpdated: "Recent ETF record updated and the public snapshot is synced", etfLoading: "Loading ETF history…",
     etfLocalNote: "Enter the trading date and daily total net flow. Select a recent record to load and edit it; saving updates the local dashboard and GitHub Pages data.", etfBrowserNote: "Enter the trading date and daily total net flow. Select a recent record to edit it. Public-site changes stay only in this browser.", etfLocalPolicy: "Global publishing: after saving locally, upload dashboard.json and etf-flows.json to the GitHub repository root.", etfBrowserPolicy: "Browser-local data: it is not written back to GitHub and does not sync to other devices or visitors.", etfSavedBrowser: "ETF flows saved in this browser only; other visitors are unaffected", etfUpdatedBrowser: "Recent ETF record updated in this browser", etfResetBrowser: "Published ETF data restored", etfLoadFailed: "Unable to load ETF history", browserOnlyShort: "Browser-local manual data",
@@ -176,7 +176,7 @@ const INDICATOR_HELP = {
     trueMarketMean: {
       title: "True Market Mean（真实市场均值）",
       summary: "面向活跃投资者的链上平均成本基础，也称 Active-Investor Price。",
-      points: ["计算方式：Investor Cap（投资者资本）÷ Active Supply（活跃供应量）。", "BTC 位于其上方时，该水平通常作为潜在成本支撑；位于其下方时，通常作为潜在成本阻力。", "这是链上估值参考，不是保证价格反转的单一交易信号。"]
+      points: ["计算方式：Investor Cap（投资者资本）÷ Active Supply（活跃供应量）。", "当前直接读取 Checkonchain 公布的完整 UTC 日值，每4小时检查快照；不是实时 BTC 行情推算值。不同数据源的实现可能存在差异。", "BTC 位于其上方时，该水平通常作为潜在成本支撑；位于其下方时，通常作为潜在成本阻力。", "这是链上估值参考，不是保证价格反转的单一交易信号。"]
     }
   },
   en: {
@@ -235,7 +235,7 @@ const INDICATOR_HELP = {
     trueMarketMean: {
       title: "True Market Mean",
       summary: "The aggregate on-chain cost basis of active investors, also known as the Active-Investor Price.",
-      points: ["Formula: Investor Cap ÷ Active Supply.", "When BTC trades above it, the level may act as cost-basis support; when BTC trades below it, it may act as cost-basis resistance.", "It is an on-chain valuation reference, not a standalone guarantee of price reversal."]
+      points: ["Formula: Investor Cap ÷ Active Supply.", "Uses Checkonchain’s published completed UTC daily value, checked every 4 hours; not an estimate from live BTC quotes. Implementations may differ between sources.", "When BTC trades above it, the level may act as cost-basis support; when BTC trades below it, it may act as cost-basis resistance.", "It is an on-chain valuation reference, not a standalone guarantee of price reversal."]
     }
   }
 };
