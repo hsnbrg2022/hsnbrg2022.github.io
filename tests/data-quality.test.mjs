@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { assessMarket, cardQuality, weekdaysSince } from "../data-quality.js";
-import { t } from "../i18n.js";
+import { readFile } from "node:fs/promises";
+import { deriveDashboard } from "../model.js";
+import { localizeDashboard, t } from "../i18n.js";
 import { applyMacroQuote } from "../macro-quote.js";
 import { normalizeStablecoinHistory } from "../stablecoin-source.js";
 const now = new Date("2026-09-05T08:00:00Z");
@@ -73,4 +75,26 @@ test("缺失、非法、未来日期和无效数值不参与当前解释；不�
   }
   for (const btcPrice of [null, NaN, -1, "75000"]) assert.equal(assessMarket({ ...market, btcPrice }, marketNow).btc.eligible, false);
   for (const fng of [null, NaN, -1, 101]) assert.equal(assessMarket({ ...market, fng }, marketNow).fng.eligible, false);
+});
+
+test("中英文当前结论只使用时效内 BTC/F&G，旧数值原样保留且九卡评分不变", async () => {
+  const base = JSON.parse(await readFile(new URL("../dashboard.json", import.meta.url)));
+  const input = { ...base, market: { ...base.market, ...market } };
+  const fresh = deriveDashboard(input, marketNow);
+  assert.match(fresh.risks.join(" "), /7.80%/);
+  assert.match(fresh.summary, /极度贪婪/);
+  const old = { ...input, market: { ...input.market, btcObservedAt: "2026-08-01T00:00:00Z", fngFetchedAt: "2026-08-01T00:00:00Z" } };
+  const stale = deriveDashboard(old, marketNow);
+  assert.equal(stale.market.btcPrice, 75000);
+  assert.equal(stale.market.fng, 80);
+  assert.equal(stale.score, fresh.score);
+  assert.doesNotMatch(stale.risks.join(" "), /F&G|BTC 24h/);
+  assert.match(stale.summary, /暂不作当前情绪判断/);
+  assert.doesNotMatch(stale.previous.changes.join(" "), /BTC \$/);
+  const en = localizeDashboard(stale, "en");
+  assert.match(en.summary, /no current sentiment conclusion/);
+  assert.doesNotMatch(en.previous.changes.slice(0, 2).join(" ") + en.heat.label, /[\u4e00-\u9fff]/);
+  assert.equal(localizeDashboard(fresh, "en").heat.label, "Extreme greed");
+  assert.match(t("en", "marketTime", { time: "test" }), /15 minutes.*36 hours/);
+  assert.equal(input.marketQuality, undefined);
 });
