@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cardQuality, weekdaysSince } from "../data-quality.js";
+import { assessMarket, cardQuality, weekdaysSince } from "../data-quality.js";
 import { t } from "../i18n.js";
 import { applyMacroQuote } from "../macro-quote.js";
 import { normalizeStablecoinHistory } from "../stablecoin-source.js";
@@ -52,4 +52,25 @@ test("mNAV 资本基准和转换分类独立于行情日期控制确认", () => 
     assert.doesNotMatch(t("en", reason), /[\u4e00-\u9fff]/);
     assert.notEqual(t("en", reason), reason);
   }
+});
+
+const marketNow = new Date("2026-09-08T04:00:00Z");
+const market = { btcPrice: 75000, btcCurrency: "USD", btcChange24h: 7.8, btcChange: { value: 7.8, basis: "rolling24h", source: "test" }, btcSource: "test", fng: 80, btcObservedAt: marketNow.toISOString(), btcFetchedAt: marketNow.toISOString(), fngFetchedAt: marketNow.toISOString() };
+
+test("BTC 15 分钟、F&G 36 小时含边界；一次刷新失败不等同于过期", () => {
+  for (const [key, limit] of [["btc", 15 * 60_000], ["fng", 36 * 3_600_000]]) {
+    const input = { ...market, [key === "btc" ? "btcObservedAt" : "fngFetchedAt"]: new Date(+marketNow - limit).toISOString(), refreshStatus: "failed" };
+    assert.equal(assessMarket(input, marketNow)[key].eligible, true);
+    assert.equal(assessMarket(input, new Date(+marketNow + 1))[key].state, "stale");
+  }
+});
+
+test("缺失、非法、未来日期和无效数值不参与当前解释；不受全局时间影响", () => {
+  for (const asOf of [undefined, "bad", "2026-02-30T00:00:00Z", "2030-01-01T00:00:00Z"]) {
+    const quality = assessMarket({ ...market, btcObservedAt: asOf, fngFetchedAt: asOf, updatedAt: marketNow.toISOString() }, marketNow);
+    assert.equal(quality.btc.state, "unknown");
+    assert.equal(quality.fng.state, "unknown");
+  }
+  for (const btcPrice of [null, NaN, -1, "75000"]) assert.equal(assessMarket({ ...market, btcPrice }, marketNow).btc.eligible, false);
+  for (const fng of [null, NaN, -1, 101]) assert.equal(assessMarket({ ...market, fng }, marketNow).fng.eligible, false);
 });
