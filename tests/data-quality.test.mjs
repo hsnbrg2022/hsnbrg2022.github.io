@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { cardQuality, weekdaysSince } from "../data-quality.js";
+import { t } from "../i18n.js";
 import { applyMacroQuote } from "../macro-quote.js";
 import { normalizeStablecoinHistory } from "../stablecoin-source.js";
 const now = new Date("2026-09-05T08:00:00Z");
@@ -40,4 +41,15 @@ test("日期缺失、非法、未来及缺少来源日期的链上读数待核�
     assert.equal(cardQuality({ id: 6, dataAsOf: asOf }, now).state, "unknown");
   }
   for (const id of [7, 8]) assert.equal(cardQuality({ id }, now).eligible, false);
+});
+
+test("mNAV 资本基准和转换分类独立于行情日期控制确认", () => {
+  const card = { id: 2, dataAsOf: "2026-09-04", status: "green", basisAsOf: "2026-08-31" };
+  assert.equal(cardQuality(card, now).reason, "mnavClassificationUnknown");
+  assert.equal(cardQuality({ ...card, mnavMode: "official-live" }, now).eligible, true);
+  assert.equal(cardQuality({ ...card, basisAsOf: "2026-08-28", mnavMode: "official-live" }, now).reason, "mnavBasisStale");
+  for (const reason of ["mnavBasisUnknown", "mnavBasisStale", "mnavClassificationUnknown"]) {
+    assert.doesNotMatch(t("en", reason), /[\u4e00-\u9fff]/);
+    assert.notEqual(t("en", reason), reason);
+  }
 });
