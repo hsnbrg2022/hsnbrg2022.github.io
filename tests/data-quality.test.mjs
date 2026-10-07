@@ -122,3 +122,29 @@ test("最新官方 mNAV 可展示但未核验资本不加分，双语解读不�
   assert.match(view.cards[0].detail, /独立更新/);
   assert.doesNotMatch(localizeDashboard(view, "en").cards[0].detail, /[\u4e00-\u9fff]|previous reading/i);
 });
+
+test("仅请求失败不改变有效覆盖，过期后退出确认但原灯色和数值保留", async () => {
+  const data = JSON.parse(await readFile(new URL("../dashboard.json", import.meta.url)));
+  for (const card of data.cards) { card.dataAsOf = now.toISOString(); card.status = "green"; }
+  Object.assign(data.cards.find(card => card.id === 2), { basisAsOf: "2026-08-31", mnavMode: "official-live", mnavBasisComplete: true });
+  // Controlled fixture: two legacy on-chain readings have no validated observations.
+  for (const card of data.cards.filter(card => [7, 8].includes(card.id))) delete card.onchain;
+  data.cards.find(card => card.id === 3).stablecoin = normalizeStablecoinHistory(["2026-08-28", "2026-09-04"].map(date => ({ date: Date.parse(date) / 1000, totalCirculatingUSD: { peggedUSD: 300e9 } })), now);
+  const fresh = deriveDashboard(data, now);
+  for (const card of data.cards) card.refreshStatus = "failed";
+  const failed = deriveDashboard(data, now);
+  assert.equal(fresh.score, 7);
+  assert.equal(failed.score, fresh.score);
+  const stale = deriveDashboard(data, new Date("2026-12-01T08:00:00Z"));
+  assert.equal(stale.score, 0);
+  assert.equal(stale.pending, 9);
+  assert.equal(stale.cards[0].status, "green");
+  assert.equal(stale.cards[0].headline, data.cards[0].headline);
+  assert.equal(data.cards[0].quality, undefined);
+  assert.match(stale.summary, /不作全局方向确认/);
+  const english = localizeDashboard(stale, "en");
+  assert.equal(english.score, stale.score);
+  assert.match(english.summary, /valid coverage 0\/9/);
+  assert.doesNotMatch(english.summary, /[\u4e00-\u9fff]/);
+  assert.match(t("en", "qualityStale"), /Historical/);
+});
