@@ -111,3 +111,14 @@ test("所有公开源失败后，全局刷新时间推进也不会翻新顶部�
   assert.equal(derived.marketQuality.fng.state, "stale");
   assert.doesNotMatch(derived.risks.join(" "), /F&G|BTC 24h/);
 });
+
+test("最新官方 mNAV 可展示但未核验资本不加分，双语解读不是旧值", async () => {
+  const raw = JSON.parse(await readFile(new URL("../dashboard.json", import.meta.url), "utf8"));
+  raw.cards = [{ id: 2, title: "Strategy mNAV", headline: "1.22x", status: "green", facts: [], source: { label: "Strategy", url: "https://www.strategy.com/btc" }, dataAsOf: "2026-09-04", basisAsOf: "2026-08-31", mnavMode: "official-live", mnavBasisComplete: false }];
+  const view = deriveDashboard(raw, now);
+  assert.equal(view.score, 0);
+  assert.equal(view.coverage, 0);
+  assert.equal(view.cards[0].headline, "1.22x");
+  assert.match(view.cards[0].detail, /独立更新/);
+  assert.doesNotMatch(localizeDashboard(view, "en").cards[0].detail, /[\u4e00-\u9fff]|previous reading/i);
+});
