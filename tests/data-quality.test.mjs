@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { assessMarket, cardQuality, weekdaysSince } from "../data-quality.js";
 import { readFile } from "node:fs/promises";
 import { refreshPublicDashboard } from "../public-refresh.js";
-import { deriveDashboard } from "../model.js";
+import { deriveDashboard, marketHeat } from "../model.js";
 import { localizeDashboard, t } from "../i18n.js";
 import { applyMacroQuote } from "../macro-quote.js";
 import { normalizeStablecoinHistory } from "../stablecoin-source.js";
@@ -147,4 +147,12 @@ test("仅请求失败不改变有效覆盖，过期后退出确认但原灯色�
   assert.match(english.summary, /valid coverage 0\/9/);
   assert.doesNotMatch(english.summary, /[\u4e00-\u9fff]/);
   assert.match(t("en", "qualityStale"), /Historical/);
+});
+
+test("F&G 区间判定包含边界", () => {
+  assert.equal(marketHeat(75).label, "极度贪婪");
+  assert.equal(marketHeat(55).label, "贪婪");
+  assert.equal(marketHeat(45).label, "中性");
+  assert.equal(marketHeat(25).label, "恐惧");
+  assert.equal(marketHeat(24).label, "极度恐惧");
 });
