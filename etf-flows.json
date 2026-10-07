@@ -3,8 +3,8 @@
   "asset": "BTC",
   "unit": "USD_MILLIONS",
   "status": "snapshot",
-  "marketDate": "2026-10-05",
-  "generatedAt": "2026-10-06T07:37:53.543Z",
+  "marketDate": "2026-10-06",
+  "generatedAt": "2026-10-07T07:18:27.736Z",
   "source": {
     "label": "Daily Market Report / Farside (rounded)",
     "url": "https://www.dailymarket.report/index.html",
@@ -154,6 +154,10 @@
     {
       "date": "2026-10-05",
       "flowUsdMillions": -90
+    },
+    {
+      "date": "2026-10-06",
+      "flowUsdMillions": 119
     }
   ],
   "recordOrigins": {
@@ -375,6 +379,14 @@
       "url": "https://www.dailymarket.report/index.html",
       "reportedSource": "Farside Investors",
       "revisedAt": "2026-10-06T05:04:00.000Z",
+      "rounded": true,
+      "precisionUsdMillions": 1
+    },
+    "2026-10-06": {
+      "method": "public-media",
+      "url": "https://www.dailymarket.report/index.html",
+      "reportedSource": "Farside Investors",
+      "revisedAt": "2026-10-07T05:04:00.000Z",
       "rounded": true,
       "precisionUsdMillions": 1
     }
