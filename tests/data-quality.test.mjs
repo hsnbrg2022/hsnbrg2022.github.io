@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { assessMarket, cardQuality, weekdaysSince } from "../data-quality.js";
 import { readFile } from "node:fs/promises";
+import { refreshPublicDashboard } from "../public-refresh.js";
 import { deriveDashboard } from "../model.js";
 import { localizeDashboard, t } from "../i18n.js";
 import { applyMacroQuote } from "../macro-quote.js";
@@ -97,4 +98,16 @@ test("中英文当前结论只使用时效内 BTC/F&G，旧数值原样保留且
   assert.equal(localizeDashboard(fresh, "en").heat.label, "Extreme greed");
   assert.match(t("en", "marketTime", { time: "test" }), /15 minutes.*36 hours/);
   assert.equal(input.marketQuality, undefined);
+});
+
+test("所有公开源失败后，全局刷新时间推进也不会翻新顶部旧值", async () => {
+  const base = JSON.parse(await readFile(new URL("../dashboard.json", import.meta.url)));
+  const input = { ...base, market: { ...base.market, ...market, btcObservedAt: "2026-08-01T00:00:00Z", fngFetchedAt: "2026-08-01T00:00:00Z" } };
+  const result = await refreshPublicDashboard(input, { fetchImpl: async () => { throw new Error("offline fixture"); } });
+  assert.equal(result.updated.length, 0);
+  assert.equal(result.data.updatedAt, result.checkedAt);
+  const derived = deriveDashboard(result.data, marketNow);
+  assert.equal(derived.marketQuality.btc.state, "stale");
+  assert.equal(derived.marketQuality.fng.state, "stale");
+  assert.doesNotMatch(derived.risks.join(" "), /F&G|BTC 24h/);
 });
