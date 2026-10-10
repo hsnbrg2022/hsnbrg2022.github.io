@@ -2,13 +2,10 @@
   "schemaVersion": 1,
   "collector": "etf-flows",
   "execution": "github-actions",
-  "checkedAt": "2026-10-09T16:18:30.280Z",
-  "status": "ok",
+  "checkedAt": "2026-10-10T07:15:12.042Z",
+  "status": "failed",
   "lastSuccessAt": "2026-10-09T16:18:30.280Z",
-  "snapshotChanged": false,
-  "errorCode": null,
-  "completeness": {
-    "status": "complete",
-    "missingDates": []
-  }
+  "snapshotChanged": null,
+  "errorCode": "upstream_unavailable",
+  "completeness": null
 }
