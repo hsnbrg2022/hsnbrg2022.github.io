@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { analyzeTrueMarketMean, calculateBookAccountRatio, calculateDxyFromRates, derivePositioningSignal, mergeRefreshView, statusCounts } from "../model.js";
+import { normalizeStablecoinHistory } from "../stablecoin-source.js";
+import { analyzeTrueMarketMean, calculateBookAccountRatio, calculateDxyFromRates, deriveDashboard, derivePositioningSignal, mergeRefreshView, statusCounts } from "../model.js";
 
 test("统计九项指标状态", async () => {
   const fixture = JSON.parse(await readFile(new URL("../dashboard.json", import.meta.url), "utf8"));
@@ -9,6 +10,26 @@ test("统计九项指标状态", async () => {
   assert.deepEqual(statusCounts(cards), { green: 6, yellow: 3, red: 0, off: 0 });
   const statuses = ["green", "green", "yellow", "yellow", "yellow", "red", "red", "off", "off"];
   assert.deepEqual(statusCounts(cards.map((card, index) => ({ ...card, status: statuses[index] }))), { green: 2, yellow: 3, red: 2, off: 2 });
+});
+
+test("生成综合评分、风险和总结", async () => {
+  const stableFixture = JSON.parse(await readFile(new URL("../dashboard.json", import.meta.url), "utf8"));
+  const now = new Date("2026-09-05T08:00:00Z");
+  stableFixture.market.fng = 75;
+  // This scenario requires a current sentiment observation, not the published snapshot's age.
+  stableFixture.market.fngFetchedAt = now.toISOString();
+  stableFixture.cards = stableFixture.cards.map((card, index) => ({ ...card, status: index < 6 ? "green" : "yellow" }));
+  stableFixture.cards.find((card) => card.id === 9).status = "green";
+  stableFixture.cards.find((card) => card.id === 6).status = "yellow";
+  stableFixture.cards.forEach((card) => { card.dataAsOf = now.toISOString(); });
+  Object.assign(stableFixture.cards.find(card => card.id === 2), { basisAsOf: "2026-08-31", mnavMode: "official-live" });
+  stableFixture.cards.find(card => card.id === 3).stablecoin = normalizeStablecoinHistory(["2026-08-28", "2026-09-04"].map((date, i) => ({ date: Date.parse(date) / 1000, totalCirculatingUSD: { peggedUSD: 300e9 + i * 1e9 } })), now);
+  const result = deriveDashboard(stableFixture, now);
+  assert.equal(result.score, 6);
+  assert.equal(result.total, 9);
+  assert.equal(result.coverage, 7);
+  assert.match(result.summary, /覆盖不完整/);
+  assert.ok(result.risks.some((risk) => risk.includes("追高风险")));
 });
 
 test("仓帐比只由仓位比和账户比计算", () => {
