@@ -1,7 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { analyzeTrueMarketMean, calculateBookAccountRatio, calculateDxyFromRates, derivePositioningSignal, mergeRefreshView } from "../model.js";
+import { analyzeTrueMarketMean, calculateBookAccountRatio, calculateDxyFromRates, derivePositioningSignal, mergeRefreshView, statusCounts } from "../model.js";
+
+test("统计九项指标状态", async () => {
+  const fixture = JSON.parse(await readFile(new URL("../dashboard.json", import.meta.url), "utf8"));
+  const cards = fixture.cards.map((card, index) => ({ ...card, status: index < 6 ? "green" : "yellow" }));
+  assert.deepEqual(statusCounts(cards), { green: 6, yellow: 3, red: 0, off: 0 });
+  const statuses = ["green", "green", "yellow", "yellow", "yellow", "red", "red", "off", "off"];
+  assert.deepEqual(statusCounts(cards.map((card, index) => ({ ...card, status: statuses[index] }))), { green: 2, yellow: 3, red: 2, off: 2 });
+});
 
 test("仓帐比只由仓位比和账户比计算", () => {
   assert.equal(calculateBookAccountRatio(1.14, 1.96)?.toFixed(2), "1.72");
