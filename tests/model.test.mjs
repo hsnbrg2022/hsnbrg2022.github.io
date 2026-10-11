@@ -42,6 +42,22 @@ test("拒绝缺项或非法状态", async () => {
   assert.throws(() => validateDashboard({ ...fixture, trueMarketMean: { value: 0, asOf: "2026-08-21" } }), /True Market Mean/);
 });
 
+test("基线对比随当前行情与手工卡片重算，不展示持久化的旧变化文案", async () => {
+  const current = JSON.parse(await readFile(new URL("../dashboard.json", import.meta.url), "utf8"));
+  const now = new Date("2026-09-05T08:00:00Z");
+  current.market.btcPrice = 80000;
+  current.market.btcFetchedAt = now.toISOString();
+  current.market.btcObservedAt = current.market.btcFetchedAt;
+  current.market.btcCurrency = "USD";
+  current.previous = { date: "2026-08-21", btcPrice: 72000, btcCurrency: "USD", fng: 68, changes: ["过时日报 $10,000"] };
+  current.cards.find((card) => card.id === 6).headline = "$4,800.00 · 涨跌基准暂不可用";
+  const derived = deriveDashboard(current, now);
+  assert.match(derived.previous.changes.join(" "), /\$72,000 → \$80,000/);
+  assert.match(derived.previous.changes.join(" "), /\$4,800/);
+  assert.doesNotMatch(derived.previous.changes.join(" "), /过时日报/);
+  assert.deepEqual(current.previous.changes, ["过时日报 $10,000"]);
+});
+
 test("仓帐比只由仓位比和账户比计算", () => {
   assert.equal(calculateBookAccountRatio(1.14, 1.96)?.toFixed(2), "1.72");
   assert.equal(calculateBookAccountRatio(0, 1.96), null);
