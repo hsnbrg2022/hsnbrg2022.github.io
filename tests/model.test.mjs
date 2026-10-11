@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { normalizeStablecoinHistory } from "../stablecoin-source.js";
-import { analyzeTrueMarketMean, calculateBookAccountRatio, calculateDxyFromRates, deriveDashboard, derivePositioningSignal, mergeRefreshView, statusCounts } from "../model.js";
+import { analyzeTrueMarketMean, calculateBookAccountRatio, calculateDxyFromRates, deriveDashboard, derivePositioningSignal, mergeRefreshView, statusCounts, validateDashboard } from "../model.js";
 
 test("统计九项指标状态", async () => {
   const fixture = JSON.parse(await readFile(new URL("../dashboard.json", import.meta.url), "utf8"));
@@ -30,6 +30,16 @@ test("生成综合评分、风险和总结", async () => {
   assert.equal(result.coverage, 7);
   assert.match(result.summary, /覆盖不完整/);
   assert.ok(result.risks.some((risk) => risk.includes("追高风险")));
+});
+
+test("拒绝缺项或非法状态", async () => {
+  const fixture = JSON.parse(await readFile(new URL("../dashboard.json", import.meta.url), "utf8"));
+  assert.equal(validateDashboard(fixture), true);
+  assert.throws(() => validateDashboard({ ...fixture, cards: fixture.cards.slice(0, 8) }), /9 项/);
+  const bad = structuredClone(fixture);
+  bad.cards[0].status = "unknown";
+  assert.throws(() => validateDashboard(bad), /状态无效/);
+  assert.throws(() => validateDashboard({ ...fixture, trueMarketMean: { value: 0, asOf: "2026-08-21" } }), /True Market Mean/);
 });
 
 test("仓帐比只由仓位比和账户比计算", () => {
