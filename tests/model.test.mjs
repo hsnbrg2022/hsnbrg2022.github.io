@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { normalizeStablecoinHistory } from "../stablecoin-source.js";
-import { analyzeTrueMarketMean, calculateBookAccountRatio, calculateDxyFromRates, deriveDashboard, derivePositioningSignal, mergeRefreshView, statusCounts, validateDashboard } from "../model.js";
+import { analyzeTrueMarketMean, calculateBookAccountRatio, calculateDxyFromRates, deriveDashboard, derivePositioningSignal, mergeMaintenanceView, mergeRefreshView, statusCounts, validateDashboard } from "../model.js";
 
 test("统计九项指标状态", async () => {
   const fixture = JSON.parse(await readFile(new URL("../dashboard.json", import.meta.url), "utf8"));
@@ -56,6 +56,20 @@ test("基线对比随当前行情与手工卡片重算，不展示持久化的�
   assert.match(derived.previous.changes.join(" "), /\$4,800/);
   assert.doesNotMatch(derived.previous.changes.join(" "), /过时日报/);
   assert.deepEqual(current.previous.changes, ["过时日报 $10,000"]);
+});
+
+test("较晚返回的保存响应只更新所维护卡片，不回退期间刷新的 BTC", async () => {
+  const fixture = JSON.parse(await readFile(new URL("../dashboard.json", import.meta.url), "utf8"));
+  const saved = structuredClone(fixture);
+  saved.updatedAt = "2026-09-05T01:00:00Z";
+  saved.cards.find((card) => card.id === 1).headline = "已修正 ETF";
+  const current = structuredClone(fixture);
+  current.updatedAt = "2026-09-05T01:00:01Z";
+  current.market.btcPrice = 80000;
+  const merged = mergeMaintenanceView(current, saved, 1);
+  assert.equal(merged.market.btcPrice, 80000);
+  assert.equal(merged.updatedAt, current.updatedAt);
+  assert.equal(merged.cards.find((card) => card.id === 1).headline, "已修正 ETF");
 });
 
 test("仓帐比只由仓位比和账户比计算", () => {
