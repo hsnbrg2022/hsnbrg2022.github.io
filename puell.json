@@ -5,11 +5,11 @@
   "interval": "24h",
   "metric": "puell_multiple",
   "asOf": "2026-10-12",
-  "generatedAt": "2026-10-13T01:59:54.902Z",
-  "value": 1.104804149667303,
+  "generatedAt": "2026-10-13T11:43:54.646Z",
+  "value": 1.1115062040875805,
   "observation": {
     "timestamp": 1791763200,
-    "value": 1.104804149667303
+    "value": 1.1115062040875805
   },
   "auxiliary": null,
   "source": {
