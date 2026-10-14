@@ -96,3 +96,38 @@ test("公开刷新可更新十二项数据（含 MVRV 与 Puell）", async (t) =
   assert.equal(result.etfDataset.asset, "BTC");
   assert.equal(result.etfDataset.rows.at(-1).date, "2026-08-21");
 });
+
+test("失败后恢复会清除宏观和稳定币失败标记，ETF 仍保留自己的数据年龄", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-04T08:00:00Z") });
+  const dashboard = JSON.parse(await readFile(dashboardPath, "utf8"));
+  const failed = await refreshPublicDashboard(dashboard, { fetchImpl: async () => { throw new Error("offline"); } });
+  const rates = { EUR: 0.85, JPY: 146, GBP: 0.73, CAD: 1.36, SEK: 9.5, CHF: 0.79 };
+  const recovered = await refreshPublicDashboard(failed.data, { fetchImpl: async (url) => {
+    if (url.includes("gold-api.com")) return response({ price: 4800, updatedAt: "2026-09-04T01:00:00Z" });
+    if (url.includes("frankfurter.dev")) return response({ rates: { "2026-09-02": rates, "2026-09-03": rates } });
+    if (url.includes("stablecoincharts")) return response(Array.from({ length: 8 }, (_, i) => ({ date: 1787875200 + i * 86400, totalCirculatingUSD: { peggedUSD: 300e9 + i * 1e9 } })));
+    if (url.includes("etf-flows.json")) return response({ asset: "BTC", unit: "USD_MILLIONS", status: "snapshot", rows: [{ date: "2020-01-02", flowUsdMillions: 100 }] });
+    throw new Error("unavailable");
+  } });
+  for (const id of [3, 5, 6]) assert.equal(recovered.data.cards.find((card) => card.id === id).refreshStatus, "ok");
+  assert.equal(recovered.data.cards.find((card) => card.id === 1).refreshStatus, "stale");
+});
+
+test("单项失败时保留发布值并明确提示", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-04T08:00:00Z") });
+  const dashboard = JSON.parse(await readFile(dashboardPath, "utf8"));
+  const before = dashboard.market.btcPrice;
+  const trueMarketMeanBefore = structuredClone(dashboard.trueMarketMean);
+  const result = await refreshPublicDashboard(dashboard, {
+    fetchImpl: async () => { throw new Error("offline"); }
+  });
+  assert.equal(result.data.market.btcPrice, before);
+  assert.equal(result.updated.length, 0);
+  assert.equal(result.warnings.length, 12);
+  assert.equal(result.data.dataMode, "公开混合数据");
+  assert.equal(result.data.cards.find((item) => item.id === 3).refreshStatus, "failed");
+  assert.equal(result.data.cards.find((item) => item.id === 2).refreshStatus, "failed");
+  assert.equal(result.data.trueMarketMean.refreshStatus, "failed");
+  assert.equal(result.data.trueMarketMean.value, trueMarketMeanBefore.value);
+  assert.equal(result.data.trueMarketMean.asOf, trueMarketMeanBefore.asOf);
+});
