@@ -73,7 +73,26 @@ export async function loadFreeEtf(options = {}) {
   const rows = new Map(), origins = {};
   for (const result of results) for (const row of result.rows) {
     const previous = rows.get(row.date);
-    if (previous && previous.flowUsdMillions !== row.flowUsdMillions) throw new Error(`ETF ${row.date} 免费来源金额冲突，保留旧快照`);
+    if (previous && previous.flowUsdMillions !== row.flowUsdMillions) {
+      const previousOrigin = origins[row.date], origin = result.recordOrigins[row.date];
+      const finer = previousOrigin.precisionUsdMillions < origin.precisionUsdMillions ? previous : row;
+      const finerOrigin = finer === previous ? previousOrigin : origin;
+      const rounded = finer === previous ? row : previous;
+      const roundedOrigin = finer === previous ? origin : previousOrigin;
+      const unit = roundedOrigin.precisionUsdMillions;
+      // An explicitly rounded display (e.g. -$65M) must reproduce the finer
+      // print (-$65.401M). Reject bin boundaries, opposite signs and real gaps.
+      // This only reconciles this run's reports, never revises saved history.
+      const agrees = roundedOrigin.rounded === true && finerOrigin.method === "public-media"
+        && roundedOrigin.method === "public-media" && Number.isFinite(unit) && unit > 0
+        && Number.isFinite(finerOrigin.precisionUsdMillions) && finerOrigin.precisionUsdMillions > 0
+        && finerOrigin.precisionUsdMillions < unit
+        && Math.sign(finer.flowUsdMillions) === Math.sign(rounded.flowUsdMillions)
+        && Number((Math.round(Math.abs(finer.flowUsdMillions) / unit) * unit).toFixed(6)) === Math.abs(rounded.flowUsdMillions)
+        && Math.abs(finer.flowUsdMillions - rounded.flowUsdMillions) + finerOrigin.precisionUsdMillions / 2 < unit / 2;
+      if (!agrees) throw new Error(`ETF ${row.date} 免费来源金额冲突，保留旧快照`);
+      rows.set(row.date, finer); origins[row.date] = finerOrigin;
+    }
     if (!previous) { rows.set(row.date,row); origins[row.date] = result.recordOrigins[row.date]; }
   }
   const latest = results.reduce((a,b) => b.marketDate > a.marketDate ? b : a);

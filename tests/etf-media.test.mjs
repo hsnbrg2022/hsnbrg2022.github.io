@@ -91,6 +91,28 @@ test("free providers independently fall back; all failures reject without genera
   await assert.rejects(loadFreeEtf({now:dmrNow,fetchImpl:async()=>({ok:false,status:503})}), /PANews HTTP 503/);
 });
 
+test("free sources reconcile only explicitly rounded daily totals and retain the finer report", async () => {
+  const primary = value => article({ publishedAt:"2026-10-03T04:00:00Z", updatedAt:"2026-10-03T04:01:00Z",
+    content:`<p>据SoSoValue数据，昨日（美东时间10月2日）比特币现货ETF总净流出${value}万美元。</p>` });
+  const collect = (amount, dmrValue = "−$65 M") => loadFreeEtf({now:dmrNow, fetchImpl:async url => url.includes("dailymarket") ?
+    {ok:true,text:async()=>dmrHtml("02 Oct 2026", dmrValue)} : {ok:true,json:async()=>[{article:primary(amount)}]} });
+  const merged = await collect("6540.10");
+  assert.equal(merged.rows[0].flowUsdMillions, -65.401);
+  assert.equal(merged.recordOrigins["2026-10-02"].reportedSource, "SoSoValue");
+  assert.equal(merged.recordOrigins["2026-10-02"].precisionUsdMillions, 0.0001);
+  // The same value printed in billions has a different, explicit display unit.
+  assert.equal((await collect("125040.10", "−$1.25 B")).rows[0].flowUsdMillions, -1250.401);
+  for (const [amount, rounded] of [["6550.00","−$65 M"], ["6600.00","−$65 M"],
+    ["6540.10","+$65 M"], ["6540.10","−$65.0 M"], ["124500.00","−$1.25 B"]]) {
+    await assert.rejects(collect(amount,rounded), /冲突/);
+  }
+  const manual = { source:{method:"manual-entry"},marketDate:"2026-10-02",rows:[{date:"2026-10-02",flowUsdMillions:7}] };
+  assert.equal(mergeEtfCollection(manual, merged).rows[0].flowUsdMillions, 7);
+  const current = dataset([{ ...report(), date:"2026-10-02", flowUsdMillions:-65,
+    origin:{...report().origin,url:"https://example.com/previous-report"} }]);
+  assert.throws(() => mergeEtfCollection(current, merged), /更正依据不足/);
+});
+
 test("media parser selects aggregate, signed USD units and reported precision (including zero)", () => {
   assert.equal(report().flowUsdMillions, 433);
   assert.equal(report().origin.precisionUsdMillions, 1);
