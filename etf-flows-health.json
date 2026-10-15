@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "collector": "etf-flows",
   "execution": "github-actions",
-  "checkedAt": "2026-10-15T05:56:39.876Z",
+  "checkedAt": "2026-10-15T14:13:25.312Z",
   "status": "ok",
-  "lastSuccessAt": "2026-10-15T05:56:39.876Z",
-  "snapshotChanged": true,
+  "lastSuccessAt": "2026-10-15T14:13:25.312Z",
+  "snapshotChanged": false,
   "errorCode": null,
   "completeness": {
     "status": "complete",
