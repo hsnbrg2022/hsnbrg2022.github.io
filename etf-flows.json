@@ -3,16 +3,16 @@
   "asset": "BTC",
   "unit": "USD_MILLIONS",
   "status": "snapshot",
-  "marketDate": "2026-10-13",
-  "generatedAt": "2026-10-14T06:12:25.862Z",
+  "marketDate": "2026-10-14",
+  "generatedAt": "2026-10-15T05:56:33.478Z",
   "source": {
-    "label": "Daily Market Report / Farside (rounded)",
-    "url": "https://www.dailymarket.report/index.html",
+    "label": "PANews / SoSoValue (rounded)",
+    "url": "https://www.panewslab.com/zh/articles/01a13e00-6558-75e5-94d9-45b04b4126d7",
     "method": "public-media"
   },
   "verificationSource": {
-    "label": "Farside",
-    "url": "https://farside.co.uk/btc/"
+    "label": "SoSoValue",
+    "url": "https://sosovalue.com/zh/assets/etf/us-btc-spot"
   },
   "rows": [
     {
@@ -178,6 +178,10 @@
     {
       "date": "2026-10-13",
       "flowUsdMillions": 110
+    },
+    {
+      "date": "2026-10-14",
+      "flowUsdMillions": -261
     }
   ],
   "recordOrigins": {
@@ -448,6 +452,14 @@
       "reportedSource": "Farside Investors",
       "revisedAt": "2026-10-14T05:02:00.000Z",
       "rounded": true,
+      "precisionUsdMillions": 1
+    },
+    "2026-10-14": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a13e00-6558-75e5-94d9-45b04b4126d7",
+      "publishedAt": "2026-10-15T05:19:00.000Z",
+      "revisedAt": "2026-10-15T05:19:35.768Z",
+      "reportedSource": "SoSoValue",
       "precisionUsdMillions": 1
     }
   }
