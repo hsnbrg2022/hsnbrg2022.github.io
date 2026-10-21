@@ -4,12 +4,12 @@
   "asset": "BTC",
   "interval": "24h",
   "metric": "puell_multiple",
-  "asOf": "2026-10-19",
-  "generatedAt": "2026-10-20T13:32:26.699Z",
-  "value": 1.1152223101654153,
+  "asOf": "2026-10-20",
+  "generatedAt": "2026-10-21T04:41:25.228Z",
+  "value": 1.234239516092763,
   "observation": {
-    "timestamp": 1792368000,
-    "value": 1.1152223101654153
+    "timestamp": 1792454400,
+    "value": 1.234239516092763
   },
   "auxiliary": null,
   "source": {
