@@ -30,25 +30,25 @@
       "section": "capital",
       "title": "BTC ETF 资金流",
       "shortName": "ETF",
-      "status": "yellow",
-      "headline": "连续 1 日净流入 · 累计 $110.0M",
+      "status": "green",
+      "headline": "连续 2 日净流入 · 累计 $550.2M",
       "facts": [
-        "10/8 −$244.0M",
-        "10/9 +$21.1M",
-        "10/12 −$65.4M",
-        "10/13 +$110.0M"
+        "10/15 +$5.1M",
+        "10/16 −$82.4M",
+        "10/19 +$527.0M",
+        "10/20 +$23.2M"
       ],
       "detail": "ETF 资金连续净流入，机构配置需求保持支撑。",
-      "change": "连续1日净流入",
+      "change": "连续2日净流入",
       "source": {
-        "label": "Daily Market Report / Farside (rounded)",
-        "url": "https://www.dailymarket.report/index.html"
+        "label": "PANews / SoSoValue (rounded)",
+        "url": "https://www.panewslab.com/zh/articles/01a15ca1-daa5-74c1-a070-39613a69e813"
       },
       "refresh": "auto",
       "refreshStatus": "ok",
-      "refreshMessage": "ETF / Daily Market Report / Farside (rounded) · 截至 2026-10-13",
-      "dataAsOf": "2026-10-13",
-      "marketFetchedAt": "2026-10-14T06:12:25.862Z",
+      "refreshMessage": "ETF / PANews / SoSoValue (rounded) · 截至 2026-10-20",
+      "dataAsOf": "2026-10-20",
+      "marketFetchedAt": "2026-10-21T06:06:11.366Z",
       "manualEntry": false,
       "continuity": {
         "gapAfter": null,
@@ -259,7 +259,7 @@
       "⑨ 机构锁仓做多（S+级）——🟦S+ 仓帐比1.70",
       "② mNAV：mNAV 1.15x · 最新口径，按 Strategy 2026-07-23 起最新口径估算：MSTR 股价 ÷ Net BTC Per Share ($)；资本结构采用 2026-08-31 官方披露，行情自动更新。",
       "⑥ 黄金：$4,604.40 · 较上次 -0.00%",
-      "① ETF：连续 1 日净流入 · 累计 $110.0M",
+      "① ETF：连续 2 日净流入 · 累计 $550.2M",
       "③ 稳定币：$3,085 亿 · 7d +0.65%"
     ]
   },

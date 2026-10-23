@@ -113,6 +113,24 @@ test("失败后恢复会清除宏观和稳定币失败标记，ETF 仍保留自�
   assert.equal(recovered.data.cards.find((card) => card.id === 1).refreshStatus, "stale");
 });
 
+test("公开黄金同价重复刷新保持观察，不从旧文案制造涨跌率", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-04T08:00:00Z") });
+  const dashboard = JSON.parse(await readFile(dashboardPath, "utf8"));
+  dashboard.cards.find((card) => card.id === 6).headline = "$5,000.00 · +1.00%";
+  const fetchImpl = async (url) => {
+    if (url.includes("gold-api.com")) return response({ price: 4800, updatedAt: "2026-09-04T01:00:00Z" });
+    throw new Error("unavailable");
+  };
+  const first = await refreshPublicDashboard(dashboard, { fetchImpl });
+  const second = await refreshPublicDashboard(first.data, { fetchImpl });
+  const before = first.data.cards.find((card) => card.id === 6);
+  const after = second.data.cards.find((card) => card.id === 6);
+  assert.equal(before.headline, after.headline);
+  assert.equal(after.status, "yellow");
+  assert.equal(after.marketQuote.changePct, null);
+  assert.match(after.headline, /涨跌基准暂不可用/);
+});
+
 test("单项失败时保留发布值并明确提示", async (t) => {
   t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-04T08:00:00Z") });
   const dashboard = JSON.parse(await readFile(dashboardPath, "utf8"));
