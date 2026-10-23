@@ -131,6 +131,20 @@ test("公开黄金同价重复刷新保持观察，不从旧文案制造涨跌�
   assert.match(after.headline, /涨跌基准暂不可用/);
 });
 
+test("Fed 成功读取过期快照仍保留 stale，读取近期快照才恢复 ok", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-05T08:00:00Z") });
+  const dashboard = JSON.parse(await readFile(dashboardPath, "utf8"));
+  const refresh = (eventDate) => refreshPublicDashboard(dashboard, { fetchImpl: async (url) => {
+    if (url.includes("fed-signals.json")) return response({
+      schemaVersion: 1, generatedAt: "2026-09-05T00:00:00Z",
+      fomc: { eventDate, action: "hold", targetRange: { lower: 3.5, upper: 3.75 }, url: "https://www.federalreserve.gov/" }
+    });
+    throw new Error("unavailable");
+  } });
+  assert.equal((await refresh("2026-01-01")).data.cards.find((card) => card.id === 4).refreshStatus, "stale");
+  assert.equal((await refresh("2026-09-01")).data.cards.find((card) => card.id === 4).refreshStatus, "ok");
+});
+
 test("单项失败时保留发布值并明确提示", async (t) => {
   t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-04T08:00:00Z") });
   const dashboard = JSON.parse(await readFile(dashboardPath, "utf8"));
