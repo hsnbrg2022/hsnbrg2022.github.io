@@ -6,7 +6,7 @@ import { detectLocalMaintenance } from "./maintenance-mode.js?v=20261023-local-p
 import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261023-progress";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261023-data-language";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261023-maintenance-language";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -18,6 +18,8 @@ const SECTION_META = {
 let dashboard;
 let refreshState = null;
 let dailyHistorySaveFailed = false;
+let browserNoticeKey = "";
+let hasBrowserPositioning = false;
 const dailyHistoryStorage = {
   getItem: key => localStorage.getItem(key),
   setItem: (key, value) => localStorage.setItem(key, value)
@@ -127,6 +129,7 @@ function applyStaticTranslations() {
   $(".briefing-head h2").textContent = t(language, "briefing");
   $("#copyButton").textContent = t(language, "copy");
   $("#snapshotButton").hidden = !IS_LOCAL_MAINTENANCE;
+  $("#snapshotButton").textContent = t(language, "snapshotAction");
   $(".summary-panel .panel-index").textContent = `01 / ${t(language, "summary").toUpperCase()}`;
   $(".change-panel .panel-index").textContent = `02 / ${t(language, "changes").toUpperCase()}`;
   $(".risk-panel h3").textContent = t(language, "risks");
@@ -397,6 +400,8 @@ function render() {
   renderBriefing(data);
   bindIndicatorTooltips();
   renderEtfArchive();
+  $("#browserStorageNotice").hidden = !browserNoticeKey;
+  $("#browserStorageNotice").textContent = browserNoticeKey ? t(language, browserNoticeKey) : "";
 }
 
 async function api(url, options = {}) {
@@ -410,12 +415,22 @@ async function api(url, options = {}) {
       headers: { "content-type": "application/json", ...(options.headers || {}) }
     });
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.code === "DASHBOARD_WRITE_BUSY" ? t(language, "writeBusy") : payload.error || "请求失败");
+    if (!response.ok) {
+      const busy = payload.code === "DASHBOARD_WRITE_BUSY";
+      throw Object.assign(new Error(t(language, busy ? "writeBusy" : "requestFailed")), { code: busy ? "DASHBOARD_WRITE_BUSY" : "REQUEST_FAILED" });
+    }
     return payload;
   } catch (error) {
-    if (deadline?.aborted && signal.reason === deadline.reason) throw new Error(t(language, "readTimeout"));
+    if (deadline?.aborted && signal.reason === deadline.reason) throw Object.assign(new Error(t(language, "readTimeout")), { code: "READ_TIMEOUT" });
     throw error;
   }
+}
+
+function maintenanceError(error) {
+  if (error?.code === "DASHBOARD_WRITE_BUSY") return t(language, "writeBusy");
+  if (error?.code === "READ_TIMEOUT") return t(language, "readTimeout");
+  if (["SecurityError", "QuotaExceededError"].includes(error?.name)) return t(language, "storageUnavailable");
+  return t(language, "requestFailed");
 }
 
 function showToast(message, tone = "default", duration = 3800) {
@@ -501,7 +516,7 @@ async function refreshData({ automatic = false } = {}) {
         } else renderRefreshProgress();
       } });
     if (result.etfDataset) publishedEtfDataset = cloneValue(result.etfDataset);
-    if (!IS_LOCAL_MAINTENANCE && localStorage.getItem(POSITIONING_STORAGE_KEY)) {
+    if (!IS_LOCAL_MAINTENANCE && hasBrowserPositioning) {
       result.data.dataMode = result.warnings.length ? "本地维护 + 混合数据" : "本地维护 + 实时数据";
     }
     dashboard = mergeRefreshView(dashboard, started, result.data);
@@ -536,7 +551,7 @@ async function refreshData({ automatic = false } = {}) {
     }
   } catch (error) {
     if (automatic) render();
-    showToast(`${language === "en" ? "Refresh failed" : "刷新失败"}: ${error.message}`, "error");
+    showToast(`${language === "en" ? "Refresh failed" : "刷新失败"}: ${maintenanceError(error)}`, "error");
   } finally {
     button.disabled = false;
     button.classList.remove("loading");
@@ -651,7 +666,7 @@ function renderEtfArchive() {
 function migrateEtfLegacy({ skip = false } = {}) {
   try {
     const dates = skip ? [] : [...$("#etfLegacyRows").querySelectorAll("input:checked")].map((input) => input.value);
-    if (!skip && !dates.length) throw new Error(t(language, "etfSelectDates"));
+    if (!skip && !dates.length) { showToast(t(language, "etfSelectDates"), "warning"); return; }
     const legacy = JSON.parse(localStorage.getItem(ETF_LEGACY_KEY));
     const next = migrateEtfSelection(readEtfEdits(localStorage), publishedEtfDataset, legacy, dates);
     localStorage.setItem(ETF_STORAGE_KEY, JSON.stringify(next));
@@ -659,7 +674,7 @@ function migrateEtfLegacy({ skip = false } = {}) {
     render();
     renderEtfHistory(currentEtfDataset);
     showToast(t(language, "etfMigrationSaved"), "success");
-  } catch (error) { showToast(`${t(language, "saveFailed")}：${error.message}`, "error"); }
+  } catch (error) { showToast(`${t(language, "saveFailed")}：${maintenanceError(error)}`, "error"); }
 }
 
 async function openEtfMaintenance() {
@@ -696,7 +711,7 @@ async function openEtfMaintenance() {
     $("#etfFlow").focus();
   } catch (error) {
     dialog.close();
-    showToast(`${t(language, "etfLoadFailed")}：${error.message}`, "error");
+    showToast(`${t(language, "etfLoadFailed")}：${maintenanceError(error)}`, "error");
   }
 }
 
@@ -730,7 +745,7 @@ async function saveEtfMaintenance(event) {
     $("#etfDialog").close();
     render();
   } catch (error) {
-    showToast(`${t(language, "saveFailed")}：${error.message}`, "error", 7000);
+    showToast(`${t(language, "saveFailed")}：${maintenanceError(error)}`, "error", 7000);
   } finally {
     button.disabled = false;
   }
@@ -742,9 +757,9 @@ function resetEtfMaintenance() {
     const raw = localStorage.getItem(ETF_STORAGE_KEY);
     if (raw) localStorage.setItem(`${ETF_STORAGE_KEY}:backup:${Date.now()}`, raw);
     localStorage.setItem(ETF_STORAGE_KEY, JSON.stringify({ ...emptyEtfEdits(), legacyReviewed: true }));
-  } catch (error) { showToast(`${t(language, "saveFailed")}：${error.message}`, "error"); return; }
+  } catch (error) { showToast(`${t(language, "saveFailed")}：${maintenanceError(error)}`, "error"); return; }
   composeBrowserEtf({ keepFailure: true });
-  dashboard.dataMode = localStorage.getItem(POSITIONING_STORAGE_KEY)
+  dashboard.dataMode = hasBrowserPositioning
     ? dashboard.dataMode.includes("实时") ? "本地维护 + 实时数据" : "本地维护 + 公开快照"
     : dashboard.refreshChecks?.some((item) => item.status === "failed") ? "公开混合数据" : "公开实时数据";
   $("#etfDialog").close();
@@ -761,6 +776,7 @@ function applyPositioning(accountRatio, positionRatio, savedAt = new Date().toIS
     marketFetchedAt: savedAt
   });
   dashboard.dataMode = dashboard.dataMode.includes("实时") ? "本地维护 + 实时数据" : "本地维护 + 公开快照";
+  hasBrowserPositioning = true;
   return true;
 }
 
@@ -800,26 +816,28 @@ async function savePositioningMaintenance(event) {
       dashboard = mergeMaintenanceView(dashboard, result.data, 9);
       showToast(`${t(language, "savedPositioningLocal")} · ${result.publishFiles.join(" + ")}`, "success", 7000);
     } else {
-      applyPositioning(accountRatio, positionRatio, savedAt);
       localStorage.setItem(POSITIONING_STORAGE_KEY, JSON.stringify({ accountRatio, positionRatio, savedAt }));
+      applyPositioning(accountRatio, positionRatio, savedAt);
       showToast(t(language, "savedPositioning"), "success");
     }
     $("#positioningDialog").close();
     render();
   } catch (error) {
-    showToast(`${t(language, "saveFailed")}：${error.message}`, "error", 7000);
+    showToast(`${t(language, "saveFailed")}：${maintenanceError(error)}`, "error", 7000);
   } finally {
     button.disabled = false;
   }
 }
 
 function resetPositioningMaintenance() {
+  try { localStorage.removeItem(POSITIONING_STORAGE_KEY); }
+  catch (error) { showToast(`${t(language, "saveFailed")}：${maintenanceError(error)}`, "error"); return; }
+  hasBrowserPositioning = false;
   const index = dashboard.cards.findIndex((item) => item.id === 9);
   dashboard.cards[index] = typeof structuredClone === "function"
     ? structuredClone(publishedPositioningCard)
     : JSON.parse(JSON.stringify(publishedPositioningCard));
   dashboard.dataMode = publishedDataMode;
-  localStorage.removeItem(POSITIONING_STORAGE_KEY);
   $("#positioningDialog").close();
   render();
   showToast(t(language, "resetPositioning"), "success");
@@ -862,9 +880,9 @@ async function saveSnapshot() {
   if (!IS_LOCAL_MAINTENANCE) return;
   try {
     const result = await api("/api/snapshot", { method: "POST" });
-    showToast(`快照已保存（共 ${result.count} 份）`, "success");
+    showToast(t(language, "snapshotSaved", { count: result.count }), "success");
   } catch (error) {
-    showToast(`保存快照失败：${error.message}`, "error");
+    showToast(`${t(language, "saveFailed")}：${maintenanceError(error)}`, "error");
   }
 }
 
@@ -880,9 +898,10 @@ async function init() {
     if (!IS_LOCAL_MAINTENANCE) {
       try {
         const saved = JSON.parse(localStorage.getItem(POSITIONING_STORAGE_KEY));
-        if (saved) applyPositioning(saved.accountRatio, saved.positionRatio, saved.savedAt);
+        if (saved && !applyPositioning(saved.accountRatio, saved.positionRatio, saved.savedAt)) browserNoticeKey = "browserCacheUnavailable";
       } catch {
-        localStorage.removeItem(POSITIONING_STORAGE_KEY);
+        // Preserve unreadable personal data; do not delete it or block the dashboard.
+        browserNoticeKey = "browserCacheUnavailable";
       }
     }
     // Show the saved dashboard before the optional ETF history request settles.
@@ -901,16 +920,18 @@ async function init() {
     render();
     await refreshData({ automatic: true });
   } catch (error) {
-    showToast(`${language === "en" ? "Unable to load dashboard" : "无法载入看板"}：${error.message}`, "error", 8000);
+    showToast(`${language === "en" ? "Unable to load dashboard" : "无法载入看板"}：${maintenanceError(error)}`, "error", 8000);
   }
 }
 
 $("#refreshButton").addEventListener("click", refreshData);
 $("#languageButton").addEventListener("click", () => {
   language = language === "zh" ? "en" : "zh";
-  localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+  let persisted = true;
+  try { localStorage.setItem(LANGUAGE_STORAGE_KEY, language); }
+  catch { persisted = false; }
   render();
-  showToast(t(language, "languageChanged"), "success");
+  showToast(t(language, persisted ? "languageChanged" : "languageSessionOnly"), persisted ? "success" : "warning");
 });
 $("#snapshotButton").addEventListener("click", saveSnapshot);
 $("#copyButton").addEventListener("click", copyReport);

@@ -111,3 +111,20 @@ test("network and busy failures retain their original meanings", async () => {
   await assert.rejects(busy.api("/api/etf-flows", { method: "POST" }), /writeBusy/);
   assert.deepEqual(busy.timeouts, []);
 });
+
+test("maintenance errors expose only recognized bilingual categories, never raw server paths", async () => {
+  for (const language of ["zh", "en"]) {
+    const context = { language, t: (_lang, key) => key, AbortSignal, fetch: async () => ({ ok: false,
+      json: async () => ({ error: "PRIVATE /Users/fixture/secret" }) }) };
+    const { api, maintenanceError } = vm.runInNewContext(apiSource + "; ({ api, maintenanceError })", context);
+    await assert.rejects(api("/api/positioning", { method: "POST" }), error => {
+      assert.equal(maintenanceError(error), "requestFailed");
+      assert.doesNotMatch(error.message, /PRIVATE|Users/); return true;
+    });
+    assert.equal(maintenanceError({ code: "DASHBOARD_WRITE_BUSY" }), "writeBusy");
+    assert.equal(maintenanceError({ code: "READ_TIMEOUT" }), "readTimeout");
+    assert.equal(maintenanceError({ name: "SecurityError", message: "PRIVATE" }), "storageUnavailable");
+    assert.equal(maintenanceError({ name: "QuotaExceededError" }), "storageUnavailable");
+    assert.equal(maintenanceError(new Error("PRIVATE /Users/fixture")), "requestFailed");
+  }
+});

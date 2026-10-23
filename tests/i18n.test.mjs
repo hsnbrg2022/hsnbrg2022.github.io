@@ -7,6 +7,16 @@ import { getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHe
 
 const fixture = JSON.parse(await readFile(new URL("../dashboard.json", import.meta.url), "utf8"));
 
+test("维护忙碌、未知写结果、存储失败与缓存保留均有独立双语提示", () => {
+  for (const key of ["writeBusy", "requestFailed", "storageUnavailable", "browserCacheUnavailable", "languageSessionOnly", "snapshotSaved", "snapshotAction", "etfConflicts"]) {
+    assert.notEqual(t("zh", key), t("en", key));
+    assert.doesNotMatch(t("en", key), /[一-鿿]/);
+  }
+  assert.match(t("en", "requestFailed"), /check current data before retrying/);
+  assert.match(t("zh", "browserCacheUnavailable"), /原记录未删除/);
+  assert.match(t("en", "snapshotSaved", { count: 2 }), /2/);
+});
+
 test("来源缺失、观测未知及本轮近似/切源分支的英文不残留中文", () => {
   for (const text of ["ExchangeRate-API 推导", "ECB 六币日终近似", "六币汇率快照近似", "黄金标的待核验", "来源口径已切换，未拼接旧源涨幅", "2026-09-03 ECB 日终"]) {
     assert.doesNotMatch(translateText(text, "en"), /[一-鿿]/);

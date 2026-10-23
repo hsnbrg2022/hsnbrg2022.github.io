@@ -38,6 +38,11 @@ const MESSAGES = {
     readTimeout: "读取超过 10 秒，请稍后重试",
     freshnessUnknown: "日期待核验", trueMarketMeanDatePending: "TMM 尚无可核验的完整 UTC 日，保留旧值，暂停当前参考位判断。",
     writeBusy: "正在发布或保存，本次未写入数据，请稍后重试。",
+    requestFailed: "请求未能确认成功。若为保存操作，请先核对当前数据再重试，避免重复写入。",
+    storageUnavailable: "浏览器存储不可用或空间不足；个人修改未保存，请保留输入并检查存储权限。",
+    browserCacheUnavailable: "个人多空比记录不可读取或格式异常，暂用发布值；原记录未删除。请检查浏览器存储权限或备份记录。",
+    languageSessionOnly: "语言已切换，但浏览器存储不可用，本次选择未持久保存。",
+    snapshotSaved: "快照已保存（共 {count} 份）", snapshotAction: "保存快照",
     btcTime: "来源观测时间 {time}（UTC+8）；15 分钟内有效，不使用获取时间判断。",
     btcCurrencyUnknown: "币种待核验",
     btcChangeRolling: "24h", btcChangeUtcOpen: "较 UTC 开盘", btcChangePreviousClose: "较前收盘", btcChangeHistorical: "历史样本对比", btcChangeUnknown: "涨幅口径待核验",
@@ -98,6 +103,11 @@ const MESSAGES = {
     readTimeout: "Read timed out after 10 seconds. Please try again.",
     freshnessUnknown: "Date unverified", trueMarketMeanDatePending: "TMM has no verified completed UTC day. The previous value is retained; reference-level analysis is paused.",
     writeBusy: "Another save or publication is in progress. Nothing was written; please retry shortly.",
+    requestFailed: "Request success could not be confirmed. For a save, check current data before retrying to avoid a duplicate write.",
+    storageUnavailable: "Browser storage is unavailable or full. Personal changes were not saved; keep your input and check storage access.",
+    browserCacheUnavailable: "Personal long/short data is unreadable or invalid; published values are shown. Original records were not deleted. Check storage access or back up the records.",
+    languageSessionOnly: "Language switched, but browser storage is unavailable. This preference was not saved.",
+    snapshotSaved: "Snapshot saved ({count} total)", snapshotAction: "Save snapshot",
     btcTime: "Source observation time {time} (UTC+8); valid for 15 minutes, not based on retrieval time.",
     btcCurrencyUnknown: "Currency unverified",
     btcChangeRolling: "24h", btcChangeUtcOpen: "vs UTC open", btcChangePreviousClose: "vs previous close", btcChangeHistorical: "vs historical sample", btcChangeUnknown: "Change basis unverified",
@@ -342,8 +352,8 @@ const EXACT_EN = new Map([
   , ["极度贪婪", "Extreme greed"], ["贪婪", "Greed"], ["中性", "Neutral"], ["恐惧", "Fear"], ["极度恐惧", "Extreme fear"]
 ]);
 
-export function getInitialLanguage(storage = globalThis.localStorage) {
-  try { return storage?.getItem(LANGUAGE_STORAGE_KEY) === "en" ? "en" : "zh"; } catch { return "zh"; }
+export function getInitialLanguage(storage) {
+  try { return (storage === undefined ? globalThis.localStorage : storage)?.getItem(LANGUAGE_STORAGE_KEY) === "en" ? "en" : "zh"; } catch { return "zh"; }
 }
 
 export function t(language, key, variables = {}) {
