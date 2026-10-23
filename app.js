@@ -2,11 +2,11 @@ import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboa
 import { DAILY_BASELINE_KEY, dailyBaselineView, saveDailyBaseline } from "./daily-baseline.js?v=20261023-gold";
 import { mnavHealthRows } from "./mnav-source.js?v=20260925-health";
 import { etfHealthRows } from "./etf-health.js?v=20261003-health";
-import { detectLocalMaintenance } from "./maintenance-mode.js?v=20261003-mode";
+import { detectLocalMaintenance } from "./maintenance-mode.js?v=20261023-local-progress";
 import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261023-progress";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261023-progress";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261023-local-progress";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -30,6 +30,7 @@ let publishedPositioningCard;
 let publishedDataMode;
 let activeIndicatorTooltip;
 let IS_LOCAL_MAINTENANCE = false;
+let HAS_LOCAL_REFRESH_PROGRESS = false;
 const POSITIONING_STORAGE_KEY = "crypto-signal-tracker:positioning-v1";
 const $ = (selector) => document.querySelector(selector);
 
@@ -169,7 +170,7 @@ function applyStaticTranslations() {
 }
 
 function renderTaskCheck(name) {
-  if (!refreshState || IS_LOCAL_MAINTENANCE) return "";
+  if (!refreshState || (IS_LOCAL_MAINTENANCE && !refreshState.localProgress)) return "";
   const check = refreshState.checks?.find(item => item.name === name);
   return `<p class="task-refresh-status quality-note" data-refresh-task="${escapeHtml(name)}">${t(language, !check ? "refreshCheckPending" : check.status === "ok" ? "refreshCheckOk" : "refreshCheckFailed")}</p>`;
 }
@@ -436,7 +437,42 @@ function renderRefreshProgress() {
     name: translateText(refreshState.name, language),
     status: t(language, refreshState.status === "ok" ? "refreshCheckOk" : "refreshCheckFailed")
   }) : "";
-  progress.textContent = `${count}${latest} ${t(language, IS_LOCAL_MAINTENANCE ? "refreshAtomic" : "refreshIncremental")}`;
+  progress.textContent = `${count}${latest} ${t(language, !IS_LOCAL_MAINTENANCE ? "refreshIncremental" : refreshState.localProgress ? "refreshLocalChecks" : "refreshAtomic")}`;
+}
+
+async function refreshLocalWithProgress() {
+  const refreshId = HAS_LOCAL_REFRESH_PROGRESS && globalThis.crypto?.randomUUID?.();
+  if (!refreshId) return api("/api/refresh", { method: "POST" });
+  let active = true;
+  const controller = new AbortController();
+  // The write is never aborted or retried. Only optional progress GETs are canceled.
+  const result = api("/api/refresh", { method: "POST", body: JSON.stringify({ refreshId }) });
+  const poll = async () => {
+    const names = new Set(["ETF", "mNAV", "MVRV", "Puell", "BTC", "F&G", "稳定币", "Fed", "True Market Mean", "DXY", "黄金", "200WMA"]);
+    while (active) {
+      try {
+        const value = await api("/api/refresh-progress?id=" + encodeURIComponent(refreshId), { signal: controller.signal });
+        if (!active) return;
+        if (value.available) {
+          if (value.schemaVersion !== 1 || value.total !== 12 || !Array.isArray(value.checks)
+            || value.completed !== value.checks.length || value.checks.length > 12
+            || new Set(value.checks.map(c => c.name)).size !== value.checks.length
+            || !value.checks.every(c => names.has(c.name) && ["ok", "failed"].includes(c.status))) throw new Error("Invalid progress");
+          const checks = value.checks.map(c => ({ name: c.name, status: c.status }));
+          const last = checks.at(-1);
+          refreshState = { completed: checks.length, total: 12, checks, name: last?.name || "", status: last?.status || "pending", localProgress: true };
+          render();
+        }
+      } catch {
+        if (active) { refreshState = { completed: 0, total: null }; render(); }
+        return; // Legacy/invalid progress falls back to the original write result.
+      }
+      await new Promise(resolve => setTimeout(resolve, 750));
+    }
+  };
+  void poll().catch(() => {});
+  try { return await result; }
+  finally { active = false; controller.abort(); }
 }
 
 async function refreshData({ automatic = false } = {}) {
@@ -454,7 +490,7 @@ async function refreshData({ automatic = false } = {}) {
   const started = cloneValue(dashboard);
   try {
     const result = IS_LOCAL_MAINTENANCE
-      ? await api("/api/refresh", { method: "POST" })
+      ? await refreshLocalWithProgress()
       : await refreshPublicDashboard(dashboard, { onProgress: progress => {
         refreshState = progress;
         if (progress.data) {
@@ -828,7 +864,9 @@ async function saveSnapshot() {
 async function init() {
   try {
     $("#snapshotButton").hidden = true;
-    IS_LOCAL_MAINTENANCE = await detectLocalMaintenance(location);
+    IS_LOCAL_MAINTENANCE = await detectLocalMaintenance(location, globalThis.fetch, { onCapabilities: value => {
+      HAS_LOCAL_REFRESH_PROGRESS = value.maintenance?.refreshProgress === true;
+    } });
     dashboard = await api(IS_LOCAL_MAINTENANCE ? "/api/dashboard" : `./dashboard.json?v=${Date.now()}`);
     publishedPositioningCard = cloneValue(dashboard.cards.find((item) => item.id === 9));
     publishedDataMode = dashboard.dataMode;

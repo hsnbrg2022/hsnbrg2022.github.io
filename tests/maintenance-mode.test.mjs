@@ -6,6 +6,16 @@ const location = { protocol: "http:", hostname: "127.0.0.1" };
 const capability = () => ({ schemaVersion: 1, service: "crypto-dashboard-tracker", requestProtection: "same-origin-json-v1", maintenance: { etf: true, positioning: true, refresh: true, snapshot: true } });
 const response = value => ({ ok: true, json: async () => value });
 
+test("optional progress capability is reported only for a verified local service", async () => {
+  let seen;
+  assert.equal(await detectLocalMaintenance(location, async () => response({ ...capability(), maintenance: { ...capability().maintenance, refreshProgress: true } }), { onCapabilities: v => { seen = v; } }), true);
+  assert.equal(seen.maintenance.refreshProgress, true);
+  assert.equal(await detectLocalMaintenance(location, async () => response(capability()), { onCapabilities: () => { throw new Error("view"); } }), true);
+  seen = undefined;
+  assert.equal(await detectLocalMaintenance(location, async () => response({}), { onCapabilities: v => { seen = v; } }), false);
+  assert.equal(seen, undefined);
+});
+
 test("Pages and file previews never probe maintenance APIs", async () => {
   let calls = 0;
   for (const loc of [{ protocol: "https:", hostname: "hsnbrg2022.github.io" }, { protocol: "file:", hostname: "" }, { protocol: "http:", hostname: "dashboard.test" }, { protocol: "https:", hostname: "localhost" }]) {

@@ -1,6 +1,6 @@
 // Capability detection is not authentication. Never probe a remote website or
 // infer a writable backend merely from a loopback hostname.
-export async function detectLocalMaintenance(location, fetchImpl = globalThis.fetch, { timeoutMs = 2000 } = {}) {
+export async function detectLocalMaintenance(location, fetchImpl = globalThis.fetch, { timeoutMs = 2000, onCapabilities } = {}) {
   if (location?.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(location.hostname)) return false;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -10,9 +10,11 @@ export async function detectLocalMaintenance(location, fetchImpl = globalThis.fe
     });
     if (!response.ok) return false;
     const value = await response.json();
-    return !controller.signal.aborted && value?.schemaVersion === 1 && value.service === "crypto-dashboard-tracker"
+    const supported = !controller.signal.aborted && value?.schemaVersion === 1 && value.service === "crypto-dashboard-tracker"
       && value.requestProtection === "same-origin-json-v1"
       && ["etf", "positioning", "refresh", "snapshot"].every(key => value.maintenance?.[key] === true);
+    if (supported) { try { onCapabilities?.(value); } catch {} }
+    return supported;
   } catch { return false; }
   finally { clearTimeout(timer); }
 }
