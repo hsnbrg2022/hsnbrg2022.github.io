@@ -3,10 +3,10 @@ import { DAILY_BASELINE_KEY, dailyBaselineView, saveDailyBaseline } from "./dail
 import { mnavHealthRows } from "./mnav-source.js?v=20260925-health";
 import { etfHealthRows } from "./etf-health.js?v=20261003-health";
 import { detectLocalMaintenance } from "./maintenance-mode.js?v=20261003-mode";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261023-gold";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261023-progress";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261023-gold";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261023-progress";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -168,6 +168,12 @@ function applyStaticTranslations() {
   $("#wmaHelp").innerHTML = renderIndicatorHelp("wma200", "200-wma");
 }
 
+function renderTaskCheck(name) {
+  if (!refreshState || IS_LOCAL_MAINTENANCE) return "";
+  const check = refreshState.checks?.find(item => item.name === name);
+  return `<p class="task-refresh-status quality-note" data-refresh-task="${escapeHtml(name)}">${t(language, !check ? "refreshCheckPending" : check.status === "ok" ? "refreshCheckOk" : "refreshCheckFailed")}</p>`;
+}
+
 function renderCard(card) {
   const status = STATUS[card.status];
   const fetchedAt = card.marketFetchedAt ? ` title="行情时间 ${escapeHtml(card.marketFetchedAt)}"` : "";
@@ -218,6 +224,7 @@ function renderCard(card) {
       </div>
       <div class="signal-title-row"><h3>${escapeHtml(card.title)}</h3>${helpKey ? renderIndicatorHelp(helpKey, `card-${card.id}`) : ""}</div>
       <strong class="signal-headline">${escapeHtml(card.headline)}${headlineHelp}</strong>
+      ${card.id === 9 ? "" : renderTaskCheck({ 1: "ETF", 2: "mNAV", 3: "稳定币", 4: "Fed", 5: "DXY", 6: "黄金", 7: "MVRV", 8: "Puell" }[card.id])}
       <div class="facts">${card.facts.map((fact, index) => {
         const factHelpKey = indicatorHelpKeyForFact(card.id, fact);
         return `<span>${escapeHtml(fact)}${factHelpKey ? renderIndicatorHelp(factHelpKey, `card-${card.id}-fact-${index}`) : ""}</span>`;
@@ -275,6 +282,7 @@ function renderTrueMarketMean(data) {
       <div>
         <div class="true-market-mean-title"><h3>True Market Mean</h3>${renderIndicatorHelp("trueMarketMean", "true-market-mean")}</div>
         <p>${escapeHtml(view.insight)}</p>
+        ${renderTaskCheck("True Market Mean")}
       </div>
       <strong>${formatMoney(view.analysis.value, 0)}</strong>
     </div>
@@ -428,7 +436,7 @@ function renderRefreshProgress() {
     name: translateText(refreshState.name, language),
     status: t(language, refreshState.status === "ok" ? "refreshCheckOk" : "refreshCheckFailed")
   }) : "";
-  progress.textContent = `${count}${latest} ${t(language, "refreshAtomic")}`;
+  progress.textContent = `${count}${latest} ${t(language, IS_LOCAL_MAINTENANCE ? "refreshAtomic" : "refreshIncremental")}`;
 }
 
 async function refreshData({ automatic = false } = {}) {
@@ -449,7 +457,12 @@ async function refreshData({ automatic = false } = {}) {
       ? await api("/api/refresh", { method: "POST" })
       : await refreshPublicDashboard(dashboard, { onProgress: progress => {
         refreshState = progress;
-        renderRefreshProgress();
+        if (progress.data) {
+          if (progress.etfDataset) publishedEtfDataset = cloneValue(progress.etfDataset);
+          dashboard = mergeRefreshView(dashboard, started, progress.data);
+          if (progress.name === "ETF" && publishedEtfDataset) composeBrowserEtf({ keepFailure: progress.status === "failed" });
+          render();
+        } else renderRefreshProgress();
       } });
     if (result.etfDataset) publishedEtfDataset = cloneValue(result.etfDataset);
     if (!IS_LOCAL_MAINTENANCE && localStorage.getItem(POSITIONING_STORAGE_KEY)) {
@@ -492,6 +505,7 @@ async function refreshData({ automatic = false } = {}) {
     button.disabled = false;
     button.classList.remove("loading");
     refreshState = null;
+    document.querySelectorAll(".task-refresh-status").forEach(node => node.remove());
     renderRefreshProgress();
   }
 }

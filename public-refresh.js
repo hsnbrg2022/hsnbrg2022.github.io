@@ -303,7 +303,7 @@ async function updateMacroQuote(data, fetchImpl, { id, prefix = "" }) {
 const updateWma = (data, fetchImpl) => updateWeeklyMean(data, fetchImpl, new Date(), { snapshotFirst: true });
 
 export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fetch, onProgress } = {}) {
-  const data = cloneDashboard(input);
+  const data = cloneDashboard(input), visible = cloneDashboard(input);
   let etfDataset;
   const tasks = [
     ["ETF", () => updateEtf(data, fetchImpl, (value) => { etfDataset = value; })],
@@ -319,71 +319,64 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
     ["黄金", () => updateMacroQuote(data, fetchImpl, { id: 6, prefix: "$" })],
     ["200WMA", () => updateWma(data, fetchImpl)]
   ];
-  let completed = 0;
-  // Progress is observational only: no partial dashboard or source timestamps.
-  const reportProgress = (name = "", status = "pending") => {
-    try { onProgress?.({ completed, total: tasks.length, name, status }); }
-    catch { /* A view failure must not turn a successful source into a failure. */ }
-  };
-  reportProgress();
-  const results = await Promise.allSettled(tasks.map(async ([name, run]) => {
-    try {
-      const value = await run();
-      completed++;
-      reportProgress(name, "ok");
-      return value;
-    } catch (error) {
-      completed++;
-      reportProgress(name, "failed");
-      throw error;
-    }
-  }));
-  const updated = [];
-  const warnings = [];
-  const checkedAt = new Date().toISOString();
+
   const cardByTask = { ETF: 1, mNAV: 2, MVRV: 7, Puell: 8, "稳定币": 3, Fed: 4, DXY: 5, "黄金": 6 };
-  const checks = [];
-
-  results.forEach((result, index) => {
-    const name = tasks[index][0];
-    const target = cardByTask[name] ? card(data, cardByTask[name]) : null;
-    const metricTarget = name === "True Market Mean" ? data.trueMarketMean : null;
-    if (result.status === "fulfilled") {
-      updated.push(result.value);
-      checks.push({ name, status: "ok", result: result.value, checkedAt });
-      if (target) Object.assign(target, {
-        refreshStatus: ["ETF", "Fed"].includes(name) ? target.refreshStatus : "ok",
-        refreshMessage: result.value,
-        refreshMethod: ["mNAV", "MVRV", "Puell"].includes(name) ? "scheduled-snapshot" : "public-manual",
-        lastRefreshAt: checkedAt
-      });
-      if (metricTarget) Object.assign(metricTarget, { refreshStatus: "ok", lastRefreshAt: checkedAt });
-    } else {
-      const message = result.reason?.message || "刷新失败";
-      warnings.push(`${name}：${message}`);
-      checks.push({ name, status: "failed", message, checkedAt });
-      if (target) Object.assign(target, {
-        refreshStatus: "failed",
-        refreshMessage: message,
-        refreshMethod: "public-manual",
-        lastRefreshAt: checkedAt
-      });
-      if (metricTarget) Object.assign(metricTarget, {
-        refreshStatus: "failed",
-        refreshMessage: message,
-        lastRefreshAt: checkedAt
-      });
+  const marketFields = {
+    BTC: ["btcPrice", "btcCurrency", "btcChange24h", "btcChange", "btcSource", "btcFetchedAt", "btcObservedAt"],
+    "F&G": ["fng", "fngSource", "fngFetchedAt", "fngIndicator", "fngReadStatus", "fngAux"],
+    "200WMA": ["wma200", "wmaSource", "wmaFetchedAt", "wmaObservation", "wmaRefreshStatus", "wmaRefreshError"]
+  };
+  const settled = new Map();
+  const report = (name = "", status = "pending") => {
+    const event = { completed: settled.size, total: tasks.length, name, status,
+      checks: [...settled.values()].map(check => ({ ...check })) };
+    if (settled.size) event.data = cloneDashboard(visible);
+    if (name === "ETF" && status === "ok") event.etfDataset = cloneDashboard(etfDataset);
+    try { onProgress?.(event); }
+    catch { /* Rendering must not alter a source outcome. */ }
+  };
+  const finish = (name, status, value) => {
+    const checkedAt = new Date().toISOString();
+    const message = status === "ok" ? value : value?.message || "刷新失败";
+    const check = status === "ok" ? { name, status, result: message, checkedAt } : { name, status, message, checkedAt };
+    settled.set(name, check);
+    const id = cardByTask[name], target = id ? card(data, id) : null;
+    if (target) {
+      Object.assign(target, { refreshStatus: status === "failed" ? "failed" : ["ETF", "Fed"].includes(name) ? target.refreshStatus : "ok",
+        refreshMessage: message, refreshMethod: ["mNAV", "MVRV", "Puell"].includes(name) ? "scheduled-snapshot" : "public-manual",
+        lastRefreshAt: checkedAt });
+      const index = visible.cards.findIndex(item => item.id === id);
+      if (index >= 0) visible.cards[index] = cloneDashboard(target);
     }
-  });
-
-  if (Number.isFinite(data.market.wma200) && data.market.wma200 > 0) {
-    data.market.wmaRatio = data.market.btcPrice / data.market.wma200;
-  }
-  const now = new Date();
+    if (name === "True Market Mean" && data.trueMarketMean) {
+      Object.assign(data.trueMarketMean, { refreshStatus: status, lastRefreshAt: checkedAt,
+        ...(status === "failed" ? { refreshMessage: message } : {}) });
+      visible.trueMarketMean = cloneDashboard(data.trueMarketMean);
+    }
+    for (const key of marketFields[name] || []) {
+      if (key in data.market) visible.market[key] = cloneDashboard({ value: data.market[key] }).value;
+      else delete visible.market[key];
+    }
+    if (Number.isFinite(visible.market.wma200) && visible.market.wma200 > 0) visible.market.wmaRatio = visible.market.btcPrice / visible.market.wma200;
+    visible.dataMode = "公开混合数据";
+    visible.refreshChecks = [...settled.values()].map(item => ({ ...item }));
+    report(name, status);
+  };
+  report();
+  await Promise.all(tasks.map(async ([name, run]) => {
+    let value;
+    try { value = await run(); }
+    catch (error) { finish(name, "failed", error); return; }
+    finish(name, "ok", value);
+  }));
+  const checks = tasks.map(([name]) => settled.get(name));
+  const updated = checks.filter(check => check.status === "ok").map(check => check.result);
+  const warnings = checks.filter(check => check.status === "failed").map(check => `${check.name}：${check.message}`);
+  if (Number.isFinite(data.market.wma200) && data.market.wma200 > 0) data.market.wmaRatio = data.market.btcPrice / data.market.wma200;
+  const now = new Date(), checkedAt = now.toISOString();
   data.date = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(now);
   data.updatedAt = checkedAt;
   data.dataMode = warnings.length ? "公开混合数据" : "公开实时数据";
   data.refreshChecks = checks;
-
   return { data, updated, warnings, checkedAt, etfDataset };
 }

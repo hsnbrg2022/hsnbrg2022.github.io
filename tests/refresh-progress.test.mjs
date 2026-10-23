@@ -9,6 +9,45 @@ const input = {
 };
 const offline = async () => { throw new Error("fixture offline"); };
 
+test("completed cards arrive before a slow source, without leaking unfinished mutations", async () => {
+  let release, ready;
+  const gate = new Promise(resolve => { release = resolve; });
+  const early = new Promise(resolve => { ready = resolve; });
+  let snapshot, finished = false;
+  const original = structuredClone(input);
+  const pending = refreshPublicDashboard(input, {
+    fetchImpl: async url => {
+      if (url.includes("alternative.me")) { await gate; return { ok: true, json: async () => ({ data: [{ value: "60", timestamp: String(Math.floor(Date.now() / 1000)) }] }) }; }
+      if (url.includes("gold-api.com")) return { ok: true, json: async () => ({ price: 4800, updatedAt: new Date().toISOString() }) };
+      return offline();
+    },
+    onProgress: event => { if (event.completed === 11) { snapshot = event; ready(); } }
+  }).then(result => { finished = true; return result; });
+  try {
+    await early;
+    assert.equal(finished, false);
+    assert.match(snapshot.data.cards.find(c => c.id === 6).headline, /4,800/);
+    assert.equal(snapshot.data.market.fng, 50);
+    assert.equal(snapshot.checks.some(c => c.name === "F&G"), false);
+    assert.equal(snapshot.data.cards.find(c => c.id === 2).refreshStatus, "failed");
+    assert.deepEqual(input, original);
+    snapshot.data.cards.find(c => c.id === 6).headline = "mutated callback";
+  } finally { release(); }
+  const result = await pending;
+  assert.match(result.data.cards.find(c => c.id === 6).headline, /4,800/);
+  assert.equal(result.data.market.fng, 60);
+});
+
+test("progress snapshots and check arrays cannot mutate internal outcomes", async () => {
+  const result = await refreshPublicDashboard(input, { fetchImpl: offline, onProgress: event => {
+    if (event.data) { event.data.market.btcPrice = 1; event.data.cards[0].headline = "tampered"; }
+    if (event.checks[0]) event.checks[0].status = "tampered";
+  } });
+  assert.equal(result.data.market.btcPrice, 75000);
+  assert.equal(result.data.cards[0].headline, "fixture old value");
+  assert.ok(result.data.refreshChecks.every(c => c.status === "failed"));
+});
+
 test("progress counts completed checks, not successful updates, without changing input", async () => {
   const before = structuredClone(input), events = [];
   const result = await refreshPublicDashboard(input, { fetchImpl: offline, onProgress: event => events.push(event) });
