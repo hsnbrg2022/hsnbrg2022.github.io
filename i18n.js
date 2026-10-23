@@ -1,6 +1,26 @@
-import { buildCurrentChanges, btcChangeReading, formatMoney } from "./model.js?v=20260913-1";
+import { buildCurrentChanges, btcChangeReading, formatMoney } from "./model.js?v=20261023-fng";
+import { btcObservationTimestamp } from "./data-quality.js?v=20261023-fng";
 
 export const LANGUAGE_STORAGE_KEY = "crypto-signal-tracker:language-v1";
+
+export function fearGreedNote(market, language = "zh", now = new Date()) {
+  const en = language === "en";
+  const policy = en ? "Primary: Alternative.me BTC index" : "主指标：Alternative.me BTC指数";
+  const failed = market.fngReadStatus === "failed" ? (en ? " · Primary read failed; previous value retained" : " · 主源读取失败，保留旧值") : "";
+  const legacy = market.fngSource === "CoinMarketCap" || market.fngIndicator === "cmc-market"
+    ? (en ? " · Legacy CMC value is not the primary index" : " · 旧CMC值不是主指标") : "";
+  const aux = market.fngAux;
+  if (!aux) return policy + failed + legacy;
+  const time = btcObservationTimestamp(aux.observedAt);
+  const valid = Number.isFinite(aux.value) && aux.value >= 0 && aux.value <= 100 && Number.isFinite(time) && time <= now.getTime();
+  if (!valid) return policy + failed + legacy + (en ? " · CMC auxiliary unavailable; excluded from main judgment" : " · CMC辅助暂无可核验读数，不参与主判断");
+  const date = new Date(time).toISOString().replace("T", " ").replace(".000Z", " UTC");
+  const state = now.getTime() - time > 36 * 3600000 ? (en ? "historical" : "旧值") : (en ? "current" : "时效内");
+  const read = aux.readStatus === "failed" ? (en ? "; read failed, retained" : "；读取失败保留") : "";
+  return policy + failed + legacy + (en
+    ? " · CMC auxiliary (different index): " + aux.value + " · " + date + " · " + state + read + "; excluded from main judgment"
+    : " · CMC辅助（不同指数）：" + aux.value + " · " + date + " · " + state + read + "；不参与主判断");
+}
 
 const MESSAGES = {
   zh: {
@@ -20,7 +40,7 @@ const MESSAGES = {
     btcChangeRolling: "24h", btcChangeUtcOpen: "较 UTC 开盘", btcChangePreviousClose: "较前收盘", btcChangeHistorical: "历史样本对比", btcChangeUnknown: "涨幅口径待核验",
     stablecoinUnverified: "七日口径待核验 · 旧值不计入当期", stablecoinAux: "辅助观察 · CoinGecko 24h {change} · 总市值 {total} · 数据时间 {date}。样本与七日主源不同，不参与评分。",
     stablecoinSevenDayFailed: "七日源更新失败 · 保留主读数",
-    marketFresh: "时效内", marketStale: "旧值", marketUnknown: "待核验", marketTime: "读数/获取时间 {time}（UTC+8）；BTC 15 分钟、F&G 36 小时有效，刷新失败不会重置此时间。", marketTimeUnknown: "读数时间待核验", marketPending: "待更新/核验", pricePending: "BTC 报价待更新或核验，暂停当前偏离判断。",
+    marketFresh: "时效内", marketStale: "旧值", marketUnknown: "待核验", marketTime: "来源观测时间 {time}（UTC+8）；BTC 15 分钟、F&G 36 小时有效，刷新失败不会重置此时间。", marketTimeUnknown: "读数时间待核验", marketPending: "待更新/核验", pricePending: "BTC 报价待更新或核验，暂停当前偏离判断。",
     wmaVerified: "200 个完整周 · UTC 周一边界", wmaRetained: "更新失败 · 保留上次完整周值", wmaUnverified: "保留旧值 · 周样本口径待核验",
     mnavBasisUnknown: "资本基准日期待核验 · 官方行情独立更新，不计入当期", mnavBasisStale: "资本基准超过 7 天 · 官方行情独立更新，不计入当期", mnavBasisIncomplete: "资本资料不完整 · 官方行情独立更新，不计入当期", mnavClassificationUnknown: "转换分类未核验 · 停止估算，旧值不计入当期",
     qualityFresh: "时效内 · 参与当期确认", qualityStale: "数据过期 · 仅供历史参考", qualityUnknown: "日期待核验 · 不计入当期确认", qualityPending: "未计入当期", qualityIncomplete: "覆盖不完整 · 不作全局确认",
@@ -77,7 +97,7 @@ const MESSAGES = {
     btcChangeRolling: "24h", btcChangeUtcOpen: "vs UTC open", btcChangePreviousClose: "vs previous close", btcChangeHistorical: "vs historical sample", btcChangeUnknown: "Change basis unverified",
     stablecoinUnverified: "Seven-day basis unverified · Historical value excluded", stablecoinAux: "Context only · CoinGecko 24h {change} · Market cap {total} · As of {date}. Different universe from the seven-day source; excluded from scoring.",
     stablecoinSevenDayFailed: "Seven-day update failed · Main reading retained",
-    marketFresh: "Current", marketStale: "Historical", marketUnknown: "Unverified", marketTime: "Reading/retrieval time {time} (UTC+8); valid for 15 minutes (BTC) / 36 hours (F&G). Failed refreshes do not reset this time.", marketTimeUnknown: "Reading time unverified", marketPending: "Update/verification needed", pricePending: "BTC awaits an update or verification; current deviation analysis is paused.",
+    marketFresh: "Current", marketStale: "Historical", marketUnknown: "Unverified", marketTime: "Source observation time {time} (UTC+8); valid for 15 minutes (BTC) / 36 hours (F&G). Failed refreshes do not reset this time.", marketTimeUnknown: "Reading time unverified", marketPending: "Update/verification needed", pricePending: "BTC awaits an update or verification; current deviation analysis is paused.",
     wmaVerified: "200 completed weeks · UTC Monday", wmaRetained: "Update failed · Previous weekly value retained", wmaUnverified: "Previous value · Weekly basis unverified",
     mnavBasisUnknown: "Capital basis date unverified · Official quotes update separately; not counted", mnavBasisStale: "Capital basis older than 7 days · Official quotes update separately; not counted", mnavBasisIncomplete: "Capital information incomplete · Official quotes update separately; not counted", mnavClassificationUnknown: "Conversion classification unverified · Estimates stopped; previous value not counted",
     qualityFresh: "Within freshness window · Included", qualityStale: "Stale · Historical reference only", qualityUnknown: "Date unverified · Not counted", qualityPending: "Not counted", qualityIncomplete: "Incomplete coverage · No overall confirmation",

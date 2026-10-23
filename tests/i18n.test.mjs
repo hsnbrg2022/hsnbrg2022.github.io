@@ -2,9 +2,22 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { deriveDashboard } from "../model.js";
+import { fearGreedNote } from "../i18n.js";
 import { getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, t, translateMode, translateText } from "../i18n.js";
 
 const fixture = JSON.parse(await readFile(new URL("../dashboard.json", import.meta.url), "utf8"));
+
+test("主源失败和CMC辅助身份/旧值在双语展示及报告中明确", () => {
+  const market = { fngReadStatus: "failed", fngAux: { value: 48, observedAt: "2026-10-20T00:00:00Z", readStatus: "failed" } };
+  const now = new Date("2026-10-23T08:00:00Z");
+  const zh = fearGreedNote(market, "zh", now), en = fearGreedNote(market, "en", now);
+  assert.match(zh, /主源读取失败，保留旧值/);
+  assert.match(zh, /CMC辅助（不同指数）：48/);
+  assert.match(zh, /旧值.*不参与主判断/);
+  assert.match(en, /different index.*48/);
+  assert.match(en, /historical.*excluded from main judgment/);
+  assert.doesNotMatch(en, /[\u4e00-\u9fff]/);
+});
 
 test("新访客默认使用中文并可记住英文选择", () => {
   assert.equal(getInitialLanguage({ getItem: () => null }), "zh");

@@ -9,6 +9,15 @@ import { applyMacroQuote } from "../macro-quote.js";
 import { normalizeStablecoinHistory } from "../stablecoin-source.js";
 const now = new Date("2026-09-05T08:00:00Z");
 
+test("CMC旧主读数不能冒充Alternative主指标，主源36小时边界不变", () => {
+  const observed = new Date(now.getTime() - 36 * 3600000).toISOString();
+  const market = { fng: 80, fngFetchedAt: observed, fngSource: "Alternative.me" };
+  assert.equal(assessMarket(market, now).fng.eligible, true);
+  assert.equal(assessMarket(market, new Date(+now + 1)).fng.state, "stale");
+  assert.equal(assessMarket({ ...market, fngSource: "CoinMarketCap" }, now).fng.eligible, false);
+  assert.equal(assessMarket({ ...market, fngIndicator: "cmc-market" }, now).fng.eligible, false);
+});
+
 test("ETF/mNAV 两工作日边界和周末；不使用刷新检查时间翻新观测", () => {
   for (const id of [1, 2]) {
     const basis = { basisAsOf: "2026-08-31", mnavMode: "official-live" };

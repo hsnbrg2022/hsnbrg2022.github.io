@@ -1,12 +1,12 @@
-import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20260923-mnav";
-import { DAILY_BASELINE_KEY, dailyBaselineView, saveDailyBaseline } from "./daily-baseline.js?v=20260915-2";
+import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20261023-fng";
+import { DAILY_BASELINE_KEY, dailyBaselineView, saveDailyBaseline } from "./daily-baseline.js?v=20261023-fng";
 import { mnavHealthRows } from "./mnav-source.js?v=20260925-health";
 import { etfHealthRows } from "./etf-health.js?v=20261003-health";
 import { detectLocalMaintenance } from "./maintenance-mode.js?v=20261003-mode";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261004-onchain";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261023-fng";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation } from "./i18n.js?v=20261004-onchain";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261023-fng";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -368,6 +368,7 @@ function render() {
   $("#btcChange").className = `change-pill ${btcChange.tone}`;
   $("#fngValue").textContent = data.market.fng;
   renderMarketSource("#fngSource", data.market.fngSource, data.marketQuality.fng);
+  $("#fngPolicy").textContent = fearGreedNote(data.market, language);
   $("#fngLabel").textContent = data.heat.label;
   $("#heatFill").style.width = `${data.market.fng}%`;
   $("#heatMarker").style.left = `${data.market.fng}%`;
@@ -779,7 +780,7 @@ function buildReport() {
   const { text: btcChange } = btcChangePresentation(data, language);
   const wmaRatio = data.marketQuality.btc.eligible ? `${data.market.wmaRatio.toFixed(2)}x` : "—";
   const btcPrice = btcPricePresentation(data.market, language);
-  const headline = `${data.date} | BTC ${btcPrice.text} [${btcPrice.currency}] ${btcChange} | F&G ${data.market.fng} ${data.heat.label} | 200WMA ${wmaRatio}`;
+  const headline = `${data.date} | BTC ${btcPrice.text} [${btcPrice.currency}] ${btcChange} | F&G ${data.market.fng} ${data.heat.label} (${fearGreedNote(data.market, language)}) | 200WMA ${wmaRatio}`;
   const trueMean = trueMarketMeanView(data);
   const trueMeanLine = trueMean ? `True Market Mean ${formatMoney(trueMean.analysis.value, 0)} | ${trueMean.insight} | ${t(language, "trueMarketMeanAsOf", { date: trueMean.asOf })}` : "";
   const cards = data.cards.map((card) => `${STATUS[card.status].emoji} ${String(card.id).padStart(2, "0")} ${card.title} — ${card.headline}\n${t(language, card.quality.reason || (card.quality.eligible ? "qualityFresh" : card.quality.state === "stale" ? "qualityStale" : "qualityUnknown"))}\n→ ${card.detail}\n来源：${card.source.label}`).join("\n\n");

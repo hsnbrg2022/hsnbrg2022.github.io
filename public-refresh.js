@@ -1,5 +1,5 @@
-import { calculateDxyFromRates, applyBtcChange } from "./model.js?v=20260913-1";
-import { BTC_MAX_AGE_MS, btcObservationTimestamp } from "./data-quality.js?v=20260911-2";
+import { calculateDxyFromRates, applyBtcChange } from "./model.js?v=20261023-fng";
+import { BTC_MAX_AGE_MS, btcObservationTimestamp } from "./data-quality.js?v=20261023-fng";
 import { updateStablecoins as refreshStablecoins } from "./stablecoin-source.js?v=20260909-1";
 import { etfSignal } from "./etf-core.js?v=20260905-3";
 import { readEtfHealth } from "./etf-health.js?v=20261003-health";
@@ -187,29 +187,44 @@ async function updateBtc(data, fetchImpl) {
   return `BTC / ${quote.source}`;
 }
 
-async function updateFearGreed(data, fetchImpl) {
-  const quote = await firstProvider([
-    {
-      name: "Alternative.me",
-      url: "https://alternative.me/crypto/fear-and-greed-index/",
-      load: async () => {
-        const payload = await fetchJson("https://api.alternative.me/fng/?limit=1&format=json", fetchImpl);
-        return { value: Number(payload.data?.[0]?.value), timestamp: Number(payload.data?.[0]?.timestamp) * 1000 };
-      }
-    },
-    {
-      name: "CoinMarketCap",
-      url: "https://coinmarketcap.com/charts/fear-and-greed-index/",
-      load: async () => {
-        const payload = await fetchJson("https://pro-api.coinmarketcap.com/public-api/v3/fear-and-greed/latest", fetchImpl);
-        return { value: Number(payload.data?.value), timestamp: Date.parse(payload.data?.update_time) };
-      }
-    }
-  ], (value) => Number.isFinite(value.value) && value.value >= 0 && value.value <= 100);
-  data.market.fng = quote.value;
-  data.market.fngSource = quote.source;
-  data.market.fngFetchedAt = new Date(Number.isFinite(quote.timestamp) ? quote.timestamp : Date.now()).toISOString();
-  return `F&G / ${quote.source}`;
+function fearGreedReading(value, timestamp, now = Date.now()) {
+  if (value === null || value === undefined || String(value).trim() === "") throw new Error("Invalid F&G value");
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0 || number > 100 || !Number.isFinite(timestamp) || timestamp <= 0 || timestamp > now) {
+    throw new Error("Invalid F&G observation");
+  }
+  return { value: number, observedAt: new Date(timestamp).toISOString() };
+}
+
+// Alternative.me is the primary BTC index. CMC is a distinct, unscored auxiliary.
+export async function updateFearGreed(data, fetchImpl) {
+  const [primary, auxiliary] = await Promise.allSettled([
+    (async () => {
+      const payload = await fetchJson("https://api.alternative.me/fng/?limit=1&format=json", fetchImpl);
+      const row = payload.data?.[0];
+      return fearGreedReading(row?.value, /^\d+$/.test(String(row?.timestamp)) ? Number(row.timestamp) * 1000 : NaN);
+    })(),
+    (async () => {
+      const payload = await fetchJson("https://pro-api.coinmarketcap.com/public-api/v3/fear-and-greed/latest", fetchImpl);
+      return fearGreedReading(payload.data?.value, btcObservationTimestamp(payload.data?.update_time));
+    })()
+  ]);
+  data.market.fngAux = auxiliary.status === "fulfilled"
+    ? { ...auxiliary.value, indicator: "cmc-market", source: "CoinMarketCap", readStatus: "ok" }
+    : { ...data.market.fngAux, indicator: "cmc-market", source: "CoinMarketCap", readStatus: "failed" };
+  if (primary.status !== "fulfilled") {
+    data.market.fngReadStatus = "failed";
+    throw new Error("Alternative.me primary unavailable / 主源不可用，保留原读数");
+  }
+  const quote = primary.value;
+  const previousTime = btcObservationTimestamp(data.market.fngFetchedAt);
+  if (data.market.fngSource === "Alternative.me" && Number.isFinite(previousTime) && Date.parse(quote.observedAt) < previousTime) {
+    data.market.fngReadStatus = "failed";
+    throw new Error("Alternative.me older observation / 主源返回更旧读数，保留原值");
+  }
+  Object.assign(data.market, { fng: quote.value, fngSource: "Alternative.me", fngIndicator: "alternative-btc",
+    fngFetchedAt: quote.observedAt, fngReadStatus: "ok" });
+  return "F&G / Alternative.me";
 }
 
 async function updateStablecoins(data, fetchImpl) {

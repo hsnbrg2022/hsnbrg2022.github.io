@@ -1,4 +1,4 @@
-import { assessMarket, btcObservationTimestamp } from "./data-quality.js?v=20260911-2";
+import { assessMarket, btcObservationTimestamp } from "./data-quality.js?v=20261023-fng";
 
 export const DAILY_BASELINE_KEY = "crypto-signal-tracker:daily-baselines-v1";
 const DAY = 86400000;
@@ -47,7 +47,7 @@ export function dailyBaselineView(data, storage, now = new Date()) {
   const previous = {
     baselineStatus: status, today, date: row ? yesterday : null, capturedAt: row?.savedAt || null,
     ...(quality?.btc.eligible ? { btcPrice: row.market.btcPrice, btcCurrency: row.market.btcCurrency } : {}),
-    ...(quality?.fng.eligible ? { fng: row.market.fng } : {})
+    ...(quality?.fng.eligible ? { fng: row.market.fng, fngSource: row.market.fngSource } : {})
   };
   return { ...data, previous };
 }

@@ -145,7 +145,10 @@ export function buildCurrentChanges(data, language = "zh") {
   }
   const fng = data.market?.fng;
   if (!data.marketQuality?.fng.eligible) lines.push(en ? "F&G awaits an update or verification; no current sentiment comparison." : "F&G 待更新或核验，暂停当前情绪对比。");
-  else if (Number.isFinite(fng)) lines.push(`F&G ${Number.isFinite(data.previous?.fng) ? `${data.previous.fng} → ` : ""}${fng}`);
+  else if (Number.isFinite(fng)) {
+    const sameIndex = data.market.fngSource === "Alternative.me" && data.previous?.fngSource === "Alternative.me";
+    lines.push(`F&G ${sameIndex && Number.isFinite(data.previous?.fng) ? `${data.previous.fng} → ` : ""}${fng}`);
+  }
   for (const id of [1, 2, 3, 6, 9]) {
     const item = data.cards.find((card) => card.id === id);
     if (item) lines.push(`${String(id).padStart(2, "0")} ${item.title} ${en ? "currently" : "当前"}：${item.headline}`);

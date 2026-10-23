@@ -10,6 +10,17 @@ const data = time => ({ previous: { date: "2026-08-21", btcPrice: 12345, fng: 80
   btcPrice: 75000, btcCurrency: "USD", btcObservedAt: time, fng: 50, fngFetchedAt: time
 } });
 
+test("昨日基线保留主指标身份，旧CMC不参与主指标比较", () => {
+  const store = storage(), time = "2026-09-15T10:00:00.000Z";
+  const input = data(time); input.market.fngSource = "Alternative.me";
+  saveDailyBaseline(store, input, new Date(time));
+  const view = dailyBaselineView(input, store, new Date("2026-09-16T01:00:00Z"));
+  assert.equal(view.previous.fngSource, "Alternative.me");
+  input.market.fngSource = "CoinMarketCap";
+  saveDailyBaseline(store, input, new Date(time));
+  assert.equal(dailyBaselineView(input, store, new Date("2026-09-16T01:00:00Z")).previous.fng, undefined);
+});
+
 test("Beijing midnight picks yesterday, never an older or same-day snapshot", () => {
   const store = storage(), time = "2026-09-15T15:59:59.000Z";
   saveDailyBaseline(store, data(time), new Date(time));

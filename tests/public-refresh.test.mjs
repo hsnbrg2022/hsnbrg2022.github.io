@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { refreshPublicDashboard } from "../public-refresh.js";
+import { refreshPublicDashboard, updateFearGreed } from "../public-refresh.js";
 import { currentWeekStart } from "../weekly-mean.js";
 import { buildOnchainDataset } from "../scripts/update-onchain.mjs";
 
@@ -10,6 +10,65 @@ const dashboardPath = new URL("../dashboard.json", import.meta.url);
 function response(payload, status = 200) {
   return { ok: status >= 200 && status < 300, status, json: async () => payload };
 }
+
+test("F&G主指标不受更快CMC辅助读数替换", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-10-23T08:00:00Z") });
+  const data = { market: {} };
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const pending = updateFearGreed(data, async url => {
+    if (url.includes("alternative.me")) { await gate; return response({ data: [{ value: "50", timestamp: "1792713600" }] }); }
+    return response({ data: { value: 80, update_time: "2026-10-23T01:00:00Z" } });
+  });
+  release();
+  await pending;
+  assert.equal(data.market.fng, 50);
+  assert.equal(data.market.fngSource, "Alternative.me");
+  assert.equal(data.market.fngIndicator, "alternative-btc");
+  assert.equal(data.market.fngFetchedAt, "2026-10-23T00:00:00.000Z");
+  assert.equal(data.market.fngAux.value, 80);
+  assert.equal(data.market.fngAux.indicator, "cmc-market");
+});
+
+test("F&G主源失败保留主值和日期，CMC成功只更新辅助", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-10-23T08:00:00Z") });
+  const market = { fng: 25, fngSource: "Alternative.me", fngFetchedAt: "2026-10-22T00:00:00.000Z" };
+  const data = { market: structuredClone(market) };
+  await assert.rejects(() => updateFearGreed(data, async url => {
+    if (url.includes("alternative.me")) throw new Error("offline");
+    return response({ data: { value: 90, update_time: "2026-10-23T01:00:00Z" } });
+  }), /主源不可用/);
+  for (const key of Object.keys(market)) assert.equal(data.market[key], market[key]);
+  assert.equal(data.market.fngReadStatus, "failed");
+  assert.equal(data.market.fngAux.value, 90);
+});
+
+test("F&G缺失或未来观测时间及更旧主值均拒绝，不补造日期", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-10-23T08:00:00Z") });
+  for (const timestamp of [undefined, "", "invalid", "1792886400", "1792627200"]) {
+    const data = { market: { fng: 55, fngSource: "Alternative.me", fngFetchedAt: "2026-10-23T00:00:00.000Z" } };
+    await assert.rejects(() => updateFearGreed(data, async url => {
+      if (url.includes("alternative.me")) return response({ data: [{ value: "70", timestamp }] });
+      throw new Error("aux offline");
+    }));
+    assert.equal(data.market.fng, 55);
+    assert.equal(data.market.fngFetchedAt, "2026-10-23T00:00:00.000Z");
+  }
+});
+
+test("F&G辅助失败不阻止有效主值，保留辅助旧观测不翻新", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-10-23T08:00:00Z") });
+  const data = { market: { fngAux: { value: 40, observedAt: "2026-10-21T00:00:00.000Z", readStatus: "ok" } } };
+  await updateFearGreed(data, async url => {
+    if (url.includes("alternative.me")) return response({ data: [{ value: "0", timestamp: "1792713600" }] });
+    throw new Error("aux offline");
+  });
+  assert.equal(data.market.fng, 0);
+  assert.equal(data.market.fngReadStatus, "ok");
+  assert.equal(data.market.fngAux.value, 40);
+  assert.equal(data.market.fngAux.observedAt, "2026-10-21T00:00:00.000Z");
+  assert.equal(data.market.fngAux.readStatus, "failed");
+});
 
 test("公开刷新可更新十二项数据（含 MVRV 与 Puell）", async (t) => {
   t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-04T08:00:00Z") });
@@ -63,7 +122,7 @@ test("公开刷新可更新十二项数据（含 MVRV 与 Puell）", async (t) =
     });
     if (url.includes("prices/current")) return response({ coins: { "coingecko:bitcoin": { price: 75_000, timestamp: Math.floor(Date.now() / 1000) } } });
     if (url.includes("prices/historical")) return response({ coins: { "coingecko:bitcoin": { price: 72_000 } } });
-    if (url.includes("alternative.me")) return response({ data: [{ value: "74", timestamp: "1787300000" }] });
+    if (url.includes("alternative.me")) return response({ data: [{ value: "74", timestamp: String(Math.floor(Date.now() / 1000)) }] });
     if (url.includes("stablecoincharts")) return response(stablecoinRows);
     if (url.includes("frankfurter.dev")) return response({ rates });
     if (url.includes("gold-api.com")) return response({ price: 4588.5, updatedAt: "2026-08-22T06:00:00Z" });
