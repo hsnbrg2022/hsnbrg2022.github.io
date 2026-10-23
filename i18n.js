@@ -284,6 +284,9 @@ const CARD_NAMES = {
 };
 
 const EXACT_EN = new Map([
+  ["美元指数行情", "Observed dollar index"], ["ECB 六币日终近似", "ECB six-currency daily approximation"],
+  ["六币汇率快照近似", "Six-currency FX snapshot approximation"],
+  ["来源口径已切换，未拼接旧源涨幅", "Source basis changed; prior-source change was not carried over"],
   ["ETF 资金连续净流入，机构配置需求保持强势。", "ETF flows remain net positive, signaling resilient institutional allocation demand."],
   ["ETF 资金连续净流入，机构配置需求保持支撑。", "ETF flows remain net positive, supporting institutional allocation demand."],
   ["ETF 资金连续净流出，机构配置需求转弱。", "ETF flows remain net negative, signaling weaker institutional allocation demand."],

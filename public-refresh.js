@@ -9,7 +9,7 @@ import { applyFedDatasetToDashboard } from "./fed-signals.js?v=20260829-1";
 import { updateTrueMarketMeanFromSnapshot } from "./true-market-mean.js?v=20261004-onchain";
 import { updateMnavFromSnapshot } from "./mnav-source.js?v=20260925-health";
 import { updateOnchainFromSnapshot } from "./onchain-source.js?v=20261004-onchain";
-import { applyMacroQuote } from "./macro-quote.js?v=20260905-2";
+import { applyMacroQuote } from "./macro-quote.js?v=20261023-dxy";
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -253,12 +253,29 @@ async function openErDxy(fetchImpl) {
   };
 }
 
-async function updateMacroQuote(data, fetchImpl, { id, prefix = "" }) {
-  const target = card(data, id);
-  const providers = id === 5 ? [
+export async function loadYahooMacro(symbol, fetchImpl) {
+  const payload = await fetchJson(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1d`, fetchImpl);
+  const meta = payload.chart?.result?.[0]?.meta;
+  const price = Number(meta?.regularMarketPrice), previous = Number(meta?.previousClose);
+  const time = Number(meta?.regularMarketTime) * 1000;
+  return { price, change: Number.isFinite(previous) && previous > 0 ? (price / previous - 1) * 100 : null,
+    changeBasis: "previous-close", instrument: symbol,
+    fetchedLabel: Number.isFinite(time) && time > 0 ? new Date(time).toISOString() : null };
+}
+
+export async function updateDxy(data, fetchImpl) {
+  const quote = await firstProvider([
+    { name: "Yahoo Finance", url: "https://finance.yahoo.com/quote/DX-Y.NYB/", load: () => loadYahooMacro("DX-Y.NYB", fetchImpl) },
     { name: "ECB / Frankfurter", url: "https://frankfurter.dev/", load: () => frankfurterDxy(fetchImpl) },
     { name: "ExchangeRate-API 推导", url: "https://www.exchangerate-api.com/", load: () => openErDxy(fetchImpl) }
-  ] : [
+  ], value => Number.isFinite(value.price) && value.price > 0 && (value.change === null || Number.isFinite(value.change)));
+  return applyMacroQuote(card(data, 5), quote, { id: 5 });
+}
+
+async function updateMacroQuote(data, fetchImpl, { id, prefix = "" }) {
+  if (id === 5) return updateDxy(data, fetchImpl);
+  const target = card(data, id);
+  const providers = [
     {
       name: "Gold API",
       url: "https://gold-api.com/",

@@ -8,14 +8,18 @@ export function applyMacroQuote(target, quote, { id, prefix = "", now = new Date
     ? `${quote.changeBasis === "previous-close" ? "较前收" : "较上个日终"} ${change >= 0 ? "+" : ""}${change.toFixed(2)}%`
     : "涨跌基准暂不可用";
   const asOf = quote.fetchedLabel || null;
+  const changedInstrument = Boolean(target.marketQuote?.instrument && target.marketQuote.instrument !== quote.instrument);
   target.marketQuote = {
     price, changePct: change, instrument: quote.instrument,
+    ...(id === 5 ? { kind: quote.instrument === "DX-Y.NYB" ? "actual-index" : "fx-basket-approximation", sourceChanged: changedInstrument } : {}),
     asOf, fetchedAt: now.toISOString(), comparison: hasChange ? { kind: quote.changeBasis, asOf: quote.comparisonAsOf || null } : null
   };
   target.headline = `${prefix}${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · ${changeText}`;
   target.change = changeText;
   if (id === 5) {
-    target.facts = [price < 100 ? "守在 100 下方" : "升至 100 上方", hasChange ? change < 0 ? "风险资产顺风" : "美元走强施压" : "涨跌基准暂不可用"];
+    target.facts = [quote.instrument === "DX-Y.NYB" ? "美元指数行情" : quote.instrument === "DXY-ECB" ? "ECB 六币日终近似" : "六币汇率快照近似",
+      price < 100 ? "守在 100 下方" : "升至 100 上方", hasChange ? change < 0 ? "风险资产顺风" : "美元走强施压" : "涨跌基准暂不可用"];
+    if (changedInstrument) target.facts.push("来源口径已切换，未拼接旧源涨幅");
     target.status = price < 100 ? "green" : price < 103 ? "yellow" : "red";
     target.detail = price < 100 ? "美元指数维持弱势，为风险资产提供宏观顺风。" : "美元指数走强，风险资产的流动性环境承压。";
   } else {
