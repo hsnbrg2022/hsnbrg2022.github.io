@@ -2,7 +2,8 @@
 export function applyMacroQuote(target, quote, { id, prefix = "", now = new Date() } = {}) {
   const price = Number(quote.price);
   if (!Number.isFinite(price) || price <= 0) throw new Error("宏观行情价格无效");
-  const hasChange = Number.isFinite(quote.change) && Boolean(quote.changeBasis);
+  const knownGold = ["GC=F", "XAU-USD-SPOT"].includes(quote.instrument);
+  const hasChange = Number.isFinite(quote.change) && ["previous-close", "daily-reference"].includes(quote.changeBasis) && (id !== 6 || knownGold);
   const change = hasChange ? quote.change : null;
   const changeText = hasChange
     ? `${quote.changeBasis === "previous-close" ? "较前收" : "较上个日终"} ${change >= 0 ? "+" : ""}${change.toFixed(2)}%`
@@ -12,6 +13,7 @@ export function applyMacroQuote(target, quote, { id, prefix = "", now = new Date
   target.marketQuote = {
     price, changePct: change, instrument: quote.instrument,
     ...(id === 5 ? { kind: quote.instrument === "DX-Y.NYB" ? "actual-index" : "fx-basket-approximation", sourceChanged: changedInstrument } : {}),
+    ...(id === 6 ? { kind: quote.instrument === "GC=F" ? "gold-futures" : quote.instrument === "XAU-USD-SPOT" ? "gold-spot" : "unverified", sourceChanged: changedInstrument } : {}),
     asOf, fetchedAt: now.toISOString(), comparison: hasChange ? { kind: quote.changeBasis, asOf: quote.comparisonAsOf || null } : null
   };
   target.headline = `${prefix}${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · ${changeText}`;
@@ -23,12 +25,14 @@ export function applyMacroQuote(target, quote, { id, prefix = "", now = new Date
     target.status = price < 100 ? "green" : price < 103 ? "yellow" : "red";
     target.detail = price < 100 ? "美元指数维持弱势，为风险资产提供宏观顺风。" : "美元指数走强，风险资产的流动性环境承压。";
   } else {
-    target.facts = [quote.instrument === "GC=F" ? "黄金期货" : "黄金现货", hasChange ? change >= 0 ? "较基准走强" : "较基准回落" : "涨跌基准暂不可用"];
+    target.facts = [quote.instrument === "GC=F" ? "黄金期货" : quote.instrument === "XAU-USD-SPOT" ? "黄金现货" : "黄金标的待核验", hasChange ? change >= 0 ? "较基准走强" : "较基准回落" : "涨跌基准暂不可用"];
+    if (changedInstrument) target.facts.push("来源口径已切换，未拼接旧源涨幅");
     target.status = hasChange && change >= -1 ? "green" : "yellow";
     target.detail = "黄金用于交叉验证美元、实际利率与避险需求的变化。";
   }
   target.source = { label: quote.source, url: quote.sourceUrl };
   target.marketFetchedAt = asOf;
+  target.dataAsOf = asOf;
   target.refreshStatus = "ok";
   return `${target.shortName} / ${quote.source}`;
 }

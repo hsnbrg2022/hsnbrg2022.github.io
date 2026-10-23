@@ -3,6 +3,38 @@ import assert from "node:assert/strict";
 import { applyMacroQuote } from "../macro-quote.js";
 import { translateText } from "../i18n.js";
 import { updateDxy } from "../public-refresh.js";
+import { cardQuality } from "../data-quality.js";
+
+test("黄金新观测覆盖旧dataAsOf，无日期切源不会继承旧日期", () => {
+  const card = { id: 6, shortName: "黄金", dataAsOf: "2020-01-01", status: "green" };
+  const now = new Date("2026-09-05T08:00:00Z");
+  applyMacroQuote(card, { price: 4800, change: 1, changeBasis: "previous-close", instrument: "GC=F", fetchedLabel: "2026-09-04T20:00:00Z" }, { id: 6, now });
+  assert.equal(card.dataAsOf, "2026-09-04T20:00:00Z");
+  assert.equal(cardQuality(card, now).eligible, true);
+  assert.equal(card.marketQuote.kind, "gold-futures");
+  applyMacroQuote(card, { price: 4750, change: null, instrument: "XAU-USD-SPOT" }, { id: 6, now });
+  assert.equal(card.dataAsOf, null);
+  assert.equal(cardQuality(card, now).state, "unknown");
+  assert.equal(card.marketQuote.kind, "gold-spot");
+  assert.equal(card.marketQuote.sourceChanged, true);
+  assert.equal(card.marketQuote.comparison, null);
+  assert.equal(card.status, "yellow");
+});
+
+test("黄金标的或比较基准未知时不制造涨幅绿灯", () => {
+  for (const quote of [
+    { instrument: "unverified", changeBasis: "previous-close" },
+    { instrument: "GC=F", changeBasis: "unknown" }
+  ]) {
+    const card = { id: 6, shortName: "黄金" };
+    applyMacroQuote(card, { price: 4800, change: 5, fetchedLabel: "2026-09-04T20:00:00Z", ...quote }, { id: 6 });
+    assert.equal(card.status, "yellow");
+    assert.equal(card.marketQuote.changePct, null);
+    assert.equal(card.marketQuote.comparison, null);
+    if (quote.instrument === "unverified") assert.equal(cardQuality(card, new Date("2026-09-05T08:00:00Z")).eligible, false);
+    assert.doesNotMatch(card.facts.map(f => translateText(f, "en")).join(" "), /[一-鿿]/);
+  }
+});
 
 test("DXY两端共用顺序优先实际指数，不请求更快近似值", async () => {
   const target = { id: 5, shortName: "DXY" }, calls = [];

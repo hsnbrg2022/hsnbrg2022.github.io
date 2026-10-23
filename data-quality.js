@@ -51,6 +51,7 @@ function timestamp(raw) {
 }
 
 export function cardQuality(card, now = new Date()) {
+  if (card.id === 6 && card.marketQuote?.kind === "unverified") return { state: "unknown", eligible: false, asOf: null };
   if (card.id === 3) return stablecoinQuality(card.stablecoin, now);
   const asOf = card.dataAsOf || card.marketQuote?.asOf || card.marketFetchedAt;
   if (card.id === 2) {

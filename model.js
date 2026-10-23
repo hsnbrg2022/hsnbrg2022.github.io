@@ -1,4 +1,4 @@
-import { assessCards, assessMarket } from "./data-quality.js?v=20260923-mnav";
+import { assessCards, assessMarket } from "./data-quality.js?v=20261023-gold";
 import { trueMarketMeanDay } from "./true-market-mean.js?v=20260913-1";
 
 export const STATUS = {

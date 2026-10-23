@@ -1,4 +1,4 @@
-import { assessMarket, btcObservationTimestamp } from "./data-quality.js?v=20261023-fng";
+import { assessMarket, btcObservationTimestamp } from "./data-quality.js?v=20261023-gold";
 
 export const DAILY_BASELINE_KEY = "crypto-signal-tracker:daily-baselines-v1";
 const DAY = 86400000;
