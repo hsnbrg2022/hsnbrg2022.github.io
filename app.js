@@ -777,6 +777,7 @@ function applyPositioning(accountRatio, positionRatio, savedAt = new Date().toIS
   });
   dashboard.dataMode = dashboard.dataMode.includes("实时") ? "本地维护 + 实时数据" : "本地维护 + 公开快照";
   hasBrowserPositioning = true;
+  browserNoticeKey = "";
   return true;
 }
 
@@ -833,6 +834,7 @@ function resetPositioningMaintenance() {
   try { localStorage.removeItem(POSITIONING_STORAGE_KEY); }
   catch (error) { showToast(`${t(language, "saveFailed")}：${maintenanceError(error)}`, "error"); return; }
   hasBrowserPositioning = false;
+  browserNoticeKey = "";
   const index = dashboard.cards.findIndex((item) => item.id === 9);
   dashboard.cards[index] = typeof structuredClone === "function"
     ? structuredClone(publishedPositioningCard)
