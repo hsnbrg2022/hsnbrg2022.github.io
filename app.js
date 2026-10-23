@@ -6,7 +6,7 @@ import { detectLocalMaintenance } from "./maintenance-mode.js?v=20261023-local-p
 import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261023-progress";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261023-local-progress";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261023-data-language";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -177,10 +177,10 @@ function renderTaskCheck(name) {
 
 function renderCard(card) {
   const status = STATUS[card.status];
-  const fetchedAt = card.marketFetchedAt ? ` title="行情时间 ${escapeHtml(card.marketFetchedAt)}"` : "";
+  const fetchedAt = ` title="${escapeHtml(card.quality?.state === "unknown" || !card.marketFetchedAt ? t(language, "marketTimeUnknown") : t(language, "quoteObservedTime", { date: translateText(card.marketFetchedAt, language) }))}"`;
   const source = card.source?.url
     ? `<a href="${escapeHtml(card.source.url)}" target="_blank" rel="noreferrer"${fetchedAt}>${escapeHtml(card.source.label)} ↗</a>`
-    : `<span>${escapeHtml(card.source?.label || "未填写")}</span>`;
+    : `<span>${escapeHtml(card.source?.label || t(language, "sourceMissing"))}</span>`;
   const dataAsOf = card.dataAsOf ? card.dataAsOf.replaceAll("-", "/") : "—";
   const refreshLabel = card.id === 3 && card.refreshStatus === "failed"
     ? `<i class="stale-dot"></i> ${t(language, "stablecoinSevenDayFailed")}`
@@ -239,7 +239,7 @@ function renderCard(card) {
         <dl>${(card.id === 1 ? etfHealthRows(card) : mnavHealthRows(card)).map(([label, value, key]) => `<dt>${t(language, label)}</dt><dd>${escapeHtml(value == null ? t(language, key || "healthUnknown") : translateText(value, language))}</dd>`).join("")}</dl>
         <p>${t(language, card.id === 1 ? "etfHealthReadOnlyNote" : "healthReadOnlyNote")}</p></details>` : ""}
       <div class="signal-footer">
-        <span title="${escapeHtml(card.refreshMessage || "")}">${refreshLabel}</span>
+        <span title="${escapeHtml(card.refreshStatus === "failed" ? t(language, "refreshFailed") : translateText(card.refreshMessage || "", language))}">${refreshLabel}</span>
         ${source}
       </div>
     </article>`;
@@ -270,7 +270,7 @@ function renderTrueMarketMean(data) {
   if (!view) return "";
   const source = view.metric.source?.url
     ? `<a href="${escapeHtml(view.metric.source.url)}" target="_blank" rel="noreferrer">${escapeHtml(view.metric.source.label)} ↗</a>`
-    : `<span>${escapeHtml(view.metric.source?.label || "Glassnode")}</span>`;
+    : `<span>${escapeHtml(view.metric.source?.label || t(language, "sourceMissing"))}</span>`;
   const refreshLabel = view.metric.refreshStatus === "failed"
     ? t(language, "trueMarketMeanFailed")
     : t(language, view.metric.refresh === "auto" ? view.metric.formula === "published_true_market_mean" ? "trueMarketMeanPublished" : "trueMarketMeanAuto" : "trueMarketMeanManual");
@@ -288,7 +288,7 @@ function renderTrueMarketMean(data) {
       <strong>${formatMoney(view.analysis.value, 0)}</strong>
     </div>
     <div class="true-market-mean-footer">
-      <span title="${escapeHtml(view.metric.refreshMessage || "")}">${t(language, "trueMarketMeanAsOf", { date: view.asOf })} · ${refreshLabel}</span>
+      <span title="${escapeHtml(view.metric.refreshStatus === "failed" ? t(language, "trueMarketMeanFailed") : translateText(view.metric.refreshMessage || "", language))}">${t(language, "trueMarketMeanAsOf", { date: view.asOf })} · ${refreshLabel}</span>
       ${source}
     </div>
   </article>`;
@@ -832,10 +832,17 @@ function buildReport() {
   const btcPrice = btcPricePresentation(data.market, language);
   const headline = `${data.date} | BTC ${btcPrice.text} [${btcPrice.currency}] ${btcChange} | F&G ${data.market.fng} ${data.heat.label} (${fearGreedNote(data.market, language)}) | 200WMA ${wmaRatio}`;
   const trueMean = trueMarketMeanView(data);
-  const trueMeanLine = trueMean ? `True Market Mean ${formatMoney(trueMean.analysis.value, 0)} | ${trueMean.insight} | ${t(language, "trueMarketMeanAsOf", { date: trueMean.asOf })}` : "";
-  const cards = data.cards.map((card) => `${STATUS[card.status].emoji} ${String(card.id).padStart(2, "0")} ${card.title} — ${card.headline}\n${t(language, card.quality.reason || (card.quality.eligible ? "qualityFresh" : card.quality.state === "stale" ? "qualityStale" : "qualityUnknown"))}\n→ ${card.detail}\n来源：${card.source.label}`).join("\n\n");
+  let trueMeanLine = trueMean ? `True Market Mean ${formatMoney(trueMean.analysis.value, 0)} | ${trueMean.insight} | ${t(language, "trueMarketMeanAsOf", { date: trueMean.asOf })}` : "";
+  if (trueMean?.metric.refreshStatus === "failed") trueMeanLine += ` | ${t(language, "trueMarketMeanFailed")}`;
+  const cards = data.cards.map((card) => {
+    const quality = t(language, card.quality.reason || (card.quality.eligible ? "qualityFresh" : card.quality.state === "stale" ? "qualityStale" : "qualityUnknown"));
+    const observation = card.quality.state === "unknown" || !card.quality.asOf ? t(language, "marketTimeUnknown")
+      : t(language, "quoteObservedTime", { date: translateText(card.quality.asOf, language) });
+    const failure = card.refreshStatus === "failed" ? t(language, "refreshFailed") + "\n" : "";
+    return `${STATUS[card.status].emoji} ${String(card.id).padStart(2, "0")} ${card.title} — ${card.headline}\n${quality}\n${observation}\n${failure}${card.facts.join(" · ")}\n→ ${card.detail}\n来源：${card.source?.label || t(language, "sourceMissing")}`;
+  }).join("\n\n");
   const comparison = `${t(language, "changes")}\n${dailyChangeLines(data).map(item => `• ${item}`).join("\n")}`;
-  const tracking = data.cards.map((card) => `• #: ${String(card.id).padStart(2, "0")} | 信号: ${card.shortName} | 状态: ${STATUS[card.status].emoji} | 变动: ${card.change}`).join("\n");
+  const tracking = data.cards.map((card) => `• #: ${String(card.id).padStart(2, "0")} | 信号: ${card.shortName} | 状态: ${STATUS[card.status].emoji} | 变动: ${card.change} | ${t(language, card.quality.eligible ? "qualityFresh" : "qualityPending")}`).join("\n");
   if (language === "en") {
     return `${headline}\n${trueMeanLine}\n\n${cards.replaceAll("来源：", "Source: ")}\n\n${comparison}\n\nSignal tracker:\n${tracking.replaceAll("信号:", "Signal:").replaceAll("状态:", "Status:").replaceAll("变动:", "Change:")}\n\n${data.score}/9 active | ${data.counts.yellow} watch | ${data.counts.red} risk | ${data.counts.off} inactive\n\nRisk alerts:\n${data.risks.map((item) => `• ${item}`).join("\n")}\n\nSummary: ${data.summary}\n\nFor research only; not financial advice.`;
   }

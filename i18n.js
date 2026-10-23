@@ -33,6 +33,7 @@ const MESSAGES = {
     refreshCheckOk: "检查成功", refreshCheckFailed: "失败，保留旧值", refreshCheckPending: "等待检查，保留原值",
     refreshIncremental: "已完成项即时显示；未完成项保留原值。检查成功不代表数据仍在时效内。",
     refreshLocalChecks: "本次本地检查进度；卡片保留原值，服务保存完成后统一显示结果。",
+    sourceMissing: "未填写来源", quoteObservedTime: "来源观测时间：{date}",
     refreshAtomic: "当前显示保留，全部检查结束后统一更新；检查成功不代表数据仍在时效内。",
     readTimeout: "读取超过 10 秒，请稍后重试",
     freshnessUnknown: "日期待核验", trueMarketMeanDatePending: "TMM 尚无可核验的完整 UTC 日，保留旧值，暂停当前参考位判断。",
@@ -92,6 +93,7 @@ const MESSAGES = {
     refreshCheckOk: "Check succeeded", refreshCheckFailed: "Failed; previous value retained", refreshCheckPending: "Waiting; previous value retained",
     refreshIncremental: "Completed items appear immediately; pending items keep previous values. A successful check does not establish freshness.",
     refreshLocalChecks: "Current local checks; cards retain previous values until the service finishes saving the result.",
+    sourceMissing: "Source not specified", quoteObservedTime: "Source observation: {date}",
     refreshAtomic: "Current values stay visible until all checks finish. A successful check does not guarantee freshness.",
     readTimeout: "Read timed out after 10 seconds. Please try again.",
     freshnessUnknown: "Date unverified", trueMarketMeanDatePending: "TMM has no verified completed UTC day. The previous value is retained; reference-level analysis is paused.",
@@ -288,6 +290,7 @@ const CARD_NAMES = {
 };
 
 const EXACT_EN = new Map([
+  ["ExchangeRate-API 推导", "ExchangeRate-API derived"],
   ["美元指数行情", "Observed dollar index"], ["ECB 六币日终近似", "ECB six-currency daily approximation"],
   ["六币汇率快照近似", "Six-currency FX snapshot approximation"],
   ["来源口径已切换，未拼接旧源涨幅", "Source basis changed; prior-source change was not carried over"],
@@ -428,6 +431,7 @@ export function translateText(value, language) {
     .replace(/最近数据/g, "Latest data")
     .replace(/较发布值/g, "vs published")
     .replace(/较上次/g, "vs previous")
+    .replace(/ECB 日终/g, "ECB daily reference")
     .replace(/账户比/g, "Account ratio")
     .replace(/仓位比/g, "Position ratio")
     .replace(/仓帐比/g, "Position/account")
