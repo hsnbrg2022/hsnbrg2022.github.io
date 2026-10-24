@@ -3,16 +3,16 @@
   "asset": "BTC",
   "unit": "USD_MILLIONS",
   "status": "snapshot",
-  "marketDate": "2026-10-20",
-  "generatedAt": "2026-10-21T06:06:11.366Z",
+  "marketDate": "2026-10-23",
+  "generatedAt": "2026-10-24T05:59:02.046Z",
   "source": {
-    "label": "PANews / SoSoValue (rounded)",
-    "url": "https://www.panewslab.com/zh/articles/01a15ca1-daa5-74c1-a070-39613a69e813",
+    "label": "Daily Market Report / Farside (rounded)",
+    "url": "https://www.dailymarket.report/index.html",
     "method": "public-media"
   },
   "verificationSource": {
-    "label": "SoSoValue",
-    "url": "https://sosovalue.com/zh/assets/etf/us-btc-spot"
+    "label": "Farside",
+    "url": "https://farside.co.uk/btc/"
   },
   "rows": [
     {
@@ -198,6 +198,18 @@
     {
       "date": "2026-10-20",
       "flowUsdMillions": 23.1624
+    },
+    {
+      "date": "2026-10-21",
+      "flowUsdMillions": 528
+    },
+    {
+      "date": "2026-10-22",
+      "flowUsdMillions": -635
+    },
+    {
+      "date": "2026-10-23",
+      "flowUsdMillions": -138
     }
   ],
   "recordOrigins": {
@@ -509,6 +521,30 @@
       "revisedAt": "2026-10-21T04:04:33.573Z",
       "reportedSource": "SoSoValue",
       "precisionUsdMillions": 0.0001
+    },
+    "2026-10-21": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a161c3-746d-75a3-9733-2e07142f6211",
+      "publishedAt": "2026-10-22T03:59:21.709Z",
+      "revisedAt": "2026-10-22T03:59:21.709Z",
+      "reportedSource": "SoSoValue",
+      "precisionUsdMillions": 1
+    },
+    "2026-10-22": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a166eb-734d-707a-815c-bbf62306432f",
+      "publishedAt": "2026-10-23T04:01:08.941Z",
+      "revisedAt": "2026-10-23T04:01:08.941Z",
+      "reportedSource": "SoSoValue",
+      "precisionUsdMillions": 1
+    },
+    "2026-10-23": {
+      "method": "public-media",
+      "url": "https://www.dailymarket.report/index.html",
+      "reportedSource": "Farside Investors",
+      "revisedAt": "2026-10-24T05:03:00.000Z",
+      "rounded": true,
+      "precisionUsdMillions": 1
     }
   }
 }
