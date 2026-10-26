@@ -4,13 +4,13 @@
   "asset": "BTC",
   "interval": "24h",
   "metric": "true_market_mean",
-  "generatedAt": "2026-10-25T05:17:19.234Z",
-  "asOf": "2026-10-24",
-  "value": 77856.52,
+  "generatedAt": "2026-10-26T05:16:33.710Z",
+  "asOf": "2026-10-25",
+  "value": 77872.71,
   "formula": "published_true_market_mean",
   "observation": {
-    "timestamp": 1792800000,
-    "value": 77856.51931997246
+    "timestamp": 1792886400,
+    "value": 77872.70743545333
   },
   "validation": {
     "dataAgeDays": 1,
