@@ -1,11 +1,14 @@
 {
   "schemaVersion": 1,
   "collector": "etf-flows",
-  "execution": "github-actions",
-  "checkedAt": "2026-10-30T07:15:30.521Z",
-  "status": "failed",
-  "lastSuccessAt": "2026-10-28T06:53:49.663Z",
-  "snapshotChanged": null,
-  "errorCode": "validation_failed",
-  "completeness": null
+  "execution": "local",
+  "checkedAt": "2026-10-30T11:43:58.222Z",
+  "status": "ok",
+  "lastSuccessAt": "2026-10-30T11:43:58.222Z",
+  "snapshotChanged": true,
+  "errorCode": null,
+  "completeness": {
+    "status": "complete",
+    "missingDates": []
+  }
 }

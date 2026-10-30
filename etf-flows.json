@@ -3,223 +3,17 @@
   "asset": "BTC",
   "unit": "USD_MILLIONS",
   "status": "snapshot",
-  "marketDate": "2026-10-27",
-  "generatedAt": "2026-10-28T06:53:43.892Z",
+  "marketDate": "2026-10-29",
+  "generatedAt": "2026-10-30T11:43:53.368Z",
   "source": {
-    "label": "Daily Market Report / Farside (rounded)",
-    "url": "https://www.dailymarket.report/index.html",
+    "label": "PANews / SoSoValue (rounded)",
+    "url": "https://www.panewslab.com/zh/articles/01a18b03-5030-7568-875b-4ba651080707",
     "method": "public-media"
   },
   "verificationSource": {
-    "label": "Farside",
-    "url": "https://farside.co.uk/btc/"
+    "label": "SoSoValue",
+    "url": "https://sosovalue.com/zh/assets/etf/us-btc-spot"
   },
-  "rows": [
-    {
-      "date": "2026-08-17",
-      "flowUsdMillions": 297.5
-    },
-    {
-      "date": "2026-08-18",
-      "flowUsdMillions": 189.3
-    },
-    {
-      "date": "2026-08-19",
-      "flowUsdMillions": 517.2
-    },
-    {
-      "date": "2026-08-20",
-      "flowUsdMillions": 606.3
-    },
-    {
-      "date": "2026-08-21",
-      "flowUsdMillions": 307.5
-    },
-    {
-      "date": "2026-08-24",
-      "flowUsdMillions": 337.6
-    },
-    {
-      "date": "2026-08-25",
-      "flowUsdMillions": 314.3
-    },
-    {
-      "date": "2026-08-26",
-      "flowUsdMillions": 232.2
-    },
-    {
-      "date": "2026-08-27",
-      "flowUsdMillions": 242.3
-    },
-    {
-      "date": "2026-08-28",
-      "flowUsdMillions": -168.5
-    },
-    {
-      "date": "2026-08-31",
-      "flowUsdMillions": 217
-    },
-    {
-      "date": "2026-09-01",
-      "flowUsdMillions": -236
-    },
-    {
-      "date": "2026-09-02",
-      "flowUsdMillions": 101
-    },
-    {
-      "date": "2026-09-03",
-      "flowUsdMillions": 731
-    },
-    {
-      "date": "2026-09-04",
-      "flowUsdMillions": 175
-    },
-    {
-      "date": "2026-09-08",
-      "flowUsdMillions": -46.6464
-    },
-    {
-      "date": "2026-09-09",
-      "flowUsdMillions": -120
-    },
-    {
-      "date": "2026-09-10",
-      "flowUsdMillions": -283
-    },
-    {
-      "date": "2026-09-11",
-      "flowUsdMillions": -13.2893
-    },
-    {
-      "date": "2026-09-14",
-      "flowUsdMillions": 160
-    },
-    {
-      "date": "2026-09-15",
-      "flowUsdMillions": -450
-    },
-    {
-      "date": "2026-09-16",
-      "flowUsdMillions": -296
-    },
-    {
-      "date": "2026-09-17",
-      "flowUsdMillions": 159
-    },
-    {
-      "date": "2026-09-18",
-      "flowUsdMillions": 433
-    },
-    {
-      "date": "2026-09-21",
-      "flowUsdMillions": 999
-    },
-    {
-      "date": "2026-09-22",
-      "flowUsdMillions": 715
-    },
-    {
-      "date": "2026-09-23",
-      "flowUsdMillions": 347
-    },
-    {
-      "date": "2026-09-24",
-      "flowUsdMillions": 191
-    },
-    {
-      "date": "2026-09-25",
-      "flowUsdMillions": 134
-    },
-    {
-      "date": "2026-09-28",
-      "flowUsdMillions": 31.0706
-    },
-    {
-      "date": "2026-09-29",
-      "flowUsdMillions": 66.1947
-    },
-    {
-      "date": "2026-09-30",
-      "flowUsdMillions": -148.7
-    },
-    {
-      "date": "2026-10-01",
-      "flowUsdMillions": 103
-    },
-    {
-      "date": "2026-10-02",
-      "flowUsdMillions": 32
-    },
-    {
-      "date": "2026-10-05",
-      "flowUsdMillions": -90
-    },
-    {
-      "date": "2026-10-06",
-      "flowUsdMillions": 119
-    },
-    {
-      "date": "2026-10-07",
-      "flowUsdMillions": -487
-    },
-    {
-      "date": "2026-10-08",
-      "flowUsdMillions": -244
-    },
-    {
-      "date": "2026-10-09",
-      "flowUsdMillions": 21.1281
-    },
-    {
-      "date": "2026-10-12",
-      "flowUsdMillions": -65.401
-    },
-    {
-      "date": "2026-10-13",
-      "flowUsdMillions": 110
-    },
-    {
-      "date": "2026-10-14",
-      "flowUsdMillions": -261
-    },
-    {
-      "date": "2026-10-15",
-      "flowUsdMillions": 5.0551
-    },
-    {
-      "date": "2026-10-16",
-      "flowUsdMillions": -82.3893
-    },
-    {
-      "date": "2026-10-19",
-      "flowUsdMillions": 527
-    },
-    {
-      "date": "2026-10-20",
-      "flowUsdMillions": 23.1624
-    },
-    {
-      "date": "2026-10-21",
-      "flowUsdMillions": 528
-    },
-    {
-      "date": "2026-10-22",
-      "flowUsdMillions": -635
-    },
-    {
-      "date": "2026-10-23",
-      "flowUsdMillions": -138
-    },
-    {
-      "date": "2026-10-26",
-      "flowUsdMillions": 110
-    },
-    {
-      "date": "2026-10-27",
-      "flowUsdMillions": 24
-    }
-  ],
   "recordOrigins": {
     "2026-08-17": {
       "method": "manual-entry",
@@ -563,12 +357,241 @@
       "precisionUsdMillions": 1
     },
     "2026-10-27": {
+      "label": "Farside",
+      "url": "https://farside.co.uk/btc/",
+      "method": "manual-entry",
+      "maintainedAt": "2026-10-30T11:43:41.344Z",
+      "previousFlowUsdMillions": 24
+    },
+    "2026-10-28": {
       "method": "public-media",
-      "url": "https://www.dailymarket.report/index.html",
-      "reportedSource": "Farside Investors",
-      "revisedAt": "2026-10-28T05:02:00.000Z",
-      "rounded": true,
+      "url": "https://www.panewslab.com/zh/articles/01a1861e-cfe7-70a7-a4ee-3305388d529b",
+      "publishedAt": "2026-10-29T05:25:28.679Z",
+      "revisedAt": "2026-10-29T07:58:21.091Z",
+      "reportedSource": "SoSoValue",
       "precisionUsdMillions": 1
+    },
+    "2026-10-29": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a18b03-5030-7568-875b-4ba651080707",
+      "publishedAt": "2026-10-30T04:13:32.592Z",
+      "revisedAt": "2026-10-30T04:13:32.592Z",
+      "reportedSource": "SoSoValue",
+      "precisionUsdMillions": 0.0001
     }
-  }
+  },
+  "rows": [
+    {
+      "date": "2026-08-17",
+      "flowUsdMillions": 297.5
+    },
+    {
+      "date": "2026-08-18",
+      "flowUsdMillions": 189.3
+    },
+    {
+      "date": "2026-08-19",
+      "flowUsdMillions": 517.2
+    },
+    {
+      "date": "2026-08-20",
+      "flowUsdMillions": 606.3
+    },
+    {
+      "date": "2026-08-21",
+      "flowUsdMillions": 307.5
+    },
+    {
+      "date": "2026-08-24",
+      "flowUsdMillions": 337.6
+    },
+    {
+      "date": "2026-08-25",
+      "flowUsdMillions": 314.3
+    },
+    {
+      "date": "2026-08-26",
+      "flowUsdMillions": 232.2
+    },
+    {
+      "date": "2026-08-27",
+      "flowUsdMillions": 242.3
+    },
+    {
+      "date": "2026-08-28",
+      "flowUsdMillions": -168.5
+    },
+    {
+      "date": "2026-08-31",
+      "flowUsdMillions": 217
+    },
+    {
+      "date": "2026-09-01",
+      "flowUsdMillions": -236
+    },
+    {
+      "date": "2026-09-02",
+      "flowUsdMillions": 101
+    },
+    {
+      "date": "2026-09-03",
+      "flowUsdMillions": 731
+    },
+    {
+      "date": "2026-09-04",
+      "flowUsdMillions": 175
+    },
+    {
+      "date": "2026-09-08",
+      "flowUsdMillions": -46.6464
+    },
+    {
+      "date": "2026-09-09",
+      "flowUsdMillions": -120
+    },
+    {
+      "date": "2026-09-10",
+      "flowUsdMillions": -283
+    },
+    {
+      "date": "2026-09-11",
+      "flowUsdMillions": -13.2893
+    },
+    {
+      "date": "2026-09-14",
+      "flowUsdMillions": 160
+    },
+    {
+      "date": "2026-09-15",
+      "flowUsdMillions": -450
+    },
+    {
+      "date": "2026-09-16",
+      "flowUsdMillions": -296
+    },
+    {
+      "date": "2026-09-17",
+      "flowUsdMillions": 159
+    },
+    {
+      "date": "2026-09-18",
+      "flowUsdMillions": 433
+    },
+    {
+      "date": "2026-09-21",
+      "flowUsdMillions": 999
+    },
+    {
+      "date": "2026-09-22",
+      "flowUsdMillions": 715
+    },
+    {
+      "date": "2026-09-23",
+      "flowUsdMillions": 347
+    },
+    {
+      "date": "2026-09-24",
+      "flowUsdMillions": 191
+    },
+    {
+      "date": "2026-09-25",
+      "flowUsdMillions": 134
+    },
+    {
+      "date": "2026-09-28",
+      "flowUsdMillions": 31.0706
+    },
+    {
+      "date": "2026-09-29",
+      "flowUsdMillions": 66.1947
+    },
+    {
+      "date": "2026-09-30",
+      "flowUsdMillions": -148.7
+    },
+    {
+      "date": "2026-10-01",
+      "flowUsdMillions": 103
+    },
+    {
+      "date": "2026-10-02",
+      "flowUsdMillions": 32
+    },
+    {
+      "date": "2026-10-05",
+      "flowUsdMillions": -90
+    },
+    {
+      "date": "2026-10-06",
+      "flowUsdMillions": 119
+    },
+    {
+      "date": "2026-10-07",
+      "flowUsdMillions": -487
+    },
+    {
+      "date": "2026-10-08",
+      "flowUsdMillions": -244
+    },
+    {
+      "date": "2026-10-09",
+      "flowUsdMillions": 21.1281
+    },
+    {
+      "date": "2026-10-12",
+      "flowUsdMillions": -65.401
+    },
+    {
+      "date": "2026-10-13",
+      "flowUsdMillions": 110
+    },
+    {
+      "date": "2026-10-14",
+      "flowUsdMillions": -261
+    },
+    {
+      "date": "2026-10-15",
+      "flowUsdMillions": 5.0551
+    },
+    {
+      "date": "2026-10-16",
+      "flowUsdMillions": -82.3893
+    },
+    {
+      "date": "2026-10-19",
+      "flowUsdMillions": 527
+    },
+    {
+      "date": "2026-10-20",
+      "flowUsdMillions": 23.1624
+    },
+    {
+      "date": "2026-10-21",
+      "flowUsdMillions": 528
+    },
+    {
+      "date": "2026-10-22",
+      "flowUsdMillions": -635
+    },
+    {
+      "date": "2026-10-23",
+      "flowUsdMillions": -138
+    },
+    {
+      "date": "2026-10-26",
+      "flowUsdMillions": 110
+    },
+    {
+      "date": "2026-10-27",
+      "flowUsdMillions": 176
+    },
+    {
+      "date": "2026-10-28",
+      "flowUsdMillions": 137
+    },
+    {
+      "date": "2026-10-29",
+      "flowUsdMillions": 17.0719
+    }
+  ]
 }
