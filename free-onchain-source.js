@@ -4,6 +4,13 @@ export const FREE_ONCHAIN = {
   8: { label: "Checkonchain", metric: "puell_multiple", trace: "Puell Multiple", endpoint: "https://charts-cdn.checkonchain.com/btconchain/mining/puellmultiple/puellmultiple_light.html", url: "https://charts.checkonchain.com/btconchain/mining/puellmultiple/puellmultiple_light.html" }
 };
 export const FREE_TMM = { label: "Checkonchain", metric: "true_market_mean", trace: "True Market Mean", endpoint: "https://charts-cdn.checkonchain.com/btconchain/cointime/pricing_mvrv_aviv_1/pricing_mvrv_aviv_1_light.html", url: "https://charts.checkonchain.com/btconchain/cointime/pricing_mvrv_aviv_1/pricing_mvrv_aviv_1_light.html" };
+export const COIN_METRICS_MVRV = {
+  label: "Coin Metrics / calculated Z (CC BY-NC 4.0)", metric: "mvrv_z_score",
+  endpoint: "https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?assets=btc&metrics=CapMVRVCur,CapMrktCurUSD&frequency=1d&page_size=10000&start_time=2009-01-03",
+  url: "https://github.com/coinmetrics/data",
+  formula: "(market_cap - market_cap / mvrv) / population_stddev(market_cap)",
+  license: "CC BY-NC 4.0", licenseUrl: "https://creativecommons.org/licenses/by-nc/4.0/"
+};
 
 export function sameFreeSource(actual, expected) {
   return actual?.label === expected.label && actual?.endpoint === expected.endpoint && actual?.url === expected.url;
@@ -34,6 +41,31 @@ export function parseOnchainLabRows(payload) {
   const rows = recentRows(payload.series.map(row => row[0]), payload.series.map(row => row[1]));
   if (dailyTimestamp(payload.as_of) !== Math.max(...rows.map(row => row.timestamp))) throw new Error("OnChainLab source date mismatch");
   return rows;
+}
+
+export function parseCoinMetricsMvrvRows(payload, now = new Date()) {
+  if (!Array.isArray(payload?.data) || payload.data.length < 2 || payload.data.length > 10000 || payload.next_page_url || !Number.isFinite(+now)) throw new Error("Incomplete Coin Metrics history");
+  const start = Date.parse("2010-07-18T00:00:00Z") / 1000, today = Math.floor(+now / 86400000) * 86400;
+  let previous = start - 86400, count = 0, mean = 0, m2 = 0;
+  const rows = [];
+  for (const row of payload.data) {
+    if (row?.asset !== "btc" || typeof row.time !== "string" || !/^\d{4}-\d{2}-\d{2}T00:00:00(?:\.0{1,9})?Z$/.test(row.time)) throw new Error("Invalid Coin Metrics daily identity");
+    const timestamp = dailyTimestamp(row.time.slice(0, 10));
+    if (timestamp !== previous + 86400 || timestamp > today) throw new Error("Incomplete or future Coin Metrics history");
+    previous = timestamp;
+    if (timestamp === today) continue; // Never include a partial day in the denominator.
+    const values = [row.CapMrktCurUSD, row.CapMVRVCur].map(raw => typeof raw === "number" ? raw : typeof raw === "string" && /^\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(raw) ? Number(raw) : NaN);
+    if (values.some(value => !Number.isFinite(value) || value <= 0)) throw new Error("Invalid Coin Metrics historical input");
+    const [cap, ratio] = values;
+    count++;
+    const delta = cap - mean; mean += delta / count; m2 += delta * (cap - mean);
+    if (count < 2) continue;
+    const deviation = Math.sqrt(m2 / count), value = (cap - cap / ratio) / deviation;
+    if (!Number.isFinite(value) || !(deviation > 0)) throw new Error("Invalid Coin Metrics calculation");
+    rows.push({ timestamp, value, calculation: { formula: COIN_METRICS_MVRV.formula, windowStart: "2010-07-18", samples: count, marketCapUsd: cap, mvrvRatio: ratio, marketCapStdDevUsd: deviation } });
+  }
+  if (!rows.length) throw new Error("Incomplete Coin Metrics history");
+  return rows.filter(row => row.timestamp >= rows.at(-1).timestamp - 7 * 86400);
 }
 
 function plotTraces(html) {
@@ -70,10 +102,11 @@ export function parseChartRows(html, name, now = new Date()) {
 }
 
 export async function fetchFreeRows(source, { fetchImpl = globalThis.fetch, now = new Date() } = {}) {
-  if (![...Object.values(FREE_ONCHAIN), FREE_TMM].some(expected => sameFreeSource(source, expected))) throw new Error("Unknown free source");
+  if (![...Object.values(FREE_ONCHAIN), FREE_TMM, COIN_METRICS_MVRV].some(expected => sameFreeSource(source, expected))) throw new Error("Unknown free source");
   const response = await fetchImpl(source.endpoint, { method: "GET", signal: AbortSignal.timeout(20000), cache: "no-store" });
   if (!response.ok) throw new Error(`${source.label} HTTP ${response.status}`);
   const body = await response.text();
   if (body.length > 5000000) throw new Error("Public source response too large");
+  if (sameFreeSource(source, COIN_METRICS_MVRV)) return parseCoinMetricsMvrvRows(JSON.parse(body), now);
   return source.trace ? parseChartRows(body, source.trace, now) : parseOnchainLabRows(JSON.parse(body));
 }

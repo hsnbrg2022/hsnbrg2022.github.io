@@ -340,6 +340,7 @@ const EXACT_EN = new Map([
   ["Puell 仍在观察区，矿工端压力尚未完全解除", "Puell remains in the watch zone; miner-side pressure has not fully eased."],
   ["Puell 低于 0.5，矿工发行收入相对年均值承压", "Puell is below 0.5; miner issuance revenue is low relative to its annual average."],
   ["辅助指标暂无同日数据", "No same-day auxiliary data available"],
+  ["Coin Metrics 公开输入计算 · CC BY-NC 4.0", "Calculated from Coin Metrics public inputs · CC BY-NC 4.0"],
   ["Z-Score 低于 0，处于历史低估参考区；不代表价格已见底。", "Z-Score is below 0, a historical undervaluation reference zone; this does not confirm a price bottom."],
   ["Z-Score 高于 7，估值偏热，需注意周期风险。", "Z-Score is above 7; valuations are elevated and cycle risk warrants attention."],
   ["Z-Score 处于中间区间，未触及历史低估或过热阈值。", "Z-Score is in the middle range, outside the historical undervaluation and overheating thresholds."],

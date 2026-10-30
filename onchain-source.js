@@ -1,4 +1,4 @@
-import { FREE_ONCHAIN, sameFreeSource } from "./free-onchain-source.js";
+import { FREE_ONCHAIN, COIN_METRICS_MVRV, sameFreeSource } from "./free-onchain-source.js?v=20261030-mvrv";
 const DAY = 86400000;
 export const ONCHAIN = {
   7: { metric: "mvrv_z_score", endpoint: "/v1/metrics/market/mvrv_z_score", auxiliary: "mvrv", auxiliaryEndpoint: "/v1/metrics/market/mvrv", file: "mvrv.json", chart: "market.MvrvZScore", title: "MVRV Z-Score" },
@@ -21,10 +21,19 @@ function validateObservation(row, id, now) {
 export function validateOnchainDataset(dataset, id, { now = new Date() } = {}) {
   const config = ONCHAIN[id];
   if (!config || dataset?.schemaVersion !== 1 || dataset.status !== "active" || dataset.asset !== "BTC" || dataset.interval !== "24h" || dataset.metric !== config.metric) throw new Error("On-chain metric identity mismatch");
-  const free = sameFreeSource(dataset.source, FREE_ONCHAIN[id]);
+  const calculated = id === 7 && sameFreeSource(dataset.source, COIN_METRICS_MVRV);
+  const free = calculated || sameFreeSource(dataset.source, FREE_ONCHAIN[id]);
   if (!free && (dataset.source?.endpoint !== config.endpoint || dataset.source?.label !== "Glassnode Public MCP")) throw new Error("On-chain source mismatch");
   const row = validateObservation(dataset.observation, id, now);
   if (dataset.value !== row.value || dataset.asOf !== new Date(row.timestamp * 1000).toISOString().slice(0, 10)) throw new Error("On-chain observation date/value mismatch");
+  if (calculated) {
+    const c = dataset.calculation;
+    const samples = (row.timestamp - Date.parse("2010-07-18T00:00:00Z") / 1000) / 86400 + 1;
+    if (!c || c.formula !== COIN_METRICS_MVRV.formula || c.windowStart !== "2010-07-18" || c.samples !== samples || samples < 2 ||
+      dataset.source.formula !== COIN_METRICS_MVRV.formula || dataset.source.license !== COIN_METRICS_MVRV.license || dataset.source.licenseUrl !== COIN_METRICS_MVRV.licenseUrl ||
+      [c.marketCapUsd, c.mvrvRatio, c.marketCapStdDevUsd].some(value => typeof value !== "number" || !Number.isFinite(value) || value <= 0) ||
+      Math.abs((c.marketCapUsd - c.marketCapUsd / c.mvrvRatio) / c.marketCapStdDevUsd - row.value) > 1e-12) throw new Error("Invalid MVRV calculation evidence");
+  } else if (dataset.calculation != null) throw new Error("Unexpected on-chain calculation evidence");
   if (dataset.auxiliary != null) {
     if (free) throw new Error("Free on-chain source does not provide a verified auxiliary metric");
     if (dataset.auxiliary.metric !== config.auxiliary || dataset.auxiliary.timestamp !== row.timestamp || typeof dataset.auxiliary.value !== "number" || !Number.isFinite(dataset.auxiliary.value) || dataset.auxiliary.value <= 0 || dataset.auxiliary.value > 100) throw new Error("On-chain auxiliary metric/date mismatch");
@@ -44,7 +53,7 @@ export function applyOnchainDataset(data, dataset, id, { now = new Date(), metho
     : low ? "Puell 低于 0.5，矿工发行收入相对年均值承压；不代表价格已见底。" : high ? "Puell 高于 4，矿工发行收入相对年均值偏高，注意周期风险。" : "Puell 处于 0.5 至 4 区间，未触及极端阈值。";
   Object.assign(target, {
     title: config.title, headline: `${row.value.toFixed(2)}${auxiliary ? ` · ${id === 7 ? "MVRV Ratio" : "SOPR"} ${auxiliary.value.toFixed(id === 7 ? 2 : 3)}` : ""}`,
-    facts: [`数据日期 ${dataset.asOf} · UTC 日频`, ...(auxiliary ? [] : ["辅助指标暂无同日数据"])],
+    facts: [`数据日期 ${dataset.asOf} · UTC 日频`, ...(dataset.calculation ? ["Coin Metrics 公开输入计算 · CC BY-NC 4.0"] : []), ...(auxiliary ? [] : ["辅助指标暂无同日数据"])],
     detail, status: low ? "green" : high ? "red" : "yellow", change: `${config.title} ${row.value.toFixed(2)}`,
     source: { label: dataset.source.label, url: dataset.source.url },
     onchain: { metric: config.metric, timestamp: row.timestamp, value: row.value },

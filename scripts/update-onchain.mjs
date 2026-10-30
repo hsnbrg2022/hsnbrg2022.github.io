@@ -1,7 +1,7 @@
 import { readFile, writeFile, rename, unlink } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { FREE_ONCHAIN, fetchFreeRows } from "../free-onchain-source.js";
+import { FREE_ONCHAIN, COIN_METRICS_MVRV, sameFreeSource, fetchFreeRows } from "../free-onchain-source.js";
 import { ONCHAIN, validateOnchainDataset, applyOnchainDataset } from "../onchain-source.js";
 
 export function buildOnchainDataset(id, primary, auxiliary = [], now = new Date(), source) {
@@ -19,16 +19,22 @@ export function buildOnchainDataset(id, primary, auxiliary = [], now = new Date(
   const aux = matching.length && matching.every(row => row.value === matching[0].value) ? { ...matching[0], metric: config.auxiliary } : null;
   const dataset = { schemaVersion: 1, status: "active", asset: "BTC", interval: "24h", metric: config.metric,
     asOf: new Date(observation.timestamp * 1000).toISOString().slice(0, 10), generatedAt: now.toISOString(),
-    value: observation.value, observation, auxiliary: aux,
+    value: observation.value, observation: { timestamp: observation.timestamp, value: observation.value }, auxiliary: aux,
+    ...(sameFreeSource(source, COIN_METRICS_MVRV) ? { calculation: observation.calculation } : {}),
     source: source || { label: "Glassnode Public MCP", endpoint: config.endpoint, url: `https://studio.glassnode.com/charts/${config.chart}?a=BTC` } };
   validateOnchainDataset(dataset, id, { now });
   return dataset;
 }
 
 export async function fetchOnchainDataset(id, { fetchImpl = globalThis.fetch, now = new Date() } = {}) {
-  const source = FREE_ONCHAIN[id];
-  const primary = await fetchFreeRows(source, { fetchImpl, now });
-  return buildOnchainDataset(id, primary, [], now, source);
+  const failures = [];
+  for (const source of id === 7 ? [FREE_ONCHAIN[id], COIN_METRICS_MVRV] : [FREE_ONCHAIN[id]]) {
+    try {
+      const primary = await fetchFreeRows(source, { fetchImpl, now });
+      return buildOnchainDataset(id, primary, [], now, source);
+    } catch (error) { failures.push(`${source.label}: ${error.message}`); }
+  }
+  throw new Error(`${ONCHAIN[id].title} unavailable; previous snapshot retained (${failures.join("; ")})`);
 }
 
 export async function updateLocalOnchain(data, id, { fetchImpl = globalThis.fetch, now = new Date(), readSnapshot } = {}) {
@@ -45,7 +51,7 @@ export async function writeOnchainSnapshot(id, dataset, { directory = new URL(".
   let previous;
   try { previous = JSON.parse(await readFile(file, "utf8")); } catch (error) { if (error.code !== "ENOENT") throw error; }
   if (previous?.observation?.timestamp > dataset.observation.timestamp) throw new Error("Refusing older on-chain snapshot");
-  if (previous?.asOf === dataset.asOf && previous.value === dataset.value && JSON.stringify(previous.auxiliary) === JSON.stringify(dataset.auxiliary) && JSON.stringify(previous.source) === JSON.stringify(dataset.source)) return false;
+  if (previous?.asOf === dataset.asOf && previous.value === dataset.value && JSON.stringify(previous.auxiliary) === JSON.stringify(dataset.auxiliary) && JSON.stringify(previous.source) === JSON.stringify(dataset.source) && JSON.stringify(previous.calculation) === JSON.stringify(dataset.calculation)) return false;
   const temp = new URL(`${ONCHAIN[id].file}.${randomUUID()}.tmp`, directory);
   try { await writeFile(temp, `${JSON.stringify(dataset, null, 2)}\n`); await rename(temp, file); }
   finally { await unlink(temp).catch(error => { if (error.code !== "ENOENT") throw error; }); }

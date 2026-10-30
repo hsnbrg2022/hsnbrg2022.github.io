@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { FREE_ONCHAIN, FREE_TMM, parseOnchainLabRows, parseChartRows, fetchFreeRows } from "../free-onchain-source.js";
-import { buildOnchainDataset, fetchOnchainDataset } from "../scripts/update-onchain.mjs";
+import { FREE_ONCHAIN, FREE_TMM, COIN_METRICS_MVRV, parseCoinMetricsMvrvRows, parseOnchainLabRows, parseChartRows, fetchFreeRows } from "../free-onchain-source.js";
+import { buildOnchainDataset, fetchOnchainDataset, updateLocalOnchain } from "../scripts/update-onchain.mjs";
 import { buildPublishedTrueMarketMean } from "../scripts/update-true-market-mean.mjs";
 import { applyOnchainDataset, validateOnchainDataset } from "../onchain-source.js";
 import { applyTrueMarketMeanDataset, validateTrueMarketMeanDataset, updateTrueMarketMeanFromSnapshot } from "../true-market-mean.js";
@@ -11,6 +11,66 @@ const now = new Date("2026-10-04T08:00:00Z"), date = "2026-10-03";
 const timestamp = Date.parse(date + "T00:00:00Z") / 1000;
 const plot = traces => `<script>Plotly.newPlot("chart", ${JSON.stringify(traces)}, {}); globalThis.mustNotRun = true;</script>`;
 const trace = (name, value = 1) => ({ name, x: [date + "T00:00:00"], y: [value] });
+const historyStart = Date.parse("2010-07-18T00:00:00Z") / 1000;
+const cmRow = (index, cap = 10 * (index + 1), ratio = 2) => ({ asset: "btc", time: new Date((historyStart + index * 86400) * 1000).toISOString().replace(".000Z", ".000000000Z"), CapMrktCurUSD: String(cap), CapMVRVCur: String(ratio) });
+const cmHistory = end => ({ data: Array.from({ length: (Date.parse(end + "T00:00:00Z") / 1000 - historyStart) / 86400 + 1 }, (_, i) => cmRow(i)) });
+
+test("Coin Metrics经典Z使用完整历史市值总体标准差，未完日不污染计算", () => {
+  const time = new Date("2010-07-21T12:00:00Z");
+  const rows = parseCoinMetricsMvrvRows({ data: [cmRow(0), cmRow(1), cmRow(2), cmRow(3, 1e12)] }, time);
+  assert.equal(rows.at(-1).timestamp, historyStart + 2 * 86400);
+  assert.ok(Math.abs(rows.at(-1).value - 15 / Math.sqrt(200 / 3)) < 1e-12);
+  assert.equal(rows.at(-1).calculation.samples, 3);
+  assert.equal(rows.at(-1).calculation.windowStart, "2010-07-18");
+  assert.equal(rows.at(-1).calculation.marketCapUsd, 30);
+});
+
+test("Coin Metrics拒绝截断、缺日、重复乱序、分页、错资产、空值和未来日", () => {
+  const valid = [cmRow(0), cmRow(1), cmRow(2)], time = new Date("2010-07-21T12:00:00Z");
+  for (const data of [valid.slice(1), [valid[0], valid[2]], [valid[0], valid[1], valid[1]], [...valid].reverse(), [valid[0]], valid.map(r => ({ ...r, asset: "eth" })), [cmRow(0), cmRow(4)]]) {
+    assert.throws(() => parseCoinMetricsMvrvRows({ data }, time));
+  }
+  for (const field of ["CapMVRVCur", "CapMrktCurUSD"]) for (const value of [null, "", " ", false, 0, -1, "NaN", "Infinity"]) {
+    assert.throws(() => parseCoinMetricsMvrvRows({ data: [valid[0], { ...valid[1], [field]: value }, valid[2]] }, time));
+  }
+  assert.throws(() => parseCoinMetricsMvrvRows({ data: valid, next_page_url: "https://example.test/next" }, time), /history/);
+  assert.throws(() => parseCoinMetricsMvrvRows({ data: valid.map((r, i) => ({ ...r, time: i === 1 ? "2010-07-19T12:00:00Z" : r.time })) }, time));
+});
+
+test("MVRV主源过期、HTTP或解析失败才顺序读取无Key计算备用", async () => {
+  for (const failure of ["stale", "http", "invalid"]) {
+    const calls = [];
+    const dataset = await fetchOnchainDataset(7, { now, fetchImpl: async (url, options) => {
+      calls.push(url); assert.equal(options.headers?.authorization, undefined);
+      if (url === COIN_METRICS_MVRV.endpoint) return { ok: true, text: async () => JSON.stringify(cmHistory(date)) };
+      if (failure === "http") return { ok: false, status: 503 };
+      return { ok: true, text: async () => failure === "invalid" ? "invalid" : JSON.stringify({ key: "mvrv_zscore", as_of: "2026-09-20", series: [["2026-09-20", 1]] }) };
+    } });
+    assert.deepEqual(calls, [FREE_ONCHAIN[7].endpoint, COIN_METRICS_MVRV.endpoint]);
+    assert.equal(dataset.asOf, date); assert.equal(dataset.source.label, COIN_METRICS_MVRV.label);
+    assert.equal(dataset.auxiliary, null); assert.ok(dataset.calculation.samples > 5000);
+  }
+});
+
+test("MVRV两源均过期继续失败并保留原卡片，不用旧输入重新造最新日期", async () => {
+  const data = { cards: [{ id: 7, headline: "old", onchain: { timestamp, value: 1 } }] }, before = structuredClone(data);
+  await assert.rejects(updateLocalOnchain(data, 7, { now, fetchImpl: async url => ({ ok: true, text: async () => JSON.stringify(url === COIN_METRICS_MVRV.endpoint ? cmHistory("2026-09-20") : { key: "mvrv_zscore", as_of: "2026-09-20", series: [["2026-09-20", 1]] }) }) }), /OnChainLab.*older than 3 days.*Coin Metrics.*older than 3 days/);
+  assert.deepEqual(data, before);
+});
+
+test("计算快照保留公式证据、署名与双语说明，篡改或过期仍拒绝", () => {
+  const time = new Date("2010-07-21T12:00:00Z");
+  const dataset = buildOnchainDataset(7, parseCoinMetricsMvrvRows({ data: [cmRow(0), cmRow(1), cmRow(2)] }, time), [], time, COIN_METRICS_MVRV);
+  validateOnchainDataset(dataset, 7, { now: time });
+  for (const calculation of [undefined, { ...dataset.calculation, samples: 2 }, { ...dataset.calculation, marketCapUsd: 99 }, { ...dataset.calculation, formula: "ratio_zscore" }, { ...dataset.calculation, marketCapStdDevUsd: 0 }]) {
+    assert.throws(() => validateOnchainDataset({ ...dataset, calculation }, 7, { now: time }), /calculation/);
+  }
+  assert.throws(() => validateOnchainDataset(dataset, 7, { now: new Date("2010-07-24T00:00:00Z") }), /older than 3 days/);
+  assert.throws(() => validateOnchainDataset({ ...dataset, metric: "puell_multiple" }, 8, { now: time }), /source/);
+  const data = { cards: [{ id: 7 }] }; applyOnchainDataset(data, dataset, 7, { now: time });
+  assert.equal(data.cards[0].status, "yellow"); assert.match(data.cards[0].facts.join(), /Coin Metrics.*计算/);
+  for (const fact of data.cards[0].facts) assert.doesNotMatch(translateText(fact, "en"), /[\u4e00-\u9fff]/);
+});
 
 test("免费 MVRV 仅接受指定指标、合法日期与匹配的来源日期，不用读取时间造日期", () => {
   const payload = { key: "mvrv_zscore", as_of: date, series: [[date, 1.0537]] };
