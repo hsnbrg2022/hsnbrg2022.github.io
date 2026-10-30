@@ -4,18 +4,29 @@
   "asset": "BTC",
   "interval": "24h",
   "metric": "mvrv_z_score",
-  "asOf": "2026-10-16",
-  "generatedAt": "2026-10-17T04:21:04.453Z",
-  "value": 0.904275,
+  "asOf": "2026-10-29",
+  "generatedAt": "2026-10-30T11:37:28.764Z",
+  "value": 0.7833026540295503,
   "observation": {
-    "timestamp": 1792108800,
-    "value": 0.904275
+    "timestamp": 1793232000,
+    "value": 0.7833026540295503
   },
   "auxiliary": null,
+  "calculation": {
+    "formula": "(market_cap - market_cap / mvrv) / population_stddev(market_cap)",
+    "windowStart": "2010-07-18",
+    "samples": 5948,
+    "marketCapUsd": 1572107025923.601,
+    "mvrvRatio": 1.4466227575008217,
+    "marketCapStdDevUsd": 619638032499.9109
+  },
   "source": {
-    "label": "OnChainLab",
+    "label": "Coin Metrics / calculated Z (CC BY-NC 4.0)",
     "metric": "mvrv_z_score",
-    "endpoint": "https://onchainlab.net/data/series/mvrv_zscore.json",
-    "url": "https://onchainlab.net/metrics/mvrv-zscore"
+    "endpoint": "https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?assets=btc&metrics=CapMVRVCur,CapMrktCurUSD&frequency=1d&page_size=10000&start_time=2009-01-03",
+    "url": "https://github.com/coinmetrics/data",
+    "formula": "(market_cap - market_cap / mvrv) / population_stddev(market_cap)",
+    "license": "CC BY-NC 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-nc/4.0/"
   }
 }
