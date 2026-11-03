@@ -4,21 +4,21 @@
   "asset": "BTC",
   "interval": "24h",
   "metric": "mvrv_z_score",
-  "asOf": "2026-11-01",
-  "generatedAt": "2026-11-02T05:57:05.435Z",
-  "value": 0.7821756388597367,
+  "asOf": "2026-11-02",
+  "generatedAt": "2026-11-03T11:53:19.523Z",
+  "value": 0.7353124620336667,
   "observation": {
-    "timestamp": 1793491200,
-    "value": 0.7821756388597367
+    "timestamp": 1793577600,
+    "value": 0.7353124620336667
   },
   "auxiliary": null,
   "calculation": {
     "formula": "(market_cap - market_cap / mvrv) / population_stddev(market_cap)",
     "windowStart": "2010-07-18",
-    "samples": 5951,
-    "marketCapUsd": 1571041147723.8213,
-    "mvrvRatio": 1.446503145463846,
-    "marketCapStdDevUsd": 619995324920.7053
+    "samples": 5952,
+    "marketCapUsd": 1541829732990.3206,
+    "mvrvRatio": 1.4199211081784688,
+    "marketCapStdDevUsd": 620108922872.3309
   },
   "source": {
     "label": "Coin Metrics / calculated Z (CC BY-NC 4.0)",
