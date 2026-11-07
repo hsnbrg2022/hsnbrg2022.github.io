@@ -3,11 +3,11 @@
   "asset": "BTC",
   "unit": "USD_MILLIONS",
   "status": "snapshot",
-  "marketDate": "2026-11-05",
-  "generatedAt": "2026-11-06T07:58:58.119Z",
+  "marketDate": "2026-11-06",
+  "generatedAt": "2026-11-07T07:16:20.394Z",
   "source": {
     "label": "PANews / SoSoValue (rounded)",
-    "url": "https://www.panewslab.com/zh/articles/01a1af3c-943d-75aa-b91a-28867fe63a50",
+    "url": "https://www.panewslab.com/zh/articles/01a1b466-9e30-7712-be2c-9163c5cb2fa9",
     "method": "public-media"
   },
   "verificationSource": {
@@ -418,6 +418,14 @@
       "revisedAt": "2026-11-06T05:02:25.341Z",
       "reportedSource": "SoSoValue",
       "precisionUsdMillions": 1
+    },
+    "2026-11-06": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a1b466-9e30-7712-be2c-9163c5cb2fa9",
+      "publishedAt": "2026-11-07T05:06:26.480Z",
+      "revisedAt": "2026-11-07T05:06:26.480Z",
+      "reportedSource": "SoSoValue",
+      "precisionUsdMillions": 1
     }
   },
   "rows": [
@@ -652,6 +660,10 @@
     {
       "date": "2026-11-05",
       "flowUsdMillions": -430
+    },
+    {
+      "date": "2026-11-06",
+      "flowUsdMillions": -412
     }
   ]
 }
