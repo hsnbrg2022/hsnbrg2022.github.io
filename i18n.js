@@ -504,7 +504,12 @@ export function localizeDashboard(data, language) {
   }));
   const localized = { ...data, cards, dataMode: translateMode(data.dataMode, language), heat: { ...data.heat, label: data.marketQuality?.fng.eligible ? translateText(data.heat.label, language) : t(language, "marketPending") } };
   localized.summary = englishSummary({ ...localized, cards });
-  localized.risks = data.risks.map((item) => translateText(item, language));
+  localized.risks = data.risks.map((item) => {
+    const cardIndex = data.cards.findIndex((card) => item.startsWith(`${card.title}亮红灯：`));
+    if (cardIndex < 0) return translateText(item, language);
+    const detail = item.slice(`${data.cards[cardIndex].title}亮红灯：`.length);
+    return `${cards[cardIndex].title} risk alert: ${translateText(detail, language).trim()}`;
+  });
   localized.macroNotes = data.macroNotes.map((item) => translateText(item, language));
   localized.previous = { ...data.previous, changes: buildCurrentChanges(localized, "en").map((item) => translateText(item, language)) };
   return localized;
