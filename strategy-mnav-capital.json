@@ -1,0 +1,19 @@
+{
+  "filing": {
+    "asOf": "2026-11-08",
+    "source": "https://www.sec.gov/Archives/edgar/data/1050446/000119312526452693/mstr-20261109.htm",
+    "btcHoldings": 850364,
+    "usdReserve": 4770000000,
+    "usdCash": 146200000
+  },
+  "shares": {
+    "asOf": "2026-11-08",
+    "source": "https://www.strategy.com/shares",
+    "btcHoldings": 850364,
+    "basicShares": 425591000,
+    "optionsShares": 3100000,
+    "awardShares": 860000,
+    "fullyDilutedShares": 429551000,
+    "includedConversions": []
+  }
+}

@@ -51,6 +51,11 @@ const MESSAGES = {
     marketFresh: "时效内", marketStale: "旧值", marketUnknown: "待核验", marketTime: "来源观测时间 {time}（UTC+8）；BTC 15 分钟、F&G 36 小时有效，刷新失败不会重置此时间。", marketTimeUnknown: "读数时间待核验", marketPending: "待更新/核验", pricePending: "BTC 报价待更新或核验，暂停当前偏离判断。",
     wmaVerified: "200 个完整周 · UTC 周一边界", wmaRetained: "更新失败 · 保留上次完整周值", wmaUnverified: "保留旧值 · 周样本口径待核验",
     mnavBasisUnknown: "资本基准日期待核验 · 官方行情独立更新，不计入当期", mnavBasisStale: "资本基准超过 7 天 · 官方行情独立更新，不计入当期", mnavBasisIncomplete: "资本资料不完整 · 官方行情独立更新，不计入当期", mnavClassificationUnknown: "转换分类未核验 · 停止估算，旧值不计入当期",
+    mnavCapitalSourceMissing: "缺少有效的官方持仓及美元资产披露 · 不计入当期",
+    mnavCapitalSharesMissing: "缺少官方完全摊薄股数 · 不计入当期",
+    mnavCapitalClaimsMissing: "缺少同日债务和优先股余额明细 · 不计入当期",
+    mnavCapitalMismatch: "资本披露日期或数据不一致 · 不计入当期",
+    mnavCapitalConversionMissing: "转换分类与完全摊薄股数待核验 · 不计入当期",
     qualityFresh: "时效内 · 参与当期确认", qualityStale: "数据过期 · 仅供历史参考", qualityUnknown: "日期待核验 · 不计入当期确认", qualityPending: "未计入当期", qualityIncomplete: "覆盖不完整 · 不作全局确认",
     healthTitle: "查看更新状态", healthMode: "模式", healthSnapshotMode: "后台采集 · 前端读取快照", healthMarketDate: "MSTR 行情日期", healthSnapshotCreated: "快照生成（UTC+8）", healthReadCheck: "最近快照检查（UTC+8）", healthReadStatus: "快照读取结果", healthReadOk: "读取成功", healthReadFailed: "读取失败 · 保留原读数", healthReadError: "本次读取失败原因", healthBackendCheck: "后台记录检查时间（UTC+8）", healthBackendSuccess: "最近成功采集（UTC+8）", healthBackendError: "该次后台记录错误", healthUnknown: "暂无可核验记录", healthReadOnlyNote: "后台状态仅反映最近读到的已发布记录，不保证此刻仍正常。读取快照不等于重新采集；检查时间不代表行情日期或资本资料已确认。",
     healthBackendExecution: "记录执行环境", healthCloud: "GitHub 后台", healthLocal: "本地采集", healthBackendStatus: "该次后台记录结果", healthCollectionFailed: "采集失败 · 保留旧行情", healthCollected: "采集成功 · 快照已更新", healthUnchanged: "检查成功 · 行情无变化", healthNoError: "该次记录无错误", healthUpstreamFailed: "官方接口请求失败", healthQuoteInvalid: "官方行情字段或时间无效", healthValidationFailed: "行情校验未通过", healthCollectorFailed: "采集器或存储异常",
@@ -116,6 +121,11 @@ const MESSAGES = {
     marketFresh: "Current", marketStale: "Historical", marketUnknown: "Unverified", marketTime: "Source observation time {time} (UTC+8); valid for 15 minutes (BTC) / 36 hours (F&G). Failed refreshes do not reset this time.", marketTimeUnknown: "Reading time unverified", marketPending: "Update/verification needed", pricePending: "BTC awaits an update or verification; current deviation analysis is paused.",
     wmaVerified: "200 completed weeks · UTC Monday", wmaRetained: "Update failed · Previous weekly value retained", wmaUnverified: "Previous value · Weekly basis unverified",
     mnavBasisUnknown: "Capital basis date unverified · Official quotes update separately; not counted", mnavBasisStale: "Capital basis older than 7 days · Official quotes update separately; not counted", mnavBasisIncomplete: "Capital information incomplete · Official quotes update separately; not counted", mnavClassificationUnknown: "Conversion classification unverified · Estimates stopped; previous value not counted",
+    mnavCapitalSourceMissing: "Official BTC holdings and USD assets disclosure missing · Excluded from scoring",
+    mnavCapitalSharesMissing: "Official fully diluted share count missing · Excluded from scoring",
+    mnavCapitalClaimsMissing: "Same-date debt and preferred stock balances missing · Excluded from scoring",
+    mnavCapitalMismatch: "Capital disclosure dates or values disagree · Excluded from scoring",
+    mnavCapitalConversionMissing: "Conversion classification and diluted shares need verification · Excluded from scoring",
     qualityFresh: "Within freshness window · Included", qualityStale: "Stale · Historical reference only", qualityUnknown: "Date unverified · Not counted", qualityPending: "Not counted", qualityIncomplete: "Incomplete coverage · No overall confirmation",
     healthTitle: "View update status", healthMode: "Mode", healthSnapshotMode: "Background collection · Snapshot read", healthMarketDate: "MSTR market date", healthSnapshotCreated: "Snapshot created (UTC+8)", healthReadCheck: "Latest snapshot check (UTC+8)", healthReadStatus: "Snapshot read result", healthReadOk: "Read succeeded", healthReadFailed: "Read failed · Previous reading retained", healthReadError: "Snapshot read failure", healthBackendCheck: "Recorded backend check (UTC+8)", healthBackendSuccess: "Latest successful collection (UTC+8)", healthBackendError: "Error in that backend record", healthUnknown: "No verified record", healthReadOnlyNote: "Backend status reflects the latest published record read, not guaranteed current health. Reading is not recollection; check time does not confirm the market date or capital information.",
     healthBackendExecution: "Record execution environment", healthCloud: "GitHub background job", healthLocal: "Local collector", healthBackendStatus: "Recorded backend result", healthCollectionFailed: "Collection failed · Previous quote retained", healthCollected: "Collection succeeded · Snapshot updated", healthUnchanged: "Check succeeded · Quote unchanged", healthNoError: "No error in that record", healthUpstreamFailed: "Official API request failed", healthQuoteInvalid: "Invalid official quote fields or time", healthValidationFailed: "Quote validation failed", healthCollectorFailed: "Collector or storage error",
@@ -427,6 +437,8 @@ export function translateText(value, language) {
     .replace(/Strategy 官方口径/g, "Strategy official methodology")
     .replace(/行情截至/g, "Market as of")
     .replace(/资本结构截至/g, "Capital structure as of")
+    .replace(/已核实部分资本资料日期/g, "Partially verified capital data as of")
+    .replace(/官方行情日期/g, "Official market data as of")
     .replace(/资本资料日期待核验/g, "Capital information date unverified")
     .replace(/资本资料日期/g, "Capital information as of")
     .replace(/资本资料未确认 · 不计入当期确认/g, "Capital information unverified · Not counted as a current confirmation")

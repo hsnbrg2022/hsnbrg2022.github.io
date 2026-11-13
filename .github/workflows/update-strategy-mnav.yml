@@ -9,6 +9,7 @@ on:
       - "scripts/update-strategy-mnav.mjs"
       - "mnav-source.js"
       - "strategy-mnav.json"
+      - "strategy-mnav-capital.json"
   schedule:
     # 美股周一至周五收盘后更新；BTC 价格取任务执行时的最新值。
     - cron: "30 22 * * 1-5"

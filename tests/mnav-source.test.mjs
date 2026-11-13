@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyStrategyMnavDataset, strategyMnavBusinessDaysSince, validateStrategyMnavDataset, updateMnavFromSnapshot, mnavHealthRows, validateMnavHealth } from "../mnav-source.js";
+import { applyStrategyMnavDataset, strategyMnavBusinessDaysSince, validateStrategyMnavDataset, updateMnavFromSnapshot, mnavHealthRows, validateMnavHealth, withStrategyCapital } from "../mnav-source.js";
+import { readFile } from "node:fs/promises";
 import { parseOfficialApiQuote } from "../scripts/update-strategy-mnav.mjs";
 import { cardQuality } from "../data-quality.js";
 import { translateText, t } from "../i18n.js";
@@ -40,6 +41,52 @@ test("官方直接 mNAV 快照通过公式校验并更新卡片", () => {
   assert.equal(target.status, "green");
   assert.equal(target.refresh, "auto");
   assert.match(message, /Strategy 官方看板/);
+});
+
+test("真实 11/08 部分披露独立更新日期和缺项，但不参与评分", async context => {
+  const now = new Date("2026-11-13T06:00:00Z");
+  context.mock.timers.enable({ apis: ["Date"], now });
+  const evidence = JSON.parse(await readFile(new URL("../strategy-mnav-capital.json", import.meta.url), "utf8"));
+  const quote = { ...dataset, marketAsOf: "2026-11-12", basisComplete: false };
+  const data = { cards: [{ id: 2 }] };
+  await updateMnavFromSnapshot(data, async url => ({
+    ok: !url.includes("health"),
+    json: async () => url.includes("capital.json") ? evidence : quote
+  }));
+  const target = data.cards[0];
+  assert.ok(target.facts.includes("官方行情日期 2026-11-12"));
+  assert.ok(target.facts.includes("已核实部分资本资料日期 2026-11-08"));
+  assert.equal(target.basisAsOf, "2026-08-31");
+  assert.equal(cardQuality(target, now).reason, "mnavCapitalClaimsMissing");
+  assert.equal(cardQuality(target, now).eligible, false);
+  assert.doesNotMatch(translateText(target.facts.at(-1), "en"), /[\u4e00-\u9fff]/);
+  assert.match(t("en", "mnavCapitalClaimsMissing"), /Same-date debt and preferred stock/);
+});
+
+test("完整同日资料才恢复评分资格，缺项、日期冲突、转换变动和第八天均排除", async () => {
+  const partial = JSON.parse(await readFile(new URL("../strategy-mnav-capital.json", import.meta.url), "utf8"));
+  const quote = { ...dataset, marketAsOf: "2026-11-13" };
+  const evidence = { ...partial, claims: {
+    asOf: partial.filing.asOf, source: "https://www.strategy.com/debt",
+    totalDebtUsd: 100, totalPreferredUsd: 50,
+    instruments: [
+      { security: "test-debt", kind: "debt", notionalUsd: 100, conversionPriceUsd: 150 },
+      { security: "test-preferred", kind: "preferred", notionalUsd: 50, conversionPriceUsd: null }
+    ]
+  } };
+  const quality = (input, time, reading = quote) => {
+    const now = new Date(time);
+    const data = { cards: [{ id: 2 }] };
+    applyStrategyMnavDataset(data, withStrategyCapital(reading, input, now), { now });
+    return cardQuality(data.cards[0], now);
+  };
+  const day7 = "2026-11-15T10:00:00Z";
+  assert.equal(quality(evidence, day7).eligible, true);
+  assert.equal(quality(evidence, "2026-11-16T10:00:00Z").reason, "mnavBasisStale");
+  assert.equal(quality({ ...evidence, claims: { ...evidence.claims, asOf: "2026-11-09" } }, day7).reason, "mnavCapitalMismatch");
+  assert.equal(quality({ ...evidence, claims: { ...evidence.claims, totalDebtUsd: 101 } }, day7).reason, "mnavCapitalClaimsMissing");
+  assert.equal(quality({ ...evidence, shares: { ...evidence.shares, fullyDilutedShares: 455163000 } }, day7).reason, "mnavCapitalConversionMissing");
+  assert.equal(quality(evidence, day7, { ...quote, mnav: 1.27, inputs: { ...quote.inputs, mstrPriceUsd: 160 } }).reason, "mnavCapitalConversionMissing");
 });
 
 test("拒绝旧 EV 口径、公式错误与过期行情", () => {
@@ -209,7 +256,7 @@ test("后台记录独立择新，较新失败不能被旧成功掩盖；旧成�
     assert.equal(options.cache, "no-store");
     return { ok: true, json: async () => url.includes("health.json") ? (url.startsWith("https:") ? newer : healthRecord) : dataset };
   });
-  assert.equal(signals.length, 4);
+  assert.equal(signals.length, 5);
   assert.ok(signals.every(s => s === signals[0]));
   const target = data.cards[0], rows = healthRows(target);
   assert.equal(rows.healthBackendCheck, "04/09/2026, 15:00:00");

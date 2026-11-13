@@ -1,5 +1,5 @@
-import { calculateDxyFromRates, applyBtcChange } from "./model.js?v=20261023-gold";
-import { BTC_MAX_AGE_MS, btcObservationTimestamp } from "./data-quality.js?v=20261023-gold";
+import { calculateDxyFromRates, applyBtcChange } from "./model.js?v=20261113-mnav";
+import { BTC_MAX_AGE_MS, btcObservationTimestamp } from "./data-quality.js?v=20261113-mnav";
 import { updateStablecoins as refreshStablecoins } from "./stablecoin-source.js?v=20260909-1";
 import { etfSignal } from "./etf-core.js?v=20260905-3";
 import { readEtfHealth } from "./etf-health.js?v=20261003-health";
@@ -7,7 +7,7 @@ import { tradingDaysSince } from "./trading-calendar.js";
 import { updateWeeklyMean } from "./weekly-mean.js?v=20260905-3";
 import { applyFedDatasetToDashboard } from "./fed-signals.js?v=20260829-1";
 import { updateTrueMarketMeanFromSnapshot } from "./true-market-mean.js?v=20261004-onchain";
-import { updateMnavFromSnapshot } from "./mnav-source.js?v=20260925-health";
+import { updateMnavFromSnapshot } from "./mnav-source.js?v=20261113-mnav";
 import { updateOnchainFromSnapshot } from "./onchain-source.js?v=20261030-mvrv";
 import { applyMacroQuote } from "./macro-quote.js?v=20261023-gold";
 

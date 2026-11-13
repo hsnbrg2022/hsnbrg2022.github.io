@@ -1,5 +1,5 @@
 import { tradingDaysSince } from "./trading-calendar.js";
-import { mnavBasisQuality } from "./mnav-source.js?v=20260923-mnav";
+import { mnavBasisQuality } from "./mnav-source.js?v=20261113-mnav";
 import { ONCHAIN, onchainAgeDays } from "./onchain-source.js?v=20260906-5";
 import { stablecoinQuality } from "./stablecoin-source.js?v=20260909-1";
 const DAY = 86400000;
@@ -55,6 +55,7 @@ export function cardQuality(card, now = new Date()) {
   if (card.id === 3) return stablecoinQuality(card.stablecoin, now);
   const asOf = card.dataAsOf || card.marketQuote?.asOf || card.marketFetchedAt;
   if (card.id === 2) {
+    if (card.mnavCapital?.reason) return { state: card.mnavCapital.reason === "mnavBasisStale" ? "stale" : "unknown", eligible: false, asOf: asOf || null, reason: card.mnavCapital.reason };
     const basis = mnavBasisQuality(card.basisAsOf, card.mnavMode, now, card.mnavBasisComplete);
     if (!basis.eligible) return { ...basis, asOf: asOf || null };
   }

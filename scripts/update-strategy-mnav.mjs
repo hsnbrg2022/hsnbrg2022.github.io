@@ -5,12 +5,13 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { validateStrategyMnavDataset, strategyMnavBusinessDaysSince, STRATEGY_MNAV_FORMULA, STRATEGY_MNAV_METHODOLOGY_EFFECTIVE_DATE } from "../mnav-source.js";
+import { withStrategyCapital, validateStrategyMnavDataset, strategyMnavBusinessDaysSince, STRATEGY_MNAV_FORMULA, STRATEGY_MNAV_METHODOLOGY_EFFECTIVE_DATE } from "../mnav-source.js";
 import { withWriteLock } from "./write-lock.mjs";
 
 const SITE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUTPUT_FILE = path.join(SITE_DIR, "strategy-mnav.json");
 const HEALTH_FILE = path.join(SITE_DIR, "strategy-mnav-health.json");
+const CAPITAL_FILE = path.join(SITE_DIR, "strategy-mnav-capital.json");
 const OFFICIAL_URL = "https://www.strategy.com/btc";
 export const MSTR_API = "https://api.strategy.com/btc/mstrKpiData";
 export const BTC_API = "https://api.strategy.com/btc/bitcoinKpis";
@@ -199,20 +200,33 @@ export async function updateStrategyMnav({ fetchImpl = globalThis.fetch, now } =
     // Missing official values must not activate the unverified estimate.
     throw Object.assign(new Error(`Strategy 官方行情解析失败：${error.message}；未启用估算`, { cause: error }), { healthCode: "invalid_official_quote" });
   }
-  // API quote timestamps say nothing about the age/completeness of capital data.
-  const basis = previous.basis || {};
-  const candidate = officialDataset({ quote, basis, now });
-  candidate.basisAsOf = basis.asOf || null;
-  candidate.basisComplete = false;
+  let capitalEvidence;
+  try {
+    capitalEvidence = JSON.parse(await readFile(CAPITAL_FILE, "utf8"));
+  } catch (error) {
+    if (error.code !== "ENOENT" && !(error instanceof SyntaxError)) throw error;
+  }
+  const candidate = withStrategyCapital({
+    ...officialDataset({ quote, basis: previous.basis || {}, now }),
+    capitalEvidence: previous.capitalEvidence
+  }, capitalEvidence, now);
+  if (candidate.basisComplete) {
+    for (const key of ["btcHoldings", "usdAssetsUsd", "seniorClaimsUsd", "fullyDilutedShares"]) {
+      candidate.inputs[key] = candidate.basis[key];
+    }
+    candidate.validation.basisClassification = candidate.basis.classification;
+  }
   candidate.observations = { mstr: quote.mstrObservedAt, btc: quote.btcObservedAt };
   candidate.inputs.netBtc = null;
   candidate.source.apiUrls = [MSTR_API, BTC_API];
-  candidate.calculation.note = "Direct official API readings; capital information retained separately and unverified";
+  candidate.calculation.note = "Direct official API readings; capital disclosures are checked separately";
   if (previous?.mnav && Math.abs((candidate.mnav / previous.mnav) - 1) > 0.3) {
     throw Object.assign(new Error("Strategy mNAV 较上一快照跳变超过 30%"), { healthCode: "validation_failed" });
   }
   const observationChanged = !sameObservation(previous, candidate)
     || previous.basisComplete !== candidate.basisComplete
+    || JSON.stringify(previous.capitalEvidence) !== JSON.stringify(candidate.capitalEvidence)
+    || JSON.stringify(previous.basis) !== JSON.stringify(candidate.basis)
     || JSON.stringify(previous.observations) !== JSON.stringify(candidate.observations);
   const effectiveDataset = observationChanged ? candidate : previous;
   try { validateStrategyMnavDataset(effectiveDataset, { now }); }

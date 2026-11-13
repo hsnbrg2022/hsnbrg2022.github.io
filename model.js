@@ -1,4 +1,4 @@
-import { assessCards, assessMarket } from "./data-quality.js?v=20261023-gold";
+import { assessCards, assessMarket } from "./data-quality.js?v=20261113-mnav";
 import { trueMarketMeanDay } from "./true-market-mean.js?v=20260913-1";
 
 export const STATUS = {
@@ -184,7 +184,7 @@ export function mergeMaintenanceView(current, saved, id) {
 export function deriveDashboard(data, now = new Date()) {
   const { cards, coverage } = assessCards(data.cards, now);
   const mnav = cards.find(card => card.id === 2);
-  if (mnav?.quality.reason) mnav.detail = mnav.mnavMode === "official-live"
+  if (mnav?.quality.reason && !mnav.mnavCapital) mnav.detail = mnav.mnavMode === "official-live"
     ? "官方 mNAV 与 Net BPS 独立更新；资本资料未通过当前校验，不计入当期确认，不使用估算。"
     : "保留上次读数供历史参考；资本基准或转换分类未通过当前校验，停止估算，不计入当期确认。";
   const counts = statusCounts(cards.filter((card) => card.quality.eligible));

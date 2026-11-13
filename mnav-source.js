@@ -18,6 +18,83 @@ export function mnavBasisQuality(basisAsOf, mode, now = new Date(), complete = t
   return { state: "fresh", eligible: true };
 }
 
+// Dates here come from disclosures, independently of either market timestamp.
+export function assessStrategyCapital(evidence, mstrPriceUsd, now = new Date()) {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(now);
+  const nonNegative = value => Number.isFinite(value) && value >= 0;
+  const positiveInteger = value => Number.isSafeInteger(value) && value > 0;
+  const dated = (item, sourcePattern) => validTradingDate(item?.asOf) && item.asOf <= today
+    && typeof item.source === "string" && sourcePattern.test(item.source);
+  const { filing, shares, claims } = evidence ?? {};
+  if (!dated(filing, /^https:\/\/www\.sec\.gov\/Archives\/edgar\/data\/1050446\/\d+\/mstr-\d{8}\.htm$/)
+    || !positiveInteger(filing.btcHoldings) || !nonNegative(filing.usdReserve) || !nonNegative(filing.usdCash)
+    || !Number.isFinite(filing.usdReserve + filing.usdCash)) {
+    return { asOf: null, reason: "mnavCapitalSourceMissing" };
+  }
+  const { asOf } = filing;
+  if (!dated(shares, /^https:\/\/www\.strategy\.com\/shares$/)
+    || !positiveInteger(shares.fullyDilutedShares) || !positiveInteger(shares.btcHoldings)) {
+    return { asOf, reason: "mnavCapitalSharesMissing" };
+  }
+  if (shares.asOf !== asOf || shares.btcHoldings !== filing.btcHoldings) {
+    return { asOf, reason: "mnavCapitalMismatch" };
+  }
+  if (!dated(claims, /^https:\/\/(?:www\.strategy\.com\/(?:debt|credit\/risk|press\/[a-zA-Z0-9_-]+)|www\.sec\.gov\/Archives\/edgar\/data\/1050446\/\d+\/[a-zA-Z0-9_.-]+\.htm)$/)) {
+    return { asOf, reason: "mnavCapitalClaimsMissing" };
+  }
+  if (claims.asOf !== asOf) return { asOf, reason: "mnavCapitalMismatch" };
+  const instruments = claims.instruments;
+  if (!Array.isArray(instruments) || !instruments.some(row => row?.kind === "debt")
+    || !instruments.some(row => row?.kind === "preferred")
+    || instruments.some(row => typeof row?.security !== "string" || !row.security
+      || !["debt", "preferred"].includes(row.kind) || !nonNegative(row.notionalUsd)
+      || (row.conversionPriceUsd !== null && !(Number.isFinite(row.conversionPriceUsd) && row.conversionPriceUsd > 0)))
+    || new Set(instruments.map(row => row.security)).size !== instruments.length
+    || !nonNegative(claims.totalDebtUsd) || !nonNegative(claims.totalPreferredUsd)
+    || instruments.filter(row => row.kind === "debt").reduce((sum, row) => sum + row.notionalUsd, 0) !== claims.totalDebtUsd
+    || instruments.filter(row => row.kind === "preferred").reduce((sum, row) => sum + row.notionalUsd, 0) !== claims.totalPreferredUsd) {
+    return { asOf, reason: "mnavCapitalClaimsMissing" };
+  }
+  const conversions = instruments.filter(row => row.conversionPriceUsd !== null);
+  const included = shares.includedConversions;
+  if (!Array.isArray(included) || new Set(included).size !== included.length
+    || !positiveInteger(shares.basicShares)
+    || ![shares.optionsShares, shares.awardShares].every(value => Number.isSafeInteger(value) && value >= 0)
+    || !included.every(security => conversions.some(row => row.security === security))
+    || !(Number.isFinite(mstrPriceUsd) && mstrPriceUsd > 0)
+    || conversions.some(row => included.includes(row.security) !== (mstrPriceUsd >= row.conversionPriceUsd))
+    || conversions.some(row => included.includes(row.security) && !positiveInteger(row.conversionShares))
+    || shares.basicShares + shares.optionsShares + shares.awardShares
+      + conversions.filter(row => included.includes(row.security)).reduce((sum, row) => sum + row.conversionShares, 0)
+      !== shares.fullyDilutedShares) {
+    return { asOf, reason: "mnavCapitalConversionMissing" };
+  }
+  return { asOf, basis: {
+    asOf, btcHoldings: filing.btcHoldings, usdAssetsUsd: filing.usdReserve + filing.usdCash,
+    seniorClaimsUsd: instruments.filter(row => !included.includes(row.security)).reduce((sum, row) => sum + row.notionalUsd, 0),
+    fullyDilutedShares: shares.fullyDilutedShares,
+    classification: "Official disclosed instruments and FDSO reconciled"
+  } };
+}
+
+export function withStrategyCapital(dataset, evidence, now = new Date()) {
+  const price = dataset.inputs?.mstrPriceUsd;
+  const next = assessStrategyCapital(evidence, price, now);
+  const prior = assessStrategyCapital(dataset.capitalEvidence, price, now);
+  if (prior.asOf && (!next.asOf || prior.asOf > next.asOf || (prior.asOf === next.asOf && prior.basis && !next.basis))) {
+    evidence = dataset.capitalEvidence;
+  }
+  const capital = assessStrategyCapital(evidence, price, now);
+  const basis = capital.basis && capital.asOf >= (dataset.basisAsOf ?? "") ? capital.basis : dataset.basis;
+  return {
+    ...dataset,
+    basis,
+    basisAsOf: basis?.asOf || dataset.basisAsOf || null,
+    basisComplete: Boolean(capital.basis && basis === capital.basis),
+    ...(evidence ? { capitalEvidence: evidence } : {})
+  };
+}
+
 function positiveNumber(value, label, { min = 0, max = Infinity } = {}) {
   const number = Number(value);
   if (!Number.isFinite(number) || number <= min || number > max) throw new Error(`${label} 无效`);
@@ -40,18 +117,25 @@ export function validateStrategyMnavDataset(dataset, { now = new Date() } = {}) 
   // Official readings may be displayed independently of capital-basis eligibility.
   // Estimates are still forbidden, even when their aggregate basis looks fresh.
   if (dataset.calculation?.mode !== "official-live") throw new Error("Strategy mNAV: mnavClassificationUnknown");
-  const basisQuality = mnavBasisQuality(dataset.basisAsOf, dataset.calculation.mode, now, dataset.basisComplete);
-
   const mnav = positiveNumber(dataset.mnav, "Strategy mNAV", { min: 0.2, max: 10 });
   const mstrPriceUsd = positiveNumber(dataset.inputs?.mstrPriceUsd, "MSTR 股价", { min: 1, max: 10_000 });
   const btcPriceUsd = positiveNumber(dataset.inputs?.btcPriceUsd, "BTC 价格", { min: 1_000, max: 10_000_000 });
   const netBtcPerShareUsd = positiveNumber(dataset.inputs?.netBtcPerShareUsd, "Net BTC Per Share ($)", { min: 1, max: 10_000 });
+  const capital = dataset.capitalEvidence ? assessStrategyCapital(dataset.capitalEvidence, mstrPriceUsd, now) : null;
+  let basisQuality = mnavBasisQuality(dataset.basisAsOf, dataset.calculation.mode, now, dataset.basisComplete);
+  if (capital) {
+    if (capital.reason) basisQuality = { state: "unknown", eligible: false, reason: capital.reason };
+    else if (dataset.basisComplete !== true || dataset.basisAsOf !== capital.asOf
+      || Object.entries(capital.basis).some(([key, value]) => dataset.basis?.[key] !== value)) {
+      basisQuality = { state: "unknown", eligible: false, reason: "mnavCapitalMismatch" };
+    }
+  }
   const expectedMnav = mstrPriceUsd / netBtcPerShareUsd;
   if (Math.abs(expectedMnav - mnav) > 0.03) throw new Error("Strategy mNAV 公式校验失败");
 
   const ageBusinessDays = tradingDaysSince(dataset.marketAsOf, now);
   if (ageBusinessDays > 2) throw new Error(`Strategy mNAV 行情已滞后 ${ageBusinessDays} 个交易日`);
-  return { mnav, mstrPriceUsd, btcPriceUsd, netBtcPerShareUsd, ageBusinessDays, basisQuality };
+  return { mnav, mstrPriceUsd, btcPriceUsd, netBtcPerShareUsd, ageBusinessDays, basisQuality, capital };
 }
 
 export function applyStrategyMnavDataset(data, dataset, { now = new Date() } = {}) {
@@ -67,8 +151,11 @@ export function applyStrategyMnavDataset(data, dataset, { now = new Date() } = {
     Number.isFinite(netBtc) && netBtc > 0
       ? `净 BTC ${Math.round(netBtc).toLocaleString("en-US")}`
       : `BTC $${money(values.btcPriceUsd, 0)}`,
-    validTradingDate(dataset.basisAsOf) ? `资本资料日期 ${dataset.basisAsOf}` : "资本资料日期待核验",
-    ...(values.basisQuality.eligible ? [] : ["资本资料未确认 · 不计入当期确认"])
+    ...(values.capital ? [`官方行情日期 ${dataset.marketAsOf}`] : []),
+    ...(values.capital?.reason && values.capital.asOf
+      ? [`已核实部分资本资料日期 ${values.capital.asOf}`]
+      : [validTradingDate(dataset.basisAsOf) ? `资本资料日期 ${dataset.basisAsOf}` : "资本资料日期待核验"]),
+    ...(!values.capital && !values.basisQuality.eligible ? ["资本资料未确认 · 不计入当期确认"] : [])
   ];
   target.detail = "采用 Strategy 2026-07-23 起最新口径：MSTR 股价 ÷ Net BTC Per Share ($)；数值来自官方看板。";
   target.status = values.mnav >= 1 ? "green" : values.mnav >= 0.9 ? "yellow" : "red";
@@ -83,7 +170,8 @@ export function applyStrategyMnavDataset(data, dataset, { now = new Date() } = {
   target.refreshMethod = "scheduled-snapshot";
   target.dataAsOf = dataset.marketAsOf;
   target.basisAsOf = dataset.basisAsOf;
-  target.mnavBasisComplete = dataset.basisComplete;
+  target.mnavBasisComplete = values.capital ? values.basisQuality.eligible : dataset.basisComplete;
+  target.mnavCapital = values.capital ? { asOf: values.capital.asOf, reason: values.basisQuality.reason ?? null } : null;
   target.mnavMode = dataset.calculation.mode;
   target.marketFetchedAt = dataset.generatedAt;
   target.mnavSnapshotAt = dataset.generatedAt;
@@ -101,6 +189,9 @@ export async function updateMnavFromSnapshot(data, fetchImpl = globalThis.fetch)
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10_000);
   const healthRead = readMnavHealth(data, fetchImpl, controller.signal);
+  const capitalRead = Promise.resolve().then(() => fetchImpl(`./strategy-mnav-capital.json?v=${Date.now()}`, {
+    cache: "no-store", headers: { accept: "application/json" }, signal: controller.signal
+  })).then(response => response.ok ? response.json() : null).catch(() => null);
   try {
     const paths = ["https://raw.githubusercontent.com/hsnbrg2022/hsnbrg2022.github.io/main/strategy-mnav.json", "./strategy-mnav.json"];
     const candidates = await Promise.allSettled(paths.map(async path => {
@@ -115,7 +206,9 @@ export async function updateMnavFromSnapshot(data, fetchImpl = globalThis.fetch)
     const valid = candidates.filter(item => item.status === "fulfilled").map(item => item.value)
       .sort((a, b) => b.marketAsOf.localeCompare(a.marketAsOf) || String(b.generatedAt).localeCompare(String(a.generatedAt)));
     if (!valid.length) throw candidates[0].reason;
-    const result = applyStrategyMnavDataset(data, valid[0]);
+    const evidence = await capitalRead;
+    const selected = evidence?.filing ? withStrategyCapital(valid[0], evidence) : valid[0];
+    const result = applyStrategyMnavDataset(data, selected);
     card(data, 2).mnavReadCheck = { checkedAt: new Date().toISOString(), status: "ok" };
     return result;
   } catch (error) {
@@ -123,7 +216,7 @@ export async function updateMnavFromSnapshot(data, fetchImpl = globalThis.fetch)
     if (target) target.mnavReadCheck = { checkedAt: new Date().toISOString(), status: "failed", message: String(error.message || error) };
     throw error;
   } finally {
-    await healthRead;
+    await Promise.all([healthRead, capitalRead]);
     clearTimeout(timer);
   }
 }
