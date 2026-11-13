@@ -6,7 +6,7 @@ import { detectLocalMaintenance } from "./maintenance-mode.js?v=20261023-local-p
 import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261113-mnav";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261113-risk";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261113-badge";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -179,7 +179,10 @@ function renderTaskCheck(name) {
 }
 
 function renderCard(card) {
-  const status = STATUS[card.status];
+  const mnavPending = card.id === 2 && card.quality?.eligible === false;
+  const displayStatus = mnavPending ? "off" : card.status;
+  const statusIcon = mnavPending ? "?" : STATUS[displayStatus].icon;
+  const badgeLabel = mnavPending ? t(language, "mnavBadgePending") : statusLabel(language, displayStatus);
   const fetchedAt = ` title="${escapeHtml(card.quality?.state === "unknown" || !card.marketFetchedAt ? t(language, "marketTimeUnknown") : t(language, "quoteObservedTime", { date: translateText(card.marketFetchedAt, language) }))}"`;
   const source = card.source?.url
     ? `<a href="${escapeHtml(card.source.url)}" target="_blank" rel="noreferrer"${fetchedAt}>${escapeHtml(card.source.label)} ↗</a>`
@@ -220,10 +223,10 @@ function renderCard(card) {
   const helpKey = indicatorHelpKeyForCard(card.id);
   const headlineHelp = card.id === 8 && /SOPR/i.test(card.headline) ? renderIndicatorHelp("sopr", `card-${card.id}-sopr`) : "";
   return `
-    <article class="signal-card status-${card.status}">
+    <article class="signal-card status-${displayStatus}">
       <div class="signal-topline">
         <span class="signal-number">${String(card.id).padStart(2, "0")}</span>
-        <span class="status-chip"><i>${status.icon}</i>${statusLabel(language, card.status)}</span>
+        <span class="status-chip"><i>${statusIcon}</i>${badgeLabel}</span>
         ${maintenanceButton}
       </div>
       <div class="signal-title-row"><h3>${escapeHtml(card.title)}</h3>${helpKey ? renderIndicatorHelp(helpKey, `card-${card.id}`) : ""}</div>
