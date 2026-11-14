@@ -1,5 +1,5 @@
-import { buildCurrentChanges, btcChangeReading, formatMoney } from "./model.js?v=20261023-gold";
-import { btcObservationTimestamp } from "./data-quality.js?v=20261023-gold";
+import { buildCurrentChanges, btcChangeReading, formatMoney } from "./model.js?v=20261114-mnav-score";
+import { btcObservationTimestamp } from "./data-quality.js?v=20261114-mnav-score";
 
 export const LANGUAGE_STORAGE_KEY = "crypto-signal-tracker:language-v1";
 
@@ -50,19 +50,20 @@ const MESSAGES = {
     stablecoinSevenDayFailed: "七日源更新失败 · 保留主读数",
     marketFresh: "时效内", marketStale: "旧值", marketUnknown: "待核验", marketTime: "来源观测时间 {time}（UTC+8）；BTC 15 分钟、F&G 36 小时有效，刷新失败不会重置此时间。", marketTimeUnknown: "读数时间待核验", marketPending: "待更新/核验", pricePending: "BTC 报价待更新或核验，暂停当前偏离判断。",
     wmaVerified: "200 个完整周 · UTC 周一边界", wmaRetained: "更新失败 · 保留上次完整周值", wmaUnverified: "保留旧值 · 周样本口径待核验",
-    mnavBasisUnknown: "资本基准日期待核验 · 官方行情独立更新，不计入当期", mnavBasisStale: "资本基准超过 7 天 · 官方行情独立更新，不计入当期", mnavBasisIncomplete: "资本资料不完整 · 官方行情独立更新，不计入当期", mnavClassificationUnknown: "转换分类未核验 · 停止估算，旧值不计入当期",
-    mnavCapitalSourceMissing: "缺少有效的官方持仓及美元资产披露 · 不计入当期",
-    mnavCapitalSharesMissing: "缺少官方完全摊薄股数 · 不计入当期",
-    mnavCapitalClaimsMissing: "缺少同日债务和优先股余额明细 · 不计入当期",
-    mnavBadgePending: "待核验",
-    mnavCapitalMismatch: "资本披露日期或数据不一致 · 不计入当期",
-    mnavCapitalConversionMissing: "转换分类与完全摊薄股数待核验 · 不计入当期",
+    mnavBasisUnknown: "资本资料日期待核验", mnavBasisStale: "资本资料超过 7 个自然日", mnavBasisIncomplete: "资本资料不完整", mnavClassificationUnknown: "资本转换分类待核验",
+    mnavCapitalSourceMissing: "缺少官方持仓及美元资产披露",
+    mnavCapitalSharesMissing: "缺少官方完全摊薄股数",
+    mnavCapitalClaimsMissing: "缺少同日债务和优先股余额明细",
+    mnavCapitalMismatch: "资本披露日期或数据不一致",
+    mnavCapitalConversionMissing: "转换分类与完全摊薄股数待核验",
+    mnavCapitalPending: "资本资料待核验", mnavCapitalVerified: "资本资料已核验", mnavQuoteUnverified: "官方行情待更新或核验 · 不计入当期",
+    mnavBadgePending: "待更新／核验", mnavMarketObserved: "官方行情时间（UTC+8）",
     qualityFresh: "时效内 · 参与当期确认", qualityStale: "数据过期 · 仅供历史参考", qualityUnknown: "日期待核验 · 不计入当期确认", qualityPending: "未计入当期", qualityIncomplete: "覆盖不完整 · 不作全局确认",
     healthTitle: "查看更新状态", healthMode: "模式", healthSnapshotMode: "后台采集 · 前端读取快照", healthMarketDate: "MSTR 行情日期", healthSnapshotCreated: "快照生成（UTC+8）", healthReadCheck: "最近快照检查（UTC+8）", healthReadStatus: "快照读取结果", healthReadOk: "读取成功", healthReadFailed: "读取失败 · 保留原读数", healthReadError: "本次读取失败原因", healthBackendCheck: "后台记录检查时间（UTC+8）", healthBackendSuccess: "最近成功采集（UTC+8）", healthBackendError: "该次后台记录错误", healthUnknown: "暂无可核验记录", healthReadOnlyNote: "后台状态仅反映最近读到的已发布记录，不保证此刻仍正常。读取快照不等于重新采集；检查时间不代表行情日期或资本资料已确认。",
     healthBackendExecution: "记录执行环境", healthCloud: "GitHub 后台", healthLocal: "本地采集", healthBackendStatus: "该次后台记录结果", healthCollectionFailed: "采集失败 · 保留旧行情", healthCollected: "采集成功 · 快照已更新", healthUnchanged: "检查成功 · 行情无变化", healthNoError: "该次记录无错误", healthUpstreamFailed: "官方接口请求失败", healthQuoteInvalid: "官方行情字段或时间无效", healthValidationFailed: "行情校验未通过", healthCollectorFailed: "采集器或存储异常",
     etfHealthMarketDate: "ETF 记录交易日期", etfHealthReadFailed: "读取失败 · 保留原资金流", etfHealthCollectionFailed: "采集失败 · 保留旧资金流", etfHealthUnchanged: "检查成功 · 资金流无变化", etfHealthUpstreamFailed: "免费资金流来源不可用", etfHealthCompleteness: "后台记录区间完整性", etfHealthComplete: "已记录区间无缺日", etfHealthMissing: "采集成功但存在缺日", etfHealthMissingDates: "缺少交易日", etfHealthReadOnlyNote: "后台状态仅反映最近读到的已发布记录；读取快照不等于重新采集。无缺日仅指后台已记录区间，不保证最新交易日已公布，也不验证本浏览器的手工覆盖。",
     qualityCoverage: "有效覆盖 {count}/{total} · 待更新/核验 {pending} 项",
-    qualityRules: "ETF/mNAV 行情 2 个交易日；mNAV 资本基准 7 个日历日，仅接收官方直接读数；稳定币/DXY/黄金 3 天；MVRV/Puell 最近完整 UTC 日值 3 天；多空比 24 小时；Fed 45 天。缺日期不计入当期；交易日历已核对 2026–2028 年 NYSE 休市安排。",
+    qualityRules: "ETF/mNAV 行情 2 个交易日；mNAV 按合格官方行情评分，资本资料另按 7 个自然日核验；稳定币/DXY/黄金 3 天；MVRV/Puell 最近完整 UTC 日值 3 天；多空比 24 小时；Fed 45 天。缺日期不计入当期；交易日历已核对 2026–2028 年 NYSE 休市安排。",
     etfEditsCount: "本浏览器覆盖 {count} 个日期", etfLegacyTitle: "旧版 ETF 缓存存档（可选择迁移）",
     etfLegacyNote: "旧副本永久保留在本浏览器。系统无法识别哪些日期曾被修改，请仅勾选要保留的日期；所选日期以个人值为准，其他日期跟随发布数据。关闭窗口不会迁移。",
     etfMigrate: "保留所选日期", etfSkipLegacy: "使用发布值，保留存档", etfSelectDates: "请先选择要保留的日期",
@@ -121,19 +122,20 @@ const MESSAGES = {
     stablecoinSevenDayFailed: "Seven-day update failed · Main reading retained",
     marketFresh: "Current", marketStale: "Historical", marketUnknown: "Unverified", marketTime: "Source observation time {time} (UTC+8); valid for 15 minutes (BTC) / 36 hours (F&G). Failed refreshes do not reset this time.", marketTimeUnknown: "Reading time unverified", marketPending: "Update/verification needed", pricePending: "BTC awaits an update or verification; current deviation analysis is paused.",
     wmaVerified: "200 completed weeks · UTC Monday", wmaRetained: "Update failed · Previous weekly value retained", wmaUnverified: "Previous value · Weekly basis unverified",
-    mnavBasisUnknown: "Capital basis date unverified · Official quotes update separately; not counted", mnavBasisStale: "Capital basis older than 7 days · Official quotes update separately; not counted", mnavBasisIncomplete: "Capital information incomplete · Official quotes update separately; not counted", mnavClassificationUnknown: "Conversion classification unverified · Estimates stopped; previous value not counted",
-    mnavCapitalSourceMissing: "Official BTC holdings and USD assets disclosure missing · Excluded from scoring",
-    mnavCapitalSharesMissing: "Official fully diluted share count missing · Excluded from scoring",
-    mnavCapitalClaimsMissing: "Same-date debt and preferred stock balances missing · Excluded from scoring",
-    mnavBadgePending: "Pending verification",
-    mnavCapitalMismatch: "Capital disclosure dates or values disagree · Excluded from scoring",
-    mnavCapitalConversionMissing: "Conversion classification and diluted shares need verification · Excluded from scoring",
+    mnavBasisUnknown: "Capital disclosure date unverified", mnavBasisStale: "Capital disclosures older than 7 calendar days", mnavBasisIncomplete: "Capital disclosures incomplete", mnavClassificationUnknown: "Capital conversion classification unverified",
+    mnavCapitalSourceMissing: "Official BTC holdings and USD asset disclosures missing",
+    mnavCapitalSharesMissing: "Official fully diluted share count missing",
+    mnavCapitalClaimsMissing: "Same-date debt and preferred stock balances missing",
+    mnavCapitalMismatch: "Capital disclosure dates or values disagree",
+    mnavCapitalConversionMissing: "Conversion classification and diluted shares need verification",
+    mnavCapitalPending: "Capital disclosures unverified", mnavCapitalVerified: "Capital disclosures verified", mnavQuoteUnverified: "Official quote needs an update or verification · Excluded from scoring",
+    mnavBadgePending: "Update or verification needed", mnavMarketObserved: "Official quote observation (UTC+8)",
     qualityFresh: "Within freshness window · Included", qualityStale: "Stale · Historical reference only", qualityUnknown: "Date unverified · Not counted", qualityPending: "Not counted", qualityIncomplete: "Incomplete coverage · No overall confirmation",
     healthTitle: "View update status", healthMode: "Mode", healthSnapshotMode: "Background collection · Snapshot read", healthMarketDate: "MSTR market date", healthSnapshotCreated: "Snapshot created (UTC+8)", healthReadCheck: "Latest snapshot check (UTC+8)", healthReadStatus: "Snapshot read result", healthReadOk: "Read succeeded", healthReadFailed: "Read failed · Previous reading retained", healthReadError: "Snapshot read failure", healthBackendCheck: "Recorded backend check (UTC+8)", healthBackendSuccess: "Latest successful collection (UTC+8)", healthBackendError: "Error in that backend record", healthUnknown: "No verified record", healthReadOnlyNote: "Backend status reflects the latest published record read, not guaranteed current health. Reading is not recollection; check time does not confirm the market date or capital information.",
     healthBackendExecution: "Record execution environment", healthCloud: "GitHub background job", healthLocal: "Local collector", healthBackendStatus: "Recorded backend result", healthCollectionFailed: "Collection failed · Previous quote retained", healthCollected: "Collection succeeded · Snapshot updated", healthUnchanged: "Check succeeded · Quote unchanged", healthNoError: "No error in that record", healthUpstreamFailed: "Official API request failed", healthQuoteInvalid: "Invalid official quote fields or time", healthValidationFailed: "Quote validation failed", healthCollectorFailed: "Collector or storage error",
     etfHealthMarketDate: "ETF recorded trading date", etfHealthReadFailed: "Read failed · Previous flows retained", etfHealthCollectionFailed: "Collection failed · Previous flows retained", etfHealthUnchanged: "Check succeeded · Flows unchanged", etfHealthUpstreamFailed: "Free flow sources unavailable", etfHealthCompleteness: "Recorded backend interval coverage", etfHealthComplete: "No missing days within recorded interval", etfHealthMissing: "Collection succeeded but trading days missing", etfHealthMissingDates: "Missing trading days", etfHealthReadOnlyNote: "Backend status reflects the latest published record read; reading is not recollection. Coverage only refers to the backend recorded interval, not availability of the latest trading day or verification of this browser's manual overrides.",
     qualityCoverage: "Valid coverage {count}/{total} · {pending} pending update/verification",
-    qualityRules: "ETF/mNAV quotes: 2 trading days; mNAV basis: 7 calendar days, official direct readings only; stablecoins/DXY/gold: 3 days; MVRV/Puell: latest completed UTC day within 3 days; positioning: 24 hours; Fed: 45 days. Undated data is excluded. NYSE full-day closures are verified for 2026–2028.",
+    qualityRules: "ETF/mNAV quotes: 2 trading days. mNAV scoring uses validated official quotes. Capital disclosures are checked separately within 7 calendar days; stablecoins/DXY/gold: 3 days; MVRV/Puell: latest completed UTC day within 3 days; positioning: 24 hours; Fed: 45 days. Undated data is excluded. NYSE full-day closures are verified for 2026–2028.",
     etfEditsCount: "Browser overrides on {count} date(s)", etfLegacyTitle: "Legacy ETF cache archive (select records to migrate)",
     etfLegacyNote: "The original copy stays in this browser. We cannot infer which dates you edited. Select only records you want to keep; other dates follow published data. Closing this window does not migrate anything.",
     etfMigrate: "Keep selected dates", etfSkipLegacy: "Use published data; keep archive", etfSelectDates: "Select the dates to keep first",
@@ -177,7 +179,7 @@ const INDICATOR_HELP = {
     strategyMnav: {
       title: "Strategy mNAV（最新口径）",
       summary: "衡量 MSTR 股价相对每股净比特币美元价值的溢价或折价。Strategy 自 2026-07-23 起采用此口径。",
-      points: ["计算方式：MSTR 股价 ÷ Net Bitcoin Per Share ($)。", "Net BPS 会扣除债务与优先股等高级索偿，并计入 USD Assets，再除以完全摊薄股数。", "1.0x 以上表示股价高于 Net BPS，1.0x 以下表示折价；资本基准超过 7 天或转换分类无法核验时停止估算；旧值保留但不计入当期。"]
+      points: ["计算方式：MSTR 股价 ÷ Net Bitcoin Per Share ($)。", "Net BPS 会扣除债务与优先股等高级索偿，并计入 USD Assets，再除以完全摊薄股数。", "使用两交易日内且通过校验的官方行情。达到 1.00x 加 1 分，0.90x 至低于 1.00x 为观察，低于 0.90x 为风险。资本资料单独核验。"]
     },
     fedOfficialStance: {
       title: "Fed 官方立场",
@@ -236,7 +238,7 @@ const INDICATOR_HELP = {
     strategyMnav: {
       title: "Strategy mNAV (current methodology)",
       summary: "Measures the premium or discount of MSTR's share price to its net Bitcoin value per share. Strategy has used this definition since July 23, 2026.",
-      points: ["Formula: MSTR share price ÷ Net Bitcoin Per Share ($).", "Net BPS deducts senior debt and preferred claims, adds USD Assets, then divides by fully diluted shares.", "Above 1.0x means a premium; below means a discount. Estimates stop if the capital basis is older than 7 calendar days or conversion classification cannot be verified. Previous values remain visible but are not counted."]
+      points: ["Formula: MSTR share price ÷ Net Bitcoin Per Share ($).", "Net BPS deducts senior debt and preferred claims, adds USD Assets, then divides by fully diluted shares.", "Scoring uses validated official quotes within two trading days. At or above 1.00x earns one point, 0.90x to below 1.00x is watch, and below 0.90x is risk. Capital disclosures are verified separately."]
     },
     fedOfficialStance: {
       title: "Official Fed Stance",
@@ -323,7 +325,6 @@ const EXACT_EN = new Map([
   ["最新交易日 ETF 资金净流量持平。", "ETF net flows were flat on the latest trading day."],
   ["ETF 发布快照", "ETF published snapshot"], ["ETF 数据可能滞后", "ETF data may be stale"],
   ["采用 Strategy 2026-07-23 起最新口径：MSTR 股价 ÷ Net BTC Per Share ($)；数值来自官方看板。", "Uses Strategy's current methodology effective July 23, 2026: MSTR share price ÷ Net BTC Per Share ($). Values come directly from the official dashboard."],
-  ["官方 mNAV 与 Net BPS 独立更新；资本资料未通过当前校验，不计入当期确认，不使用估算。", "Official mNAV and Net BPS update independently. Capital information is unverified, so this signal is excluded from current confirmation. No estimates are used."],
   ["距 1.0 触发仅 2%，BTC 拉升带动回升，现金跑道健康。", "Only 2% below the 1.0 trigger; BTC strength is lifting mNAV and the cash runway remains healthy."],
   ["稳定币供给扩张", "Stablecoin supply expanding"], ["稳定币供给收缩", "Stablecoin supply contracting"],
   ["USD 锚定样本 · 同源七日比较", "USD-pegged universe · Same-source seven-day comparison"],

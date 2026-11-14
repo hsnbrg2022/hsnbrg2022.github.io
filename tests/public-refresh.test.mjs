@@ -86,7 +86,7 @@ test("公开刷新可更新十二项数据（含 MVRV 与 Puell）", async (t) =
   if (/mvrv\.json|puell\.json/.test(url)) return response(buildOnchainDataset(url.includes("mvrv.json") ? 7 : 8, [{ timestamp: Date.parse("2026-09-03T00:00:00Z") / 1000, value: 0.9 }]));
   if (url.includes("strategy-mnav.json")) return response({
     schemaVersion: 1, status: "active", generatedAt: "2026-09-04T02:00:00Z",
-    marketAsOf: "2026-09-03", basisAsOf: "2026-08-31", mnav: 1.15,
+    marketAsOf: "2026-09-03", observations: { mstr: "2026-09-03T20:00:00.000Z", btc: "2026-09-03T20:00:00.000Z" }, basisAsOf: "2026-08-31", mnav: 1.15,
     formula: "mstr_price_usd / net_btc_per_share_usd", methodologyEffectiveDate: "2026-07-23",
     calculation: { mode: "official-live" },
     inputs: {

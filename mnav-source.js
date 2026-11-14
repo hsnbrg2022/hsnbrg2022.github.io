@@ -1,4 +1,4 @@
-import { tradingDaysSince, validTradingDate } from "./trading-calendar.js";
+import { isTradingDay, tradingDaysSince, validTradingDate } from "./trading-calendar.js";
 const FORMULA = "mstr_price_usd / net_btc_per_share_usd";
 const METHODOLOGY_EFFECTIVE_DATE = "2026-07-23";
 
@@ -95,6 +95,18 @@ export function withStrategyCapital(dataset, evidence, now = new Date()) {
   };
 }
 
+export function strategyMnavObservation(dataset) {
+  const { mstr, btc } = dataset.observations ?? {};
+  const valid = value => typeof value === "string" && Number.isFinite(Date.parse(value))
+    && new Date(value).toISOString() === value;
+  // Strategy displays its source timestamps at minute precision.
+  if (!valid(mstr) || !valid(btc) || mstr.slice(0, 16) !== btc.slice(0, 16)) return null;
+  const observed = Math.max(Date.parse(mstr), Date.parse(btc));
+  const marketDate = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date(mstr));
+  return marketDate === dataset.marketAsOf && isTradingDay(marketDate) === true && observed <= Date.parse(dataset.generatedAt)
+    ? new Date(observed).toISOString() : null;
+}
+
 function positiveNumber(value, label, { min = 0, max = Infinity } = {}) {
   const number = Number(value);
   if (!Number.isFinite(number) || number <= min || number > max) throw new Error(`${label} 无效`);
@@ -105,7 +117,7 @@ function money(value, digits = 2) {
   return Number(value).toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
-export function validateStrategyMnavDataset(dataset, { now = new Date() } = {}) {
+export function validateStrategyMnavDataset(dataset, { now = new Date(), allowStale = false } = {}) {
   if (dataset?.schemaVersion !== 1 || dataset.status !== "active") throw new Error("Strategy mNAV 自动快照尚未启用");
   if (dataset.formula !== FORMULA || dataset.methodologyEffectiveDate !== METHODOLOGY_EFFECTIVE_DATE) {
     throw new Error("Strategy mNAV 快照不是 2026-07-23 起的新口径");
@@ -131,15 +143,17 @@ export function validateStrategyMnavDataset(dataset, { now = new Date() } = {}) 
     }
   }
   const expectedMnav = mstrPriceUsd / netBtcPerShareUsd;
-  if (Math.abs(expectedMnav - mnav) > 0.03) throw new Error("Strategy mNAV 公式校验失败");
+  if (Math.abs(expectedMnav - mnav) > 0.03 + Number.EPSILON * Math.max(expectedMnav, mnav)) {
+    throw new Error("Strategy mNAV 公式校验失败");
+  }
 
   const ageBusinessDays = tradingDaysSince(dataset.marketAsOf, now);
-  if (ageBusinessDays > 2) throw new Error(`Strategy mNAV 行情已滞后 ${ageBusinessDays} 个交易日`);
+  if (!allowStale && ageBusinessDays > 2) throw new Error(`Strategy mNAV 行情已滞后 ${ageBusinessDays} 个交易日`);
   return { mnav, mstrPriceUsd, btcPriceUsd, netBtcPerShareUsd, ageBusinessDays, basisQuality, capital };
 }
 
-export function applyStrategyMnavDataset(data, dataset, { now = new Date() } = {}) {
-  const values = validateStrategyMnavDataset(dataset, { now });
+export function applyStrategyMnavDataset(data, dataset, options) {
+  const values = validateStrategyMnavDataset(dataset, options);
   const target = card(data, 2);
   if (!target) throw new Error("Strategy mNAV 卡片未找到");
   const netBtc = Number(dataset.inputs?.netBtc);
@@ -151,11 +165,10 @@ export function applyStrategyMnavDataset(data, dataset, { now = new Date() } = {
     Number.isFinite(netBtc) && netBtc > 0
       ? `净 BTC ${Math.round(netBtc).toLocaleString("en-US")}`
       : `BTC $${money(values.btcPriceUsd, 0)}`,
-    ...(values.capital ? [`官方行情日期 ${dataset.marketAsOf}`] : []),
+    `官方行情日期 ${dataset.marketAsOf}`,
     ...(values.capital?.reason && values.capital.asOf
       ? [`已核实部分资本资料日期 ${values.capital.asOf}`]
-      : [validTradingDate(dataset.basisAsOf) ? `资本资料日期 ${dataset.basisAsOf}` : "资本资料日期待核验"]),
-    ...(!values.capital && !values.basisQuality.eligible ? ["资本资料未确认 · 不计入当期确认"] : [])
+      : [validTradingDate(dataset.basisAsOf) ? `资本资料日期 ${dataset.basisAsOf}` : "资本资料日期待核验"])
   ];
   target.detail = "采用 Strategy 2026-07-23 起最新口径：MSTR 股价 ÷ Net BTC Per Share ($)；数值来自官方看板。";
   target.status = values.mnav >= 1 ? "green" : values.mnav >= 0.9 ? "yellow" : "red";
@@ -170,10 +183,11 @@ export function applyStrategyMnavDataset(data, dataset, { now = new Date() } = {
   target.refreshMethod = "scheduled-snapshot";
   target.dataAsOf = dataset.marketAsOf;
   target.basisAsOf = dataset.basisAsOf;
-  target.mnavBasisComplete = values.capital ? values.basisQuality.eligible : dataset.basisComplete;
-  target.mnavCapital = values.capital ? { asOf: values.capital.asOf, reason: values.basisQuality.reason ?? null } : null;
+  target.mnavBasisComplete = dataset.basisComplete;
+  target.mnavCapital = { asOf: values.capital?.asOf ?? dataset.basisAsOf ?? null, reason: values.basisQuality.reason ?? null };
   target.mnavMode = dataset.calculation.mode;
-  target.marketFetchedAt = dataset.generatedAt;
+  target.mnavObservedAt = strategyMnavObservation(dataset);
+  target.marketFetchedAt = target.mnavObservedAt;
   target.mnavSnapshotAt = dataset.generatedAt;
   target.lastRefreshAt = dataset.generatedAt;
   if (Array.isArray(data.previous?.changes)) {
@@ -200,15 +214,19 @@ export async function updateMnavFromSnapshot(data, fetchImpl = globalThis.fetch)
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const dataset = await response.json();
-      validateStrategyMnavDataset(dataset);
-      return dataset;
+      validateStrategyMnavDataset(dataset, { allowStale: true });
+      const observedAt = strategyMnavObservation(dataset);
+      if (!observedAt) throw new Error("Strategy mNAV 缺少同一时点的官方行情");
+      return { dataset, observedAt };
     }));
     const valid = candidates.filter(item => item.status === "fulfilled").map(item => item.value)
-      .sort((a, b) => b.marketAsOf.localeCompare(a.marketAsOf) || String(b.generatedAt).localeCompare(String(a.generatedAt)));
+      .sort((a, b) => b.observedAt.localeCompare(a.observedAt) || b.dataset.generatedAt.localeCompare(a.dataset.generatedAt));
     if (!valid.length) throw candidates[0].reason;
+    const { dataset, observedAt } = valid[0];
+    if (observedAt < (card(data, 2)?.mnavObservedAt ?? "")) throw new Error("Strategy mNAV 行情早于最近有效读数");
     const evidence = await capitalRead;
-    const selected = evidence?.filing ? withStrategyCapital(valid[0], evidence) : valid[0];
-    const result = applyStrategyMnavDataset(data, selected);
+    const selected = evidence?.filing ? withStrategyCapital(dataset, evidence) : dataset;
+    const result = applyStrategyMnavDataset(data, selected, { allowStale: true });
     card(data, 2).mnavReadCheck = { checkedAt: new Date().toISOString(), status: "ok" };
     return result;
   } catch (error) {
@@ -274,6 +292,7 @@ export function mnavHealthRows(target) {
   return [
     ["healthMode", null, target.refreshMethod === "scheduled-snapshot" ? "healthSnapshotMode" : "healthUnknown"],
     ["healthMarketDate", validTradingDate(target.dataAsOf) ? target.dataAsOf : null],
+    ["mnavMarketObserved", time(target.mnavObservedAt)],
     ["healthSnapshotCreated", time(target.mnavSnapshotAt)],
     ["healthReadCheck", time(check?.checkedAt)],
     ["healthReadStatus", null, check?.status === "ok" ? "healthReadOk" : check?.status === "failed" ? "healthReadFailed" : "healthUnknown"],

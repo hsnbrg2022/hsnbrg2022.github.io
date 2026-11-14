@@ -1,5 +1,4 @@
-import { tradingDaysSince } from "./trading-calendar.js";
-import { mnavBasisQuality } from "./mnav-source.js?v=20261113-mnav";
+import { isTradingDay, tradingDaysSince } from "./trading-calendar.js";
 import { ONCHAIN, onchainAgeDays } from "./onchain-source.js?v=20260906-5";
 import { stablecoinQuality } from "./stablecoin-source.js?v=20260909-1";
 const DAY = 86400000;
@@ -53,12 +52,15 @@ function timestamp(raw) {
 export function cardQuality(card, now = new Date()) {
   if (card.id === 6 && card.marketQuote?.kind === "unverified") return { state: "unknown", eligible: false, asOf: null };
   if (card.id === 3) return stablecoinQuality(card.stablecoin, now);
-  const asOf = card.dataAsOf || card.marketQuote?.asOf || card.marketFetchedAt;
   if (card.id === 2) {
-    if (card.mnavCapital?.reason) return { state: card.mnavCapital.reason === "mnavBasisStale" ? "stale" : "unknown", eligible: false, asOf: asOf || null, reason: card.mnavCapital.reason };
-    const basis = mnavBasisQuality(card.basisAsOf, card.mnavMode, now, card.mnavBasisComplete);
-    if (!basis.eligible) return { ...basis, asOf: asOf || null };
+    const asOf = card.dataAsOf;
+    const observed = btcObservationTimestamp(card.mnavObservedAt);
+    if (card.mnavMode !== "official-live" || !Number.isFinite(observed) || observed > now.getTime()
+      || isTradingDay(asOf) !== true) return { state: "unknown", eligible: false, asOf: asOf || null, reason: "mnavQuoteUnverified" };
+    const stale = tradingDaysSince(asOf, now) > 2;
+    return { state: stale ? "stale" : "fresh", eligible: !stale, asOf };
   }
+  const asOf = card.dataAsOf || card.marketQuote?.asOf || card.marketFetchedAt;
   const observed = timestamp(asOf);
   if (!Number.isFinite(observed)) return { state: "unknown", eligible: false, asOf: null };
   if (observed > now.getTime()) return { state: "unknown", eligible: false, asOf };
@@ -69,7 +71,7 @@ export function cardQuality(card, now = new Date()) {
     if (row?.metric !== ONCHAIN[card.id].metric || !Number.isSafeInteger(row.timestamp) || row.timestamp % 86400 !== 0 || row.timestamp * 1000 !== observed || !Number.isFinite(row.value) || onchainAgeDays(row.timestamp, now) < 1) return { state: "unknown", eligible: false, asOf };
     stale = onchainAgeDays(row.timestamp, now) > 3;
   }
-  else if ([1, 2].includes(card.id)) stale = tradingDaysSince(asOf.slice(0, 10), now) > 2;
+  else if (card.id === 1) stale = tradingDaysSince(asOf.slice(0, 10), now) > 2;
   else if (card.id === 4) stale = ageDays > 45;
   else if (card.id === 9) stale = ageDays > 1;
   else if ([3, 5, 6].includes(card.id)) stale = ageDays > 3;

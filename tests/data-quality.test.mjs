@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import { refreshPublicDashboard } from "../public-refresh.js";
 import { deriveDashboard, marketHeat } from "../model.js";
 import { localizeDashboard, t } from "../i18n.js";
+import { applyStrategyMnavDataset } from "../mnav-source.js";
 import { applyMacroQuote } from "../macro-quote.js";
 import { normalizeStablecoinHistory } from "../stablecoin-source.js";
 const now = new Date("2026-09-05T08:00:00Z");
@@ -20,9 +21,9 @@ test("CMC旧主读数不能冒充Alternative主指标，主源36小时边界不�
 
 test("ETF/mNAV 两工作日边界和周末；不使用刷新检查时间翻新观测", () => {
   for (const id of [1, 2]) {
-    const basis = { basisAsOf: "2026-08-31", mnavMode: "official-live" };
+    const basis = { mnavMode: "official-live", mnavObservedAt: "2026-09-02T20:00:00.000Z" };
     assert.equal(cardQuality({ id, ...basis, dataAsOf: "2026-09-02" }, now).eligible, true);
-    assert.equal(cardQuality({ id, ...basis, dataAsOf: "2026-09-01", lastRefreshAt: now.toISOString() }, now).state, "stale");
+    assert.equal(cardQuality({ id, ...basis, mnavObservedAt: "2026-09-01T20:00:00.000Z", dataAsOf: "2026-09-01", lastRefreshAt: now.toISOString() }, now).state, "stale");
   }
   assert.equal(weekdaysSince("2026-09-04", new Date("2026-09-06T08:00:00Z")), 0);
   assert.equal(weekdaysSince("2026-09-04", new Date("2026-09-09T08:00:00Z")), 3);
@@ -55,15 +56,12 @@ test("日期缺失、非法、未来及缺少来源日期的链上读数待核�
   for (const id of [7, 8]) assert.equal(cardQuality({ id }, now).eligible, false);
 });
 
-test("mNAV 资本基准和转换分类独立于行情日期控制确认", () => {
-  const card = { id: 2, dataAsOf: "2026-09-04", status: "green", basisAsOf: "2026-08-31" };
-  assert.equal(cardQuality(card, now).reason, "mnavClassificationUnknown");
-  assert.equal(cardQuality({ ...card, mnavMode: "official-live" }, now).eligible, true);
-  assert.equal(cardQuality({ ...card, basisAsOf: "2026-08-28", mnavMode: "official-live" }, now).reason, "mnavBasisStale");
-  for (const reason of ["mnavBasisUnknown", "mnavBasisStale", "mnavClassificationUnknown"]) {
-    assert.doesNotMatch(t("en", reason), /[\u4e00-\u9fff]/);
-    assert.notEqual(t("en", reason), reason);
-  }
+test("mNAV 仅接受经过校验的官方行情投影，资本状态不影响行情资格", () => {
+  const card = { id: 2, dataAsOf: "2026-09-04", status: "green", mnavObservedAt: "2026-09-04T20:00:00.000Z" };
+  assert.equal(cardQuality(card, now).reason, "mnavQuoteUnverified");
+  assert.equal(cardQuality({ ...card, mnavMode: "official-live", mnavObservedAt: undefined }, now).eligible, false);
+  assert.equal(cardQuality({ ...card, mnavMode: "official-live", mnavObservedAt: "2026-09-06T20:00:00.000Z" }, now).eligible, false);
+  assert.equal(cardQuality({ ...card, mnavMode: "official-live", basisAsOf: "2026-08-28", mnavBasisComplete: false }, now).eligible, true);
 });
 
 const marketNow = new Date("2026-09-08T04:00:00Z");
@@ -121,21 +119,37 @@ test("所有公开源失败后，全局刷新时间推进也不会翻新顶部�
   assert.doesNotMatch(derived.risks.join(" "), /F&G|BTC 24h/);
 });
 
-test("最新官方 mNAV 可展示但未核验资本不加分，双语解读不是旧值", async () => {
+test("官方 mNAV 分档、资本缺项、失败保留、过期退出评分和风险", async () => {
   const raw = JSON.parse(await readFile(new URL("../dashboard.json", import.meta.url), "utf8"));
-  raw.cards = [{ id: 2, title: "Strategy mNAV", headline: "1.22x", status: "green", facts: [], source: { label: "Strategy", url: "https://www.strategy.com/btc" }, dataAsOf: "2026-09-04", basisAsOf: "2026-08-31", mnavMode: "official-live", mnavBasisComplete: false }];
-  const view = deriveDashboard(raw, now);
-  assert.equal(view.score, 0);
-  assert.equal(view.coverage, 0);
-  assert.equal(view.cards[0].headline, "1.22x");
-  assert.match(view.cards[0].detail, /独立更新/);
-  assert.doesNotMatch(localizeDashboard(view, "en").cards[0].detail, /[\u4e00-\u9fff]|previous reading/i);
+  raw.cards = [raw.cards.find(card => card.id === 2)];
+  for (const [mnav, status, score] of [[1, "green", 1], [0.99, "yellow", 0], [0.9, "yellow", 0], [0.89, "red", 0]]) {
+    applyStrategyMnavDataset(raw, {
+      schemaVersion: 1, status: "active", generatedAt: "2026-09-05T00:00:00Z",
+      marketAsOf: "2026-09-04", basisAsOf: "2026-08-31", basisComplete: false,
+      observations: { mstr: "2026-09-04T20:00:00.000Z", btc: "2026-09-04T20:00:00.000Z" },
+      formula: "mstr_price_usd / net_btc_per_share_usd", methodologyEffectiveDate: "2026-07-23",
+      calculation: { mode: "official-live" }, mnav,
+      inputs: { mstrPriceUsd: mnav * 100, netBtcPerShareUsd: 100, btcPriceUsd: 75000 }
+    }, { now });
+    raw.cards[0].refreshStatus = "failed";
+    const view = deriveDashboard(raw, now);
+    assert.equal(view.score, score);
+    assert.equal(view.coverage, 1);
+    assert.equal(view.cards[0].status, status);
+    assert.equal(view.cards[0].mnavCapital.reason, "mnavBasisIncomplete");
+    if (status === "red") assert.match(view.risks.join(" "), /Strategy mNAV/);
+    const expired = deriveDashboard(raw, new Date("2026-09-10T08:00:00Z"));
+    assert.equal(expired.coverage, 0);
+    assert.equal(expired.score, 0);
+    assert.doesNotMatch(expired.risks.join(" "), /Strategy mNAV/);
+    assert.equal(expired.cards[0].headline, view.cards[0].headline);
+  }
 });
 
 test("仅请求失败不改变有效覆盖，过期后退出确认但原灯色和数值保留", async () => {
   const data = JSON.parse(await readFile(new URL("../dashboard.json", import.meta.url)));
   for (const card of data.cards) { card.dataAsOf = now.toISOString(); card.status = "green"; }
-  Object.assign(data.cards.find(card => card.id === 2), { basisAsOf: "2026-08-31", mnavMode: "official-live", mnavBasisComplete: true });
+  Object.assign(data.cards.find(card => card.id === 2), { basisAsOf: "2026-08-31", mnavMode: "official-live", mnavBasisComplete: true, mnavObservedAt: now.toISOString(), dataAsOf: "2026-09-04" });
   // Controlled fixture: two legacy on-chain readings have no validated observations.
   for (const card of data.cards.filter(card => [7, 8].includes(card.id))) delete card.onchain;
   data.cards.find(card => card.id === 3).stablecoin = normalizeStablecoinHistory(["2026-08-28", "2026-09-04"].map(date => ({ date: Date.parse(date) / 1000, totalCirculatingUSD: { peggedUSD: 300e9 } })), now);

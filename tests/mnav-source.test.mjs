@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyStrategyMnavDataset, strategyMnavBusinessDaysSince, validateStrategyMnavDataset, updateMnavFromSnapshot, mnavHealthRows, validateMnavHealth, withStrategyCapital } from "../mnav-source.js";
+import { applyStrategyMnavDataset, strategyMnavBusinessDaysSince, validateStrategyMnavDataset, updateMnavFromSnapshot, mnavHealthRows, validateMnavHealth, withStrategyCapital, strategyMnavObservation } from "../mnav-source.js";
 import { readFile } from "node:fs/promises";
 import { parseOfficialApiQuote } from "../scripts/update-strategy-mnav.mjs";
 import { cardQuality } from "../data-quality.js";
@@ -11,6 +11,7 @@ const dataset = {
   status: "active",
   generatedAt: "2026-09-04T02:00:00Z",
   marketAsOf: "2026-09-03",
+  observations: { mstr: "2026-09-03T20:00:00.000Z", btc: "2026-09-03T20:00:03.000Z" },
   basisAsOf: "2026-08-31",
   mnav: 1.15,
   formula: "mstr_price_usd / net_btc_per_share_usd",
@@ -43,11 +44,11 @@ test("官方直接 mNAV 快照通过公式校验并更新卡片", () => {
   assert.match(message, /Strategy 官方看板/);
 });
 
-test("真实 11/08 部分披露独立更新日期和缺项，但不参与评分", async context => {
+test("真实 11/08 部分披露独立显示缺项，合格行情仍参与评分", async context => {
   const now = new Date("2026-11-13T06:00:00Z");
   context.mock.timers.enable({ apis: ["Date"], now });
   const evidence = JSON.parse(await readFile(new URL("../strategy-mnav-capital.json", import.meta.url), "utf8"));
-  const quote = { ...dataset, marketAsOf: "2026-11-12", basisComplete: false };
+  const quote = { ...dataset, marketAsOf: "2026-11-12", generatedAt: "2026-11-13T02:00:00Z", observations: { mstr: "2026-11-12T21:00:00.000Z", btc: "2026-11-12T21:00:00.000Z" }, basisComplete: false };
   const data = { cards: [{ id: 2 }] };
   await updateMnavFromSnapshot(data, async url => ({
     ok: !url.includes("health"),
@@ -57,13 +58,15 @@ test("真实 11/08 部分披露独立更新日期和缺项，但不参与评分"
   assert.ok(target.facts.includes("官方行情日期 2026-11-12"));
   assert.ok(target.facts.includes("已核实部分资本资料日期 2026-11-08"));
   assert.equal(target.basisAsOf, "2026-08-31");
-  assert.equal(cardQuality(target, now).reason, "mnavCapitalClaimsMissing");
-  assert.equal(cardQuality(target, now).eligible, false);
+  assert.equal(target.mnavCapital.reason, "mnavCapitalClaimsMissing");
+  assert.equal(cardQuality(target, now).eligible, true);
+  assert.equal(target.mnavObservedAt, "2026-11-12T21:00:00.000Z");
+  assert.equal(strategyMnavObservation({ ...quote, observations: { ...quote.observations, btc: "2026-11-12T21:01:00.000Z" } }), null);
   assert.doesNotMatch(translateText(target.facts.at(-1), "en"), /[\u4e00-\u9fff]/);
   assert.match(t("en", "mnavCapitalClaimsMissing"), /Same-date debt and preferred stock/);
 });
 
-test("完整同日资料才恢复评分资格，缺项、日期冲突、转换变动和第八天均排除", async () => {
+test("资本核验独立处理日期冲突、缺项、转换变动和第八天", async () => {
   const partial = JSON.parse(await readFile(new URL("../strategy-mnav-capital.json", import.meta.url), "utf8"));
   const quote = { ...dataset, marketAsOf: "2026-11-13" };
   const evidence = { ...partial, claims: {
@@ -78,10 +81,10 @@ test("完整同日资料才恢复评分资格，缺项、日期冲突、转换�
     const now = new Date(time);
     const data = { cards: [{ id: 2 }] };
     applyStrategyMnavDataset(data, withStrategyCapital(reading, input, now), { now });
-    return cardQuality(data.cards[0], now);
+    return data.cards[0].mnavCapital;
   };
   const day7 = "2026-11-15T10:00:00Z";
-  assert.equal(quality(evidence, day7).eligible, true);
+  assert.equal(quality(evidence, day7).reason, null);
   assert.equal(quality(evidence, "2026-11-16T10:00:00Z").reason, "mnavBasisStale");
   assert.equal(quality({ ...evidence, claims: { ...evidence.claims, asOf: "2026-11-09" } }, day7).reason, "mnavCapitalMismatch");
   assert.equal(quality({ ...evidence, claims: { ...evidence.claims, totalDebtUsd: 101 } }, day7).reason, "mnavCapitalClaimsMissing");
@@ -112,8 +115,8 @@ test("资本基准第七天可确认，第八天仍展示官方读数但不确�
     const data = { cards: [{ id: 2, headline: "old", status: "green" }] };
     applyStrategyMnavDataset(data, { ...dataset, ...patch }, { now });
     assert.match(data.cards[0].headline, /1.15x/);
-    assert.equal(cardQuality(data.cards[0], now).eligible, false);
-    assert.match(cardQuality(data.cards[0], now).reason, reason);
+    assert.equal(cardQuality(data.cards[0], now).eligible, true);
+    assert.match(data.cards[0].mnavCapital.reason, reason);
   }
   for (const [patch, reason] of [
     [{ marketAsOf: "2026-09-08" }, /行情日期无效/],
@@ -161,16 +164,23 @@ test("资本待核验中英文提示不再把新官方行情称为旧值", () =>
   for (const fact of data.cards[0].facts) assert.doesNotMatch(translateText(fact, "en"), /[\u4e00-\u9fff]/);
   for (const key of ["mnavBasisUnknown", "mnavBasisStale", "mnavBasisIncomplete"]) {
     assert.doesNotMatch(t("en", key), /Previous value|[\u4e00-\u9fff]/);
-    assert.match(t("en", key), /not counted/);
+    assert.match(t("en", key), /capital/i);
   }
 });
 
 test("公开 mNAV 刷新选择仓库较新快照，不依赖 Pages 重建", async t => {
-  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-04T08:00:00Z") });
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-05T08:00:00Z") });
   const data = { cards: [{ id: 2 }] };
-  await updateMnavFromSnapshot(data, async url => ({ ok: true, json: async () => ({ ...dataset, basisComplete: false, marketAsOf: url.startsWith("https:") ? "2026-09-04" : "2026-09-03" }) }));
+  await updateMnavFromSnapshot(data, async url => ({ ok: true, json: async () => ({ ...dataset, basisComplete: false, ...(url.startsWith("https:") ? { marketAsOf: "2026-09-04", generatedAt: "2026-09-04T21:00:00.000Z", observations: { mstr: "2026-09-04T20:00:00.000Z", btc: "2026-09-04T20:00:00.000Z" } } : {}) }) }));
   assert.equal(data.cards[0].dataAsOf, "2026-09-04");
-  assert.equal(cardQuality(data.cards[0]).eligible, false);
+  assert.equal(cardQuality(data.cards[0]).eligible, true);
+  await assert.rejects(updateMnavFromSnapshot(data, async () => ({ ok: true, json: async () => dataset })), /早于最近有效读数/);
+  assert.equal(data.cards[0].dataAsOf, "2026-09-04");
+  t.mock.timers.setTime(new Date("2026-09-10T08:00:00Z").getTime());
+  const reopened = { cards: [{ id: 2 }] };
+  await updateMnavFromSnapshot(reopened, async () => ({ ok: true, json: async () => dataset }));
+  assert.equal(reopened.cards[0].dataAsOf, dataset.marketAsOf);
+  assert.equal(cardQuality(reopened.cards[0]).state, "stale");
 });
 
 test("仓库读取失败可回退站点；全失败与公式错误不覆盖原卡", async t => {
@@ -265,7 +275,7 @@ test("后台记录独立择新，较新失败不能被旧成功掩盖；旧成�
   assert.equal(rows.healthBackendError, "healthUpstreamFailed");
   assert.equal(rows.healthReadStatus, "healthReadOk");
   assert.equal(target.mnavSnapshotAt, dataset.generatedAt);
-  assert.equal(cardQuality({ ...target, mnavBasisComplete: false }).eligible, false);
+  assert.equal(cardQuality({ ...target, mnavBasisComplete: false }).eligible, true);
 });
 
 test("后台记录回退、全失败或无效不阻挡行情；行情失败仍能读取后台失败记录", async context => {

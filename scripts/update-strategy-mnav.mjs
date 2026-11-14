@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { withStrategyCapital, validateStrategyMnavDataset, strategyMnavBusinessDaysSince, STRATEGY_MNAV_FORMULA, STRATEGY_MNAV_METHODOLOGY_EFFECTIVE_DATE } from "../mnav-source.js";
+import { withStrategyCapital, validateStrategyMnavDataset, strategyMnavObservation, strategyMnavBusinessDaysSince, STRATEGY_MNAV_FORMULA, STRATEGY_MNAV_METHODOLOGY_EFFECTIVE_DATE } from "../mnav-source.js";
 import { withWriteLock } from "./write-lock.mjs";
 
 const SITE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -229,7 +229,12 @@ export async function updateStrategyMnav({ fetchImpl = globalThis.fetch, now } =
     || JSON.stringify(previous.basis) !== JSON.stringify(candidate.basis)
     || JSON.stringify(previous.observations) !== JSON.stringify(candidate.observations);
   const effectiveDataset = observationChanged ? candidate : previous;
-  try { validateStrategyMnavDataset(effectiveDataset, { now }); }
+  try {
+    validateStrategyMnavDataset(effectiveDataset, { now });
+    const observedAt = strategyMnavObservation(effectiveDataset);
+    if (!observedAt) throw new Error("Strategy mNAV 缺少同一时点的官方行情");
+    if (observedAt < (strategyMnavObservation(previous) ?? "")) throw new Error("Strategy mNAV 行情早于最近有效读数");
+  }
   catch (error) { throw Object.assign(error, { healthCode: "validation_failed" }); }
   if (!observationChanged) return { dataset: previous, changed: false };
   await writeJsonAtomic(OUTPUT_FILE, candidate);

@@ -22,7 +22,7 @@ test("生成综合评分、风险和总结", async () => {
   stableFixture.cards.find((card) => card.id === 9).status = "green";
   stableFixture.cards.find((card) => card.id === 6).status = "yellow";
   stableFixture.cards.forEach((card) => { card.dataAsOf = now.toISOString(); });
-  Object.assign(stableFixture.cards.find(card => card.id === 2), { basisAsOf: "2026-08-31", mnavMode: "official-live" });
+  Object.assign(stableFixture.cards.find(card => card.id === 2), { basisAsOf: "2026-08-31", mnavMode: "official-live", mnavObservedAt: "2026-09-04T20:00:00.000Z", dataAsOf: "2026-09-04" });
   stableFixture.cards.find(card => card.id === 3).stablecoin = normalizeStablecoinHistory(["2026-08-28", "2026-09-04"].map((date, i) => ({ date: Date.parse(date) / 1000, totalCirculatingUSD: { peggedUSD: 300e9 + i * 1e9 } })), now);
   const result = deriveDashboard(stableFixture, now);
   assert.equal(result.score, 6);
