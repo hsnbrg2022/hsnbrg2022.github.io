@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
   "status": "active",
-  "generatedAt": "2026-11-13T02:46:06.276Z",
-  "marketAsOf": "2026-11-12",
+  "generatedAt": "2026-11-14T07:49:35.873Z",
+  "marketAsOf": "2026-11-13",
   "basisAsOf": "2026-08-31",
-  "mnav": 1.07,
+  "mnav": 1.09,
   "formula": "mstr_price_usd / net_btc_per_share_usd",
   "methodologyEffectiveDate": "2026-07-23",
   "calculation": {
     "mode": "official-live",
-    "note": "Direct official API readings; capital information retained separately and unverified"
+    "note": "Direct official intraday readings transcribed from the Strategy dashboard snapshot at 09:47 ET. Capital disclosures are checked separately."
   },
   "inputs": {
-    "mstrPriceUsd": 114.41,
-    "btcPriceUsd": 70196.9,
-    "netBtcPerShareUsd": 104.64,
-    "netBtc": null,
+    "mstrPriceUsd": 111.99,
+    "btcPriceUsd": 69067,
+    "netBtcPerShareUsd": 102.4,
+    "netBtc": 636858,
     "btcHoldings": 845050,
     "usdAssetsUsd": 6714000000,
     "seniorClaimsUsd": 21516830700,
@@ -28,21 +28,17 @@
   },
   "source": {
     "label": "Strategy official dashboard",
-    "url": "https://www.strategy.com/btc",
-    "methodologyUrl": "https://www.strategy.com/notes",
-    "apiUrls": [
-      "https://api.strategy.com/btc/mstrKpiData",
-      "https://api.strategy.com/btc/bitcoinKpis"
-    ]
+    "url": "https://www.strategy.com/de/btc",
+    "methodologyUrl": "https://www.strategy.com/notes"
   },
   "marketSources": {
     "mstr": {
       "label": "Strategy / Nasdaq",
-      "url": "https://www.strategy.com/btc"
+      "url": "https://www.strategy.com/de/btc"
     },
     "btc": {
       "label": "Strategy / Coinbase",
-      "url": "https://www.strategy.com/btc"
+      "url": "https://www.strategy.com/de/btc"
     }
   },
   "basis": {
@@ -57,8 +53,27 @@
     "maxClassificationPriceDeviationPct": 0.2
   },
   "basisComplete": false,
+  "capitalEvidence": {
+    "filing": {
+      "asOf": "2026-11-08",
+      "source": "https://www.sec.gov/Archives/edgar/data/1050446/000119312526452693/mstr-20261109.htm",
+      "btcHoldings": 850364,
+      "usdReserve": 4770000000,
+      "usdCash": 146200000
+    },
+    "shares": {
+      "asOf": "2026-11-08",
+      "source": "https://www.strategy.com/shares",
+      "btcHoldings": 850364,
+      "basicShares": 425591000,
+      "optionsShares": 3100000,
+      "awardShares": 860000,
+      "fullyDilutedShares": 429551000,
+      "includedConversions": []
+    }
+  },
   "observations": {
-    "mstr": "2026-11-12T21:00:00.000Z",
-    "btc": "2026-11-13T02:45:56.398Z"
+    "mstr": "2026-11-13T14:47:00.000Z",
+    "btc": "2026-11-13T14:47:00.000Z"
   }
 }
