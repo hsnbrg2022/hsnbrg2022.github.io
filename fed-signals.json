@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29T01:49:31.380Z",
+  "generatedAt": "2026-11-14T03:20:18.852Z",
   "status": "live",
   "source": {
     "label": "Federal Reserve",
@@ -20,15 +20,15 @@
     "role": "primary"
   },
   "chair": {
-    "eventDate": "2026-10-01",
-    "publishedAt": "2026-10-01T17:30:00.000Z",
+    "eventDate": "2026-11-14",
+    "publishedAt": "2026-11-14T00:00:00.000Z",
     "author": "Jefferson",
-    "title": "The U.S. Economy and Monetary Policy",
-    "url": "https://www.federalreserve.gov/newsevents/speech/jefferson20261001a.htm",
-    "tone": "hawkish",
-    "confidence": "medium",
+    "title": "New Technology, Old Questions: Productivity Puzzles  and the Macroeconomy",
+    "url": "https://www.federalreserve.gov/newsevents/speech/jefferson20261113a.htm",
+    "tone": "neutral",
+    "confidence": "low",
     "scores": {
-      "hawkish": 2,
+      "hawkish": 0,
       "dovish": 0
     },
     "role": "secondary"
