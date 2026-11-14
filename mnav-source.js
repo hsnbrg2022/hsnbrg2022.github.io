@@ -187,6 +187,11 @@ export function applyStrategyMnavDataset(data, dataset, options) {
   target.mnavCapital = { asOf: values.capital?.asOf ?? dataset.basisAsOf ?? null, reason: values.basisQuality.reason ?? null };
   target.mnavMode = dataset.calculation.mode;
   target.mnavObservedAt = strategyMnavObservation(dataset);
+  target.mnavQuote = {
+    multiple: values.mnav, netBpsUsd: values.netBtcPerShareUsd,
+    netBtc: Number.isFinite(netBtc) && netBtc > 0 ? netBtc : null,
+    btcPriceUsd: values.btcPriceUsd
+  };
   target.marketFetchedAt = target.mnavObservedAt;
   target.mnavSnapshotAt = dataset.generatedAt;
   target.lastRefreshAt = dataset.generatedAt;
@@ -293,6 +298,8 @@ export function mnavHealthRows(target) {
     ["healthMode", null, target.refreshMethod === "scheduled-snapshot" ? "healthSnapshotMode" : "healthUnknown"],
     ["healthMarketDate", validTradingDate(target.dataAsOf) ? target.dataAsOf : null],
     ["mnavMarketObserved", time(target.mnavObservedAt)],
+    ...(target.mnavQuote?.netBtc ? [["mnavNetBtcDetail", Math.round(target.mnavQuote.netBtc).toLocaleString("en-US")]] : []),
+    ...(target.mnavQuote?.btcPriceUsd ? [["mnavBtcPriceDetail", `$${money(target.mnavQuote.btcPriceUsd, 0)}`]] : []),
     ["healthSnapshotCreated", time(target.mnavSnapshotAt)],
     ["healthReadCheck", time(check?.checkedAt)],
     ["healthReadStatus", null, check?.status === "ok" ? "healthReadOk" : check?.status === "failed" ? "healthReadFailed" : "healthUnknown"],

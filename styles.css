@@ -353,3 +353,7 @@ button.etf-history-row:hover { border-color: var(--line-bright); background: rgb
 .collection-health summary { cursor: pointer; }
 .collection-health dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 6px 12px; }
 .collection-health dd { margin: 0; overflow-wrap: anywhere; }
+.mnav-card > p { margin: 10px 0 0; }
+.mnav-card .facts { margin-top: 10px; }
+.mnav-card .signal-footer { position: static; margin-top: 16px; padding-top: 10px; align-items: flex-start; flex-wrap: wrap; }
+.mnav-card .collection-health { min-width: 0; }

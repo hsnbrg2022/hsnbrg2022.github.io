@@ -1,12 +1,12 @@
 import { STATUS, analyzeTrueMarketMean, calculateBookAccountRatio, deriveDashboard, derivePositioningSignal, formatMoney, mergeRefreshView, mergeMaintenanceView } from "./model.js?v=20261114-mnav-score";
 import { DAILY_BASELINE_KEY, dailyBaselineView, saveDailyBaseline } from "./daily-baseline.js?v=20261023-gold";
-import { mnavBasisQuality, mnavHealthRows } from "./mnav-source.js?v=20261114-mnav-score";
+import { mnavBasisQuality, mnavHealthRows } from "./mnav-source.js?v=20261114-mnav-copy";
 import { etfHealthRows } from "./etf-health.js?v=20261003-health";
 import { detectLocalMaintenance } from "./maintenance-mode.js?v=20261023-local-progress";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261114-mnav-score";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261114-mnav-copy";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261114-mnav-score";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261114-mnav-copy";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -179,13 +179,15 @@ function renderTaskCheck(name) {
 }
 
 function renderCard(card) {
-  const mnavPending = card.id === 2 && card.quality?.eligible === false;
-  const capitalReason = card.id === 2
+  const isMnav = card.id === 2;
+  const mnavPending = isMnav && !card.quality?.eligible;
+  const capitalReason = isMnav
     ? card.mnavCapital?.reason ?? mnavBasisQuality(card.basisAsOf, card.mnavMode, new Date(), card.mnavBasisComplete).reason
     : null;
   const displayStatus = mnavPending ? "off" : card.status;
   const statusIcon = mnavPending ? "?" : STATUS[displayStatus].icon;
   const badgeLabel = mnavPending ? t(language, "mnavBadgePending") : statusLabel(language, displayStatus);
+  const badgeScore = isMnav && !mnavPending ? ` · ${t(language, "mnavBadgeScore", { score: STATUS[displayStatus].score ? "+1" : "0" })}` : "";
   const fetchedAt = ` title="${escapeHtml(card.quality?.state === "unknown" || !card.marketFetchedAt ? t(language, "marketTimeUnknown") : t(language, "quoteObservedTime", { date: translateText(card.marketFetchedAt, language) }))}"`;
   const source = card.source?.url
     ? `<a href="${escapeHtml(card.source.url)}" target="_blank" rel="noreferrer"${fetchedAt}>${escapeHtml(card.source.label)} ↗</a>`
@@ -201,10 +203,6 @@ function renderCard(card) {
       : card.refreshStatus === "snapshot"
         ? `<i class="snapshot-dot"></i> ${t(language, "etfSnapshotAsOf", { date: dataAsOf })}`
         : `<i class="live-dot"></i> ${t(language, "etfLiveAsOf", { date: dataAsOf })}`
-    : card.id === 2
-      ? card.refreshStatus === "failed"
-        ? `<i class="stale-dot"></i> ${t(language, "refreshFailed")}`
-        : t(language, "mnavAuto")
     : [7, 8].includes(card.id)
       ? card.refreshStatus === "failed"
         ? `<i class="stale-dot"></i> ${t(language, "refreshFailed")}`
@@ -225,34 +223,55 @@ function renderCard(card) {
       : "";
   const helpKey = indicatorHelpKeyForCard(card.id);
   const headlineHelp = card.id === 8 && /SOPR/i.test(card.headline) ? renderIndicatorHelp("sopr", `card-${card.id}-sopr`) : "";
+  const health = [1, 2].includes(card.id) ? `<details class="collection-health quality-note"><summary>${t(language, isMnav ? "mnavDetails" : "healthTitle")}</summary>
+    <dl>${(isMnav ? mnavHealthRows(card) : etfHealthRows(card)).map(([label, value, key]) => `<dt>${t(language, label)}</dt><dd>${escapeHtml(value == null ? t(language, key || "healthUnknown") : translateText(value, language))}</dd>`).join("")}</dl>
+    <p>${t(language, isMnav ? "healthReadOnlyNote" : "etfHealthReadOnlyNote")}</p></details>` : "";
   return `
-    <article class="signal-card status-${displayStatus}">
+    <article class="signal-card status-${displayStatus}${isMnav ? " mnav-card" : ""}">
       <div class="signal-topline">
         <span class="signal-number">${String(card.id).padStart(2, "0")}</span>
-        <span class="status-chip"><i>${statusIcon}</i>${badgeLabel}</span>
+        <span class="status-chip"><i>${statusIcon}</i>${badgeLabel}${badgeScore}</span>
         ${maintenanceButton}
       </div>
       <div class="signal-title-row"><h3>${escapeHtml(card.title)}</h3>${helpKey ? renderIndicatorHelp(helpKey, `card-${card.id}`) : ""}</div>
       <strong class="signal-headline">${escapeHtml(card.headline)}${headlineHelp}</strong>
       ${card.id === 9 ? "" : renderTaskCheck({ 1: "ETF", 2: "mNAV", 3: "稳定币", 4: "Fed", 5: "DXY", 6: "黄金", 7: "MVRV", 8: "Puell" }[card.id])}
-      <div class="facts">${card.facts.map((fact, index) => {
+      ${isMnav ? renderMnavReading(card, capitalReason) : `<div class="facts">${card.facts.map((fact, index) => {
         const factHelpKey = indicatorHelpKeyForFact(card.id, fact);
         return `<span>${escapeHtml(fact)}${factHelpKey ? renderIndicatorHelp(factHelpKey, `card-${card.id}-fact-${index}`) : ""}</span>`;
       }).join("")}</div>
-      <p>${escapeHtml(card.detail)}</p>
+      <p>${escapeHtml(card.detail)}</p>`}
       ${card.id === 3 && card.stablecoinAux ? `<p class="quality-note">${escapeHtml(t(language, "stablecoinAux", {
         change: `${card.stablecoinAux.change >= 0 ? "+" : ""}${card.stablecoinAux.change.toFixed(2)}%`, total: formatMoney(card.stablecoinAux.total, 0), date: card.stablecoinAux.asOf || t(language, "marketTimeUnknown")
       }))}</p>` : ""}
-      <p class="quality-note ${card.quality?.eligible ? "" : "needs-review"}">${t(language, card.quality?.reason || (card.quality?.eligible ? "qualityFresh" : card.quality?.state === "stale" ? "qualityStale" : "qualityUnknown"))}${card.browserEditCount ? ` · ${t(language, "etfEditsCount", { count: card.browserEditCount })}` : ""}</p>
-      ${card.id === 2 ? `<p class="quality-note ${capitalReason ? "needs-review" : ""}">${capitalReason ? `${t(language, "mnavCapitalPending")} · ${t(language, capitalReason)}` : t(language, "mnavCapitalVerified")}</p>` : ""}
-      ${[1, 2].includes(card.id) ? `<details class="collection-health quality-note"><summary>${t(language, "healthTitle")}</summary>
-        <dl>${(card.id === 1 ? etfHealthRows(card) : mnavHealthRows(card)).map(([label, value, key]) => `<dt>${t(language, label)}</dt><dd>${escapeHtml(value == null ? t(language, key || "healthUnknown") : translateText(value, language))}</dd>`).join("")}</dl>
-        <p>${t(language, card.id === 1 ? "etfHealthReadOnlyNote" : "healthReadOnlyNote")}</p></details>` : ""}
+      ${!isMnav || mnavPending ? `<p class="quality-note ${card.quality?.eligible ? "" : "needs-review"}">${t(language, card.quality?.reason || (card.quality?.eligible ? "qualityFresh" : card.quality?.state === "stale" ? "qualityStale" : "qualityUnknown"))}${card.browserEditCount ? ` · ${t(language, "etfEditsCount", { count: card.browserEditCount })}` : ""}</p>` : ""}
+      ${isMnav ? "" : health}
       <div class="signal-footer">
-        <span title="${escapeHtml(card.refreshStatus === "failed" ? t(language, "refreshFailed") : translateText(card.refreshMessage || "", language))}">${refreshLabel}</span>
+        ${isMnav ? health : `<span title="${escapeHtml(card.refreshStatus === "failed" ? t(language, "refreshFailed") : translateText(card.refreshMessage || "", language))}">${refreshLabel}</span>`}
         ${source}
       </div>
     </article>`;
+}
+
+function renderMnavReading(card, capitalReason) {
+  const locale = language === "en" ? "en-US" : "zh-CN";
+  const quote = card.mnavQuote;
+  const deviation = Math.round((quote?.multiple - 1) * 1000) / 10;
+  const relation = deviation > 0 ? "mnavPremium" : deviation < 0 ? "mnavDiscount" : "mnavParity";
+  const observedAt = card.mnavObservedAt;
+  const quoteTime = observedAt && new Intl.DateTimeFormat(locale, {
+    timeZone: "America/New_York", year: "numeric", month: "short", day: "numeric",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  }).format(new Date(observedAt));
+  const capitalDate = card.mnavCapital?.asOf;
+  const capitalLabel = t(language, capitalReason ? "mnavCapitalPending" : "mnavCapitalVerified");
+  return `
+    ${quote ? `<p>${t(language, relation, { percent: Math.abs(deviation) })}</p>` : ""}
+    ${quote ? `<div class="facts">
+      <span>${escapeHtml(t(language, "mnavNetBps", { value: formatMoney(quote.netBpsUsd, 2) }))}</span>
+      ${quoteTime ? `<span><time datetime="${escapeHtml(observedAt)}">${escapeHtml(t(language, "mnavOfficialQuoteTime", { time: quoteTime }))}</time></span>` : ""}
+    </div>` : ""}
+    <p class="quality-note ${capitalReason ? "needs-review" : ""}">${capitalDate ? `${escapeHtml(capitalDate)} · ` : ""}${capitalLabel}${capitalReason && capitalReason !== "mnavBasisUnknown" ? ` · ${t(language, capitalReason)}` : ""}</p>`;
 }
 
 function trueMarketMeanView(data) {
