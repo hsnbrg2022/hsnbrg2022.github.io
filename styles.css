@@ -224,11 +224,19 @@ a { color: inherit; }
 .tracker-row em { color: var(--muted); font-style: normal; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .briefing { margin: 100px 0 80px; padding-top: 48px; border-top: 1px solid var(--line-bright); }
-.briefing-head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 25px; }
+.briefing-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px; margin-bottom: 16px; }
+.briefing-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.briefing-status { margin: 0 0 14px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.briefing-status:empty { display: none; }
 .briefing h2 { font-size: 32px; margin: 9px 0 0; letter-spacing: -.04em; }
 .briefing-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 14px; }
 .briefing article { border: 1px solid var(--line); border-radius: var(--radius); background: rgba(16,20,21,.78); padding: 25px; }
 .briefing article h3 { font-size: 15px; margin: 18px 0 13px; }
+.briefing .ai-briefing { margin-bottom: 14px; }
+.briefing .ai-briefing h3 { margin-top: 0; }
+.ai-briefing dl { display: grid; gap: 6px; margin: 0; }
+.ai-briefing dt { margin-top: 8px; color: var(--mint); font-size: 13px; }
+.ai-briefing dd { margin: 0; line-height: 1.65; white-space: pre-line; overflow-wrap: anywhere; }
 .summary-panel { min-height: 220px; background: linear-gradient(145deg, rgba(120,215,183,.1), rgba(16,20,21,.8)) !important; }
 .summary-panel p { max-width: 850px; font-size: clamp(20px, 2vw, 27px); line-height: 1.7; letter-spacing: -.02em; margin: 25px 0 0; }
 .briefing ul { list-style: none; padding: 0; margin: 0; }

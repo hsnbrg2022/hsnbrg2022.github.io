@@ -6,7 +6,7 @@ import { detectLocalMaintenance } from "./maintenance-mode.js?v=20261023-local-p
 import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261114-mnav-copy";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261114-mnav-copy";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261116-briefing";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -33,6 +33,15 @@ let publishedDataMode;
 let activeIndicatorTooltip;
 let IS_LOCAL_MAINTENANCE = false;
 let HAS_LOCAL_REFRESH_PROGRESS = false;
+let HAS_AI_BRIEFING = false;
+let refreshPromise;
+let aiBriefing;
+let briefingPending = false;
+let briefingStatus = "";
+const BRIEFING_ERRORS = {
+  DEEPSEEK_UNCONFIGURED: "briefingUnavailable", DEEPSEEK_401: "briefingAuth", DEEPSEEK_402: "briefingBalance",
+  DEEPSEEK_429: "briefingRateLimit", DEEPSEEK_TIMEOUT: "briefingTimeout", BRIEFING_BUSY: "briefingBusy"
+};
 const POSITIONING_STORAGE_KEY = "crypto-signal-tracker:positioning-v1";
 const $ = (selector) => document.querySelector(selector);
 
@@ -424,6 +433,7 @@ function render() {
   renderSections(data);
   renderTracker(data);
   renderBriefing(data);
+  renderAiBriefing();
   bindIndicatorTooltips();
   renderEtfArchive();
   $("#browserStorageNotice").hidden = !browserNoticeKey;
@@ -443,7 +453,8 @@ async function api(url, options = {}) {
     const payload = await response.json();
     if (!response.ok) {
       const busy = payload.code === "DASHBOARD_WRITE_BUSY";
-      throw Object.assign(new Error(t(language, busy ? "writeBusy" : "requestFailed")), { code: busy ? "DASHBOARD_WRITE_BUSY" : "REQUEST_FAILED" });
+      const code = busy || Object.hasOwn(BRIEFING_ERRORS, payload.code) ? payload.code : "REQUEST_FAILED";
+      throw Object.assign(new Error(t(language, busy ? "writeBusy" : "requestFailed")), { code });
     }
     return payload;
   } catch (error) {
@@ -517,7 +528,11 @@ async function refreshLocalWithProgress() {
 }
 
 async function refreshData({ automatic = false } = {}) {
-  if (refreshState) return;
+  refreshPromise ??= performRefresh({ automatic }).finally(() => { refreshPromise = null; });
+  return refreshPromise;
+}
+
+async function performRefresh({ automatic }) {
   const button = $("#refreshButton");
   if (!dashboard) {
     showToast(t(language, "loadingDashboard"), "warning");
@@ -584,6 +599,60 @@ async function refreshData({ automatic = false } = {}) {
     refreshState = null;
     document.querySelectorAll(".task-refresh-status").forEach(node => node.remove());
     renderRefreshProgress();
+  }
+}
+
+function briefingTimestamp(report) {
+  const format = new Intl.DateTimeFormat(language === "en" ? "en-GB" : "zh-CN", {
+    dateStyle: "short", timeStyle: "short", timeZone: "Asia/Shanghai"
+  });
+  return t(language, "briefingTime", {
+    checked: format.format(new Date(report.checkedAt)),
+    generated: format.format(new Date(report.generatedAt))
+  });
+}
+
+function renderAiBriefing() {
+  const button = $("#updateBriefingButton");
+  button.disabled = !dashboard || !HAS_AI_BRIEFING || briefingPending;
+  button.textContent = t(language, "updateBriefing");
+  const status = HAS_AI_BRIEFING ? briefingStatus : "briefingUnavailable";
+  $("#briefingStatus").textContent = status ? t(language, status) : "";
+  const panel = $("#aiBriefing");
+  panel.hidden = aiBriefing?.language !== language;
+  if (panel.hidden) return;
+  $("#aiBriefingTitle").textContent = t(language, "briefingTitle");
+  $("#aiBriefingTime").textContent = briefingTimestamp(aiBriefing);
+  $("#aiBriefingSections").replaceChildren(...Object.entries(aiBriefing.sections).flatMap(([key, value]) => {
+    const title = document.createElement("dt");
+    const description = document.createElement("dd");
+    title.textContent = t(language, `briefing_${key}`);
+    description.textContent = value;
+    return [title, description];
+  }));
+}
+
+async function updateBriefing() {
+  if (!HAS_AI_BRIEFING || briefingPending || !dashboard) return;
+  const requestedLanguage = language;
+  briefingPending = true;
+  briefingStatus = "briefingRefreshing";
+  renderAiBriefing();
+  try {
+    await refreshData();
+    briefingStatus = "briefingGenerating";
+    renderAiBriefing();
+    aiBriefing = await api("/api/briefing", {
+      method: "POST", body: JSON.stringify({ language: requestedLanguage }),
+      signal: AbortSignal.timeout(50_000)
+    });
+    briefingStatus = "";
+  } catch (error) {
+    briefingStatus = Object.hasOwn(BRIEFING_ERRORS, error.code) ? BRIEFING_ERRORS[error.code]
+      : error.name === "TimeoutError" ? "briefingTimeout" : "briefingFailed";
+  } finally {
+    briefingPending = false;
+    renderAiBriefing();
   }
 }
 
@@ -897,8 +966,12 @@ function buildReport() {
 
 async function copyReport() {
   try {
-    await navigator.clipboard.writeText(buildReport());
-    showToast(language === "en" ? "Report copied" : "日报全文已复制", "success");
+    const brief = aiBriefing?.language === language
+      ? [t(language, "briefingTitle"), briefingTimestamp(aiBriefing),
+        ...Object.entries(aiBriefing.sections).map(([key, value]) => `${t(language, `briefing_${key}`)}\n${value}`)].join("\n\n")
+      : "";
+    await navigator.clipboard.writeText([brief, buildReport()].filter(Boolean).join("\n\n"));
+    showToast(language === "en" ? "Report copied" : "全文已复制", "success");
   } catch {
     showToast(language === "en" ? "Copy failed. Check browser permissions." : "复制失败，请检查浏览器权限", "error");
   }
@@ -919,6 +992,7 @@ async function init() {
     $("#snapshotButton").hidden = true;
     IS_LOCAL_MAINTENANCE = await detectLocalMaintenance(location, globalThis.fetch, { onCapabilities: value => {
       HAS_LOCAL_REFRESH_PROGRESS = value.maintenance?.refreshProgress === true;
+      HAS_AI_BRIEFING = value.maintenance?.briefing === true;
     } });
     dashboard = await api(IS_LOCAL_MAINTENANCE ? "/api/dashboard" : `./dashboard.json?v=${Date.now()}`);
     publishedPositioningCard = cloneValue(dashboard.cards.find((item) => item.id === 9));
@@ -953,6 +1027,7 @@ async function init() {
 }
 
 $("#refreshButton").addEventListener("click", refreshData);
+$("#updateBriefingButton").addEventListener("click", updateBriefing);
 $("#languageButton").addEventListener("click", () => {
   language = language === "zh" ? "en" : "zh";
   let persisted = true;
