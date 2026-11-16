@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { gitBlobSha, planPublication, PROTECTED_DATA_FILES } from "./publish-merge.mjs";
 import { collectPublicationFiles } from "./publish-files.mjs";
 import { withWriteLock } from "./write-lock.mjs";
+import { briefingApiOrigin, validateBriefingReport } from "../briefing-state.js";
 
 const OWNER = "hsnbrg2022";
 const REPO = "hsnbrg2022.github.io";
@@ -160,9 +161,13 @@ async function writeAtomic(file, content) {
   await rename(temporaryFile, file);
 }
 
-async function finishSynchronization(plannedFiles, remoteBlobShas, commitSha) {
+async function finishSynchronization(plannedFiles, remoteBlobShas, commitSha, scopedBaseline) {
   const backupRoot = path.join(STATE_DIR, ".publish-backups", `${Date.now()}-${randomUUID()}`);
-  const baseline = { version: 1, target: TARGET, commit: commitSha, files: Object.fromEntries(remoteBlobShas), data: {} };
+  const baseline = {
+    version: 1, target: TARGET, commit: commitSha,
+    files: scopedBaseline ? { ...scopedBaseline.files } : Object.fromEntries(remoteBlobShas),
+    data: { ...scopedBaseline?.data }
+  };
   let concurrentEdit = false;
   for (const file of plannedFiles) {
     baseline.files[file.relativePath] = file.sha;
@@ -192,9 +197,10 @@ async function finishSynchronization(plannedFiles, remoteBlobShas, commitSha) {
   else console.warn("发布期间检测到本地维护，保留原同步基线供下次三方合并。");
 }
 
-async function publish(files, token, message) {
+async function publish(files, token, message, briefingContent) {
   console.warn("已获取共享写入锁；发布期间本地保存将提示忙碌，只读预览仍可使用。");
   const baseline = await readBaseline();
+  if (briefingContent && !baseline?.files["briefing.json"]) throw new Error("请先按正常发布流程同步研判配置");
   const reference = await githubRequest(token, `/git/ref/heads/${BRANCH}`);
   const parentSha = reference.object.sha;
   const parentCommit = await githubRequest(token, `/git/commits/${parentSha}`);
@@ -211,7 +217,8 @@ async function publish(files, token, message) {
   const localFiles = await Promise.all(
     files.map(async (file) => {
       const content = await readFile(file.absolutePath);
-      return { ...file, content, sha: gitBlobSha(content) };
+      const selected = briefingContent ?? content;
+      return { ...file, content: selected, sha: gitBlobSha(selected), originalSha: gitBlobSha(content) };
     }),
   );
   const remoteFiles = new Map();
@@ -227,13 +234,26 @@ async function publish(files, token, message) {
     }
     remoteFiles.set(file.relativePath, { sha, content });
   });
+  if (briefingContent) {
+    const published = remoteFiles.get("briefing.json");
+    if (!published || JSON.parse(published.content).apiOrigin !== JSON.parse(briefingContent).apiOrigin) {
+      throw new Error("请先同步已配置的公开研判入口");
+    }
+  }
   const plannedFiles = planPublication(localFiles, remoteFiles, baseline);
+  if (briefingContent) {
+    if (plannedFiles.length !== 1 || plannedFiles[0].relativePath !== "briefing.json"
+      || !plannedFiles[0].content.equals(briefingContent)) throw new Error("研判快照或配置发生并发修改");
+    // The merge compares against the proposed snapshot, but synchronization
+    // must compare against what was actually on disk when publication began.
+    plannedFiles[0].originalSha = localFiles[0].originalSha;
+  }
   const changedFiles = plannedFiles.filter(
     ({ relativePath, sha }) => remoteBlobShas.get(relativePath) !== sha,
   );
 
   if (changedFiles.length === 0) {
-    await finishSynchronization(plannedFiles, remoteBlobShas, parentSha);
+    await finishSynchronization(plannedFiles, remoteBlobShas, parentSha, briefingContent ? baseline : undefined);
     console.log("GitHub 已是最新版本，无需提交。");
     return;
   }
@@ -268,8 +288,23 @@ async function publish(files, token, message) {
 
   console.log(`同步完成：${commit.html_url}`);
   console.log(`本次上传：${changedFiles.map((file) => file.relativePath).join("、")}`);
-  try { await finishSynchronization(plannedFiles, remoteBlobShas, commit.sha); }
+  try { await finishSynchronization(plannedFiles, remoteBlobShas, commit.sha, briefingContent ? baseline : undefined); }
   catch (error) { throw new Error(`GitHub 已提交 ${commit.sha}，但本地回收或基线保存失败：${error.message}`); }
+}
+
+// Called by the isolated public briefing server. Its input cannot select files,
+// credentials, branches or commit metadata.
+export async function publishBriefingReport(report, apiOrigin) {
+  const validated = validateBriefingReport(report);
+  if (!validated || !briefingApiOrigin(apiOrigin)) throw new Error("无效研判快照");
+  return withWriteLock(LOCK_FILE, async () => {
+    const files = await collectPublicationFiles(ROOT);
+    const file = files.find(item => item.relativePath === "briefing.json");
+    const current = JSON.parse(await readFile(file.absolutePath, "utf8"));
+    if (current.schemaVersion !== 1 || current.apiOrigin !== apiOrigin) throw new Error("研判服务地址已更改，请重启服务");
+    const content = Buffer.from(`${JSON.stringify({ schemaVersion: 1, apiOrigin, report: validated }, null, 2)}\n`);
+    await publish([file], readToken(), "Update public DeepSeek market outlook", content);
+  });
 }
 
 async function main() {

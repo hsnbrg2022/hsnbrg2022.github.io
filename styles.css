@@ -228,6 +228,7 @@ a { color: inherit; }
 .briefing-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .briefing-status { margin: 0 0 14px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .briefing-status:empty { display: none; }
+.briefing-expired { color: var(--gold); }
 .briefing h2 { font-size: 32px; margin: 9px 0 0; letter-spacing: -.04em; }
 .briefing-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 14px; }
 .briefing article { border: 1px solid var(--line); border-radius: var(--radius); background: rgba(16,20,21,.78); padding: 25px; }

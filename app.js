@@ -6,7 +6,8 @@ import { detectLocalMaintenance } from "./maintenance-mode.js?v=20261023-local-p
 import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261114-mnav-copy";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
-import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261116-briefing";
+import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261116-public-briefing";
+import { briefingApiOrigin, validateBriefingReport } from "./briefing-state.js?v=20261116-public-briefing";
 
 const SECTION_META = {
   capital: { number: "01", titleKey: "capital", subtitleKey: "capitalSub", accent: "mint" },
@@ -38,9 +39,13 @@ let refreshPromise;
 let aiBriefing;
 let briefingPending = false;
 let briefingStatus = "";
+let publicBriefingOrigin;
+let publicBriefingRemaining = null;
+let briefingExpiryTimer;
 const BRIEFING_ERRORS = {
   DEEPSEEK_UNCONFIGURED: "briefingUnavailable", DEEPSEEK_401: "briefingAuth", DEEPSEEK_402: "briefingBalance",
-  DEEPSEEK_429: "briefingRateLimit", DEEPSEEK_TIMEOUT: "briefingTimeout", BRIEFING_BUSY: "briefingBusy"
+  DEEPSEEK_429: "briefingRateLimit", DEEPSEEK_TIMEOUT: "briefingTimeout", BRIEFING_BUSY: "briefingBusy",
+  BRIEFING_QUOTA: "briefingQuota", BRIEFING_COOLDOWN: "briefingCooldown"
 };
 const POSITIONING_STORAGE_KEY = "crypto-signal-tracker:positioning-v1";
 const $ = (selector) => document.querySelector(selector);
@@ -608,21 +613,41 @@ function briefingTimestamp(report) {
   });
   return t(language, "briefingTime", {
     checked: format.format(new Date(report.checkedAt)),
-    generated: format.format(new Date(report.generatedAt))
+    generated: format.format(new Date(report.generatedAt)),
+    expires: format.format(new Date(report.expiresAt))
   });
+}
+
+function useBriefingReport(value) {
+  const report = validateBriefingReport(value);
+  if (!report || (aiBriefing && report.generatedAt < aiBriefing.generatedAt)) return;
+  aiBriefing = report;
+  clearTimeout(briefingExpiryTimer);
+  const untilExpiry = Date.parse(report.expiresAt) - Date.now();
+  if (untilExpiry > 0) briefingExpiryTimer = setTimeout(renderAiBriefing, untilExpiry);
+}
+
+function briefingReportVisible() {
+  return aiBriefing && (!IS_LOCAL_MAINTENANCE || aiBriefing.language === language);
 }
 
 function renderAiBriefing() {
   const button = $("#updateBriefingButton");
-  button.disabled = !dashboard || !HAS_AI_BRIEFING || briefingPending;
+  button.disabled = !dashboard || !(HAS_AI_BRIEFING || publicBriefingOrigin) || briefingPending;
   button.textContent = t(language, "updateBriefing");
-  const status = HAS_AI_BRIEFING ? briefingStatus : "briefingUnavailable";
-  $("#briefingStatus").textContent = status ? t(language, status) : "";
+  const status = briefingStatus || (!(HAS_AI_BRIEFING || publicBriefingOrigin) ? "briefingUnavailable" : "");
+  $("#briefingStatus").textContent = [
+    status && t(language, status),
+    publicBriefingRemaining !== null && t(language, "briefingRemaining", { count: publicBriefingRemaining })
+  ].filter(Boolean).join(" · ");
   const panel = $("#aiBriefing");
-  panel.hidden = aiBriefing?.language !== language;
+  panel.hidden = !briefingReportVisible();
   if (panel.hidden) return;
   $("#aiBriefingTitle").textContent = t(language, "briefingTitle");
-  $("#aiBriefingTime").textContent = briefingTimestamp(aiBriefing);
+  const expired = Date.parse(aiBriefing.expiresAt) <= Date.now();
+  $("#aiBriefingTime").textContent = [briefingTimestamp(aiBriefing), expired && t(language, "briefingExpired")].filter(Boolean).join(" · ");
+  $("#aiBriefingTime").classList.toggle("briefing-expired", expired);
+  $("#aiBriefingSections").lang = aiBriefing.language === "en" ? "en" : "zh-CN";
   $("#aiBriefingSections").replaceChildren(...Object.entries(aiBriefing.sections).flatMap(([key, value]) => {
     const title = document.createElement("dt");
     const description = document.createElement("dd");
@@ -632,24 +657,74 @@ function renderAiBriefing() {
   }));
 }
 
+async function requestPublicBriefing(requestedLanguage) {
+  const endpoint = new URL("/briefing", publicBriefingOrigin);
+  if (requestedLanguage) endpoint.searchParams.set("lang", requestedLanguage);
+  const response = await fetch(endpoint, {
+    method: requestedLanguage ? "POST" : "GET",
+    headers: requestedLanguage ? { "content-type": "application/json" } : undefined,
+    cache: "no-store", credentials: "omit", redirect: "error", signal: AbortSignal.timeout(6_000)
+  });
+  const result = await response.json();
+  publicBriefingRemaining = Number.isInteger(result.remaining) && result.remaining >= 0 && result.remaining <= 10 ? result.remaining : null;
+  if (!response.ok || result.phase === "failed") throw Object.assign(new Error("Briefing unavailable"), { code: result.code });
+  return result;
+}
+
+async function loadPublicBriefing() {
+  try {
+    const snapshot = await api(`./briefing.json?v=${Date.now()}`);
+    if (snapshot?.schemaVersion !== 1) return;
+    publicBriefingOrigin = briefingApiOrigin(snapshot.apiOrigin);
+    useBriefingReport(snapshot.report);
+    renderAiBriefing();
+  } catch { return; }
+  if (!publicBriefingOrigin) return;
+  try {
+    const result = await requestPublicBriefing();
+    useBriefingReport(result.report);
+  } catch (error) {
+    if (!briefingPending) briefingStatus = BRIEFING_ERRORS[error.code] || (error.code ? "briefingFailed" : "briefingOffline");
+  }
+  if (!briefingPending) renderAiBriefing();
+}
+
 async function updateBriefing() {
-  if (!HAS_AI_BRIEFING || briefingPending || !dashboard) return;
+  if (!(HAS_AI_BRIEFING || publicBriefingOrigin) || briefingPending || !dashboard) return;
+  if (publicBriefingOrigin && aiBriefing && Date.parse(aiBriefing.expiresAt) > Date.now()) {
+    if (!briefingStatus) briefingStatus = "briefingReused";
+    renderAiBriefing();
+    return;
+  }
   const requestedLanguage = language;
   briefingPending = true;
   briefingStatus = "briefingRefreshing";
   renderAiBriefing();
   try {
-    await refreshData();
-    briefingStatus = "briefingGenerating";
-    renderAiBriefing();
-    aiBriefing = await api("/api/briefing", {
-      method: "POST", body: JSON.stringify({ language: requestedLanguage }),
-      signal: AbortSignal.timeout(50_000)
-    });
+    if (publicBriefingOrigin) {
+      let result = await requestPublicBriefing(requestedLanguage);
+      const deadline = Date.now() + 150_000;
+      while (result.phase === "running" && Date.now() < deadline) {
+        briefingStatus = "briefingGenerating";
+        renderAiBriefing();
+        await new Promise(resolve => setTimeout(resolve, 2_000));
+        result = await requestPublicBriefing();
+      }
+      if (result.phase === "running") throw Object.assign(new Error("Briefing still running"), { code: "BRIEFING_BUSY" });
+      useBriefingReport(result.report);
+    } else {
+      await refreshData();
+      briefingStatus = "briefingGenerating";
+      renderAiBriefing();
+      useBriefingReport(await api("/api/briefing", {
+        method: "POST", body: JSON.stringify({ language: requestedLanguage }),
+        signal: AbortSignal.timeout(50_000)
+      }));
+    }
     briefingStatus = "";
   } catch (error) {
     briefingStatus = Object.hasOwn(BRIEFING_ERRORS, error.code) ? BRIEFING_ERRORS[error.code]
-      : error.name === "TimeoutError" ? "briefingTimeout" : "briefingFailed";
+      : publicBriefingOrigin && !error.code ? "briefingOffline" : error.name === "TimeoutError" ? "briefingTimeout" : "briefingFailed";
   } finally {
     briefingPending = false;
     renderAiBriefing();
@@ -966,7 +1041,7 @@ function buildReport() {
 
 async function copyReport() {
   try {
-    const brief = aiBriefing?.language === language
+    const brief = briefingReportVisible()
       ? [t(language, "briefingTitle"), briefingTimestamp(aiBriefing),
         ...Object.entries(aiBriefing.sections).map(([key, value]) => `${t(language, `briefing_${key}`)}\n${value}`)].join("\n\n")
       : "";
@@ -1009,6 +1084,7 @@ async function init() {
     // Show the saved dashboard before the optional ETF history request settles.
     // Keep its original timestamps; only the subsequent refresh reports new checks.
     render();
+    if (!IS_LOCAL_MAINTENANCE) void loadPublicBriefing();
     try {
       const etfResult = IS_LOCAL_MAINTENANCE
         ? await api("/api/etf-flows")
