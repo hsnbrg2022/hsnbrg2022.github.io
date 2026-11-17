@@ -3,12 +3,12 @@
   "asset": "BTC",
   "unit": "USD_MILLIONS",
   "status": "snapshot",
-  "marketDate": "2026-11-12",
-  "generatedAt": "2026-11-17T02:56:29.751Z",
+  "marketDate": "2026-11-13",
+  "generatedAt": "2026-11-17T03:02:06.879Z",
   "source": {
-    "label": "Farside",
-    "url": "https://farside.co.uk/btc/",
-    "method": "manual-entry"
+    "label": "PANews / SoSoValue (rounded)",
+    "url": "https://www.panewslab.com/zh/articles/01a1d8aa-6253-74cd-91db-5fdc7604899b",
+    "method": "public-media"
   },
   "verificationSource": {
     "label": "SoSoValue",
@@ -457,6 +457,14 @@
       "method": "manual-entry",
       "maintainedAt": "2026-11-17T02:56:29.751Z",
       "previousFlowUsdMillions": -48
+    },
+    "2026-11-13": {
+      "method": "public-media",
+      "url": "https://www.panewslab.com/zh/articles/01a1d8aa-6253-74cd-91db-5fdc7604899b",
+      "publishedAt": "2026-11-14T06:06:49.885Z",
+      "revisedAt": "2026-11-14T06:06:49.901Z",
+      "reportedSource": "SoSoValue",
+      "precisionUsdMillions": 1
     }
   },
   "rows": [
@@ -711,6 +719,10 @@
     {
       "date": "2026-11-12",
       "flowUsdMillions": -284.1
+    },
+    {
+      "date": "2026-11-13",
+      "flowUsdMillions": -185
     }
   ]
 }
