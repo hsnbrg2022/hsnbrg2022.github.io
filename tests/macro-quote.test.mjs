@@ -1,30 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyMacroQuote, collectGoldSpot, goldSpotQuote } from "../macro-quote.js";
+import { applyMacroQuote } from "../macro-quote.js";
 import { translateText } from "../i18n.js";
 import { updateDxy } from "../public-refresh.js";
 import { cardQuality } from "../data-quality.js";
 
-test("黄金现货只与同源且已结算的前一日比较，日线不可用时只保留现价", async () => {
-  const now = new Date("2026-11-17T03:37:00Z");
-  const load = bars => collectGoldSpot({ now, fetchImpl: async url => {
-    assert.equal(new URL(url).searchParams.get("symbol"), "XAU-USD-SPOT");
-    if (url.includes("/prices?")) return Response.json({ symbols: [{ symbol: "XAU", quote_currency: "USD",
-      unit: "troy_ounce", contract_type: "spot", price: "3874.14", computed_at: "2026-11-17T03:22:00+00:00", is_stale: false }] });
-    return bars ? Response.json({ symbol: "XAU-USD-SPOT", interval: "1d", bars }) : new Response(null, { status: 429 });
-  } });
-  const bars = [
-    { bar_start: "2026-11-15T00:00:00Z", close: "3897.985", is_closed: true },
-    { bar_start: "2026-11-17T00:00:00Z", close: "3899", is_closed: true },
-    { bar_start: "2026-11-16T00:00:00Z", close: "3860.705", is_closed: true }
-  ];
-  const quote = goldSpotQuote(await load(bars), now);
-  assert.equal(quote.comparisonAsOf, "2026-11-16");
-  assert.equal(quote.changeBasis, "daily-reference");
-  assert.equal(quote.change.toFixed(2), "0.35");
-  const fallback = goldSpotQuote(await load(null), now);
-  assert.equal(fallback.price, 3874.14);
-  assert.equal(fallback.change, null);
+test("同源日终比较字段可独立呈现，现价降级清除旧比较", () => {
+  const card = { id: 6, shortName: "黄金" };
+  const quote = { price: 3874.14, instrument: "XAU-USD-SPOT", fetchedLabel: "2026-11-17T03:22:00Z" };
+  applyMacroQuote(card, { ...quote, change: 0.35, changeBasis: "daily-reference", comparisonAsOf: "2026-11-16" }, { id: 6 });
+  assert.match(card.headline, /较上个日终 \+0.35%/);
+  assert.deepEqual(card.marketQuote.comparison, { kind: "daily-reference", asOf: "2026-11-16" });
+  applyMacroQuote(card, quote, { id: 6 });
+  assert.equal(card.marketQuote.comparison, null);
+  assert.doesNotMatch(card.headline, /较上个日终/);
 });
 
 test("黄金新观测覆盖旧dataAsOf，无日期切源不会继承旧日期", () => {

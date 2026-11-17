@@ -3,7 +3,7 @@ import { DAILY_BASELINE_KEY, dailyBaselineView, saveDailyBaseline } from "./dail
 import { mnavBasisQuality, mnavHealthRows } from "./mnav-source.js?v=20261114-mnav-copy";
 import { etfHealthRows } from "./etf-health.js?v=20261003-health";
 import { detectLocalMaintenance } from "./maintenance-mode.js?v=20261023-local-progress";
-import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261117-gold-spot";
+import { applyEtfDatasetToDashboard, refreshPublicDashboard } from "./public-refresh.js?v=20261117-gold-terms";
 import { nextEtfTradingDate } from "./scripts/manual-etf-flow.mjs?v=20260906-5";
 import { ETF_STORAGE_KEY, ETF_LEGACY_KEY, emptyEtfEdits, readEtfEdits, saveEtfEdit, mergeEtfEdits, migrateEtfSelection } from "./etf-overrides.js?v=20260906-5";
 import { LANGUAGE_STORAGE_KEY, getInitialLanguage, indicatorHelp, indicatorHelpKeyForCard, indicatorHelpKeyForFact, localizeDashboard, statusLabel, t, translateMode, translateText, btcChangePresentation, btcPricePresentation, fearGreedNote } from "./i18n.js?v=20261117-gold-spot";

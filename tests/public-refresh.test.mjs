@@ -190,22 +190,22 @@ test("公开黄金同价重复刷新保持观察，不从旧文案制造涨跌�
   assert.match(after.headline, /涨跌基准暂不可用/);
 });
 
-test("公开黄金优先使用服务端同源快照并展示比较日期", async (t) => {
-  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-11-17T03:37:00Z") });
+test("公开黄金只向固定现货显示地址取数，不请求旧黄金转发", async () => {
   const dashboard = JSON.parse(await readFile(dashboardPath, "utf8"));
+  const calls = [];
   const { data } = await refreshPublicDashboard(dashboard, { fetchImpl: async url => {
-    if (url === "./briefing.json") return response({ schemaVersion: 1, apiOrigin: "https://prices.example.test" });
-    if (url === "https://prices.example.test/briefing?resource=gold") return response({
-      schemaVersion: 1, instrument: "XAU-USD-SPOT", price: 3874.14, observedAt: "2026-11-17T03:22:00Z",
-      reference: { date: "2026-11-16", price: 3860.705 }
+    calls.push(url);
+    if (url === "https://api.gold-api.com/price/XAU") return response({
+      price: 3874.14, updatedAt: "2026-11-17T03:22:00Z"
     });
     throw new Error("unavailable");
   } });
   const gold = data.cards.find(card => card.id === 6);
-  assert.match(gold.headline, /较上个日终 \+0.35%/);
-  assert.deepEqual(gold.marketQuote.comparison, { kind: "daily-reference", asOf: "2026-11-16" });
-  assert.ok(gold.facts.includes("日终基准 2026-11-16 UTC"));
-  assert.ok(gold.facts.some(fact => fact.includes("延迟约 15 分钟")));
+  assert.equal(calls.filter(url => /gold|briefing/.test(url)).length, 1);
+  assert.equal(gold.source.label, "Gold API");
+  assert.equal(gold.marketQuote.price, 3874.14);
+  assert.equal(gold.marketQuote.comparison, null);
+  assert.match(gold.headline, /涨跌基准暂不可用/);
 });
 
 test("Fed 成功读取过期快照仍保留 stale，读取近期快照才恢复 ok", async (t) => {

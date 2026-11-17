@@ -9,8 +9,9 @@ import { applyFedDatasetToDashboard } from "./fed-signals.js?v=20260829-1";
 import { updateTrueMarketMeanFromSnapshot } from "./true-market-mean.js?v=20261004-onchain";
 import { updateMnavFromSnapshot } from "./mnav-source.js?v=20261114-mnav-copy";
 import { updateOnchainFromSnapshot } from "./onchain-source.js?v=20261030-mvrv";
-import { applyMacroQuote, goldSpotQuote } from "./macro-quote.js?v=20261117-gold-spot";
-import { briefingApiOrigin } from "./briefing-state.js?v=20261116-public-briefing";
+import { applyMacroQuote } from "./macro-quote.js?v=20261117-gold-terms";
+
+export const GOLD_DISPLAY_URL = "https://api.gold-api.com/price/XAU";
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -273,34 +274,16 @@ export async function updateDxy(data, fetchImpl) {
   return applyMacroQuote(card(data, 5), quote, { id: 5 });
 }
 
-async function updateMacroQuote(data, fetchImpl, { id, prefix = "" }) {
-  if (id === 5) return updateDxy(data, fetchImpl);
-  const target = card(data, id);
-  const providers = [
-    {
-      name: "GoldPrice.dev",
-      url: "https://goldprice.dev/prices/xau-usd",
-      load: async () => {
-        const config = await fetchJson("./briefing.json", fetchImpl, 1800);
-        const origin = config?.schemaVersion === 1 && briefingApiOrigin(config.apiOrigin);
-        if (!origin) throw new Error("黄金服务尚未配置");
-        const snapshot = await fetchJson(`${origin}/briefing?resource=gold`, fetchImpl, 4500);
-        return goldSpotQuote(snapshot);
-      }
-    },
-    {
-      name: "Gold API",
-      url: "https://gold-api.com/",
-      load: async () => {
-        const payload = await fetchJson("https://api.gold-api.com/price/XAU", fetchImpl);
-        return { price: Number(payload.price), change: null, instrument: "XAU-USD-SPOT", fetchedLabel: payload.updatedAt };
-      }
+export async function updateGold(data, fetchImpl) {
+  const quote = await firstProvider([{
+    name: "Gold API",
+    url: "https://gold-api.com/",
+    load: async () => {
+      const payload = await fetchJson(GOLD_DISPLAY_URL, fetchImpl);
+      return { price: Number(payload.price), change: null, instrument: "XAU-USD-SPOT", fetchedLabel: payload.updatedAt };
     }
-  ];
-
-  const quote = await firstProvider(providers, (value) =>
-    Number.isFinite(value.price) && value.price > 0 && (value.change === null || Number.isFinite(value.change)));
-  return applyMacroQuote(target, quote, { id, prefix });
+  }], value => Number.isFinite(value.price) && value.price > 0);
+  return applyMacroQuote(card(data, 6), quote, { id: 6, prefix: "$" });
 }
 
 const updateWma = (data, fetchImpl) => updateWeeklyMean(data, fetchImpl, new Date(), { snapshotFirst: true });
@@ -318,8 +301,8 @@ export async function refreshPublicDashboard(input, { fetchImpl = globalThis.fet
     ["稳定币", () => updateStablecoins(data, fetchImpl)],
     ["Fed", () => updateFed(data, fetchImpl)],
     ["True Market Mean", () => updateTrueMarketMean(data, fetchImpl)],
-    ["DXY", () => updateMacroQuote(data, fetchImpl, { id: 5 })],
-    ["黄金", () => updateMacroQuote(data, fetchImpl, { id: 6, prefix: "$" })],
+    ["DXY", () => updateDxy(data, fetchImpl)],
+    ["黄金", () => updateGold(data, fetchImpl)],
     ["200WMA", () => updateWma(data, fetchImpl)]
   ];
 
