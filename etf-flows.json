@@ -4,15 +4,15 @@
   "unit": "USD_MILLIONS",
   "status": "snapshot",
   "marketDate": "2026-11-12",
-  "generatedAt": "2026-11-13T08:07:27.652Z",
+  "generatedAt": "2026-11-17T02:56:29.751Z",
   "source": {
-    "label": "Daily Market Report / Farside (rounded)",
-    "url": "https://www.dailymarket.report/index.html",
-    "method": "public-media"
+    "label": "Farside",
+    "url": "https://farside.co.uk/btc/",
+    "method": "manual-entry"
   },
   "verificationSource": {
-    "label": "Farside",
-    "url": "https://farside.co.uk/btc/"
+    "label": "SoSoValue",
+    "url": "https://sosovalue.com/zh/assets/etf/us-btc-spot"
   },
   "recordOrigins": {
     "2026-08-17": {
@@ -452,12 +452,11 @@
       "precisionUsdMillions": 1
     },
     "2026-11-12": {
-      "method": "public-media",
-      "url": "https://www.dailymarket.report/index.html",
-      "reportedSource": "Farside Investors",
-      "revisedAt": "2026-11-13T05:03:00.000Z",
-      "rounded": true,
-      "precisionUsdMillions": 1
+      "label": "Farside",
+      "url": "https://farside.co.uk/btc/",
+      "method": "manual-entry",
+      "maintainedAt": "2026-11-17T02:56:29.751Z",
+      "previousFlowUsdMillions": -48
     }
   },
   "rows": [
@@ -711,7 +710,7 @@
     },
     {
       "date": "2026-11-12",
-      "flowUsdMillions": -48
+      "flowUsdMillions": -284.1
     }
   ]
 }
