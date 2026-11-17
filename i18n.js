@@ -441,6 +441,8 @@ export function translateText(value, language) {
     .replace(/较基准回落/g, "Lower vs reference")
     .replace(/黄金期货/g, "Gold futures")
     .replace(/黄金现货/g, "Spot gold")
+    .replace(/报价 (.*?) 北京时间（延迟约 15 分钟）/g, "Quote $1 Beijing time (about 15 min delayed)")
+    .replace(/日终基准 (\d{4}-\d{2}-\d{2}) UTC/g, "Daily reference $1 UTC")
     .replace(/\$([\d,.]+)\s*亿/g, (_, number) => `$${(Number(number.replaceAll(",", "")) / 10).toLocaleString("en-US", { maximumFractionDigits: 1 })}B`)
     .replace(/连续\s*(\d+)\s*日净流入/g, "$1 consecutive days of net inflows")
     .replace(/连续\s*(\d+)\s*日净流出/g, "$1 consecutive days of net outflows")

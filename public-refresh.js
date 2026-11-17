@@ -9,7 +9,8 @@ import { applyFedDatasetToDashboard } from "./fed-signals.js?v=20260829-1";
 import { updateTrueMarketMeanFromSnapshot } from "./true-market-mean.js?v=20261004-onchain";
 import { updateMnavFromSnapshot } from "./mnav-source.js?v=20261114-mnav-copy";
 import { updateOnchainFromSnapshot } from "./onchain-source.js?v=20261030-mvrv";
-import { applyMacroQuote } from "./macro-quote.js?v=20261023-gold";
+import { applyMacroQuote, goldSpotQuote } from "./macro-quote.js?v=20261117-gold-spot";
+import { briefingApiOrigin } from "./briefing-state.js?v=20261116-public-briefing";
 
 const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -76,9 +77,9 @@ async function updateTrueMarketMean(data, fetchImpl) {
   return updateTrueMarketMeanFromSnapshot(data, fetchImpl);
 }
 
-async function fetchJson(url, fetchImpl) {
+async function fetchJson(url, fetchImpl, timeoutMs = REQUEST_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetchImpl(url, {
       cache: "no-store",
@@ -277,20 +278,22 @@ async function updateMacroQuote(data, fetchImpl, { id, prefix = "" }) {
   const target = card(data, id);
   const providers = [
     {
+      name: "GoldPrice.dev",
+      url: "https://goldprice.dev/prices/xau-usd",
+      load: async () => {
+        const config = await fetchJson("./briefing.json", fetchImpl, 1800);
+        const origin = config?.schemaVersion === 1 && briefingApiOrigin(config.apiOrigin);
+        if (!origin) throw new Error("黄金服务尚未配置");
+        const snapshot = await fetchJson(`${origin}/briefing?resource=gold`, fetchImpl, 4500);
+        return goldSpotQuote(snapshot);
+      }
+    },
+    {
       name: "Gold API",
       url: "https://gold-api.com/",
       load: async () => {
         const payload = await fetchJson("https://api.gold-api.com/price/XAU", fetchImpl);
         return { price: Number(payload.price), change: null, instrument: "XAU-USD-SPOT", fetchedLabel: payload.updatedAt };
-      }
-    },
-    {
-      name: "GoldPrice.dev",
-      url: "https://goldprice.dev/",
-      load: async () => {
-        const payload = await fetchJson("https://api.goldprice.dev/v1/prices?symbol=XAU-USD-SPOT", fetchImpl);
-        const row = payload.symbols?.[0];
-        return { price: Number(row?.price), change: null, instrument: "XAU-USD-SPOT", fetchedLabel: row?.computed_at };
       }
     }
   ];
