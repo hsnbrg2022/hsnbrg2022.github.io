@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "collector": "etf-flows",
   "execution": "github-actions",
-  "checkedAt": "2026-11-19T08:52:31.697Z",
+  "checkedAt": "2026-11-19T18:22:23.139Z",
   "status": "failed",
   "lastSuccessAt": "2026-11-17T09:17:59.255Z",
   "snapshotChanged": null,
-  "errorCode": "upstream_unavailable",
+  "errorCode": "validation_failed",
   "completeness": null
 }
